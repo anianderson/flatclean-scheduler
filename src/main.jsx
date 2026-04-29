@@ -30,11 +30,10 @@ const translations = {
     nextTasks: 'Next tasks',
     nextTasksHelp: 'Upcoming, overdue and on-demand cleaning work.',
     markDone: 'Mark done',
-    markDoneHelp: 'Enter who actually completed the task and on which date.',
+    markDoneHelp: 'Enter the task and date. It will be saved under your logged-in profile.',
     recentLog: 'Recent log',
     recentLogHelp: 'Latest completed cleaning entries.',
     task: 'Task',
-    person: 'Person who did it',
     dateDone: 'Date done',
     note: 'Note',
     optional: 'Optional',
@@ -54,7 +53,6 @@ const translations = {
     binFull: 'Bin is full / needs cleaning',
     linkedDeep: 'Bundled with deep water cleaning on this date.',
     deepIncludesVacuum: 'This task includes vacuum cleaning on the same day.',
-    hiddenBecauseBundled: 'Vacuum is bundled into deep water cleaning for this cycle.',
     didVacuumQuestion: 'Have you also vacuumed the flat?',
     didVacuumHelp:
       'Deep water cleaning usually needs vacuuming first. Select this only if vacuuming was actually done too.',
@@ -73,6 +71,14 @@ const translations = {
     close: 'Close',
     jumpTo: 'Jump to',
     selectPlaceholder: 'Select',
+    whoAreYou: 'Who are you?',
+    chooseProfile: 'Choose your profile once on this device.',
+    continueAs: 'Continue as',
+    loggedInAs: 'Logged in as',
+    switchUser: 'Switch user',
+    yourTask: 'Your task',
+    markingAs: 'This will be saved as',
+    noUserSelected: 'Please choose who you are first.',
     late: n => `${n} day${n === 1 ? '' : 's'} late`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -97,11 +103,10 @@ const translations = {
     nextTasks: 'Nächste Aufgaben',
     nextTasksHelp: 'Anstehende, überfällige und bedarfsabhängige Putzaufgaben.',
     markDone: 'Erledigt eintragen',
-    markDoneHelp: 'Trage ein, wer die Aufgabe wirklich erledigt hat und an welchem Datum.',
+    markDoneHelp: 'Wähle Aufgabe und Datum. Der Eintrag wird unter deinem Profil gespeichert.',
     recentLog: 'Letzte Einträge',
     recentLogHelp: 'Die neuesten erledigten Putzaufgaben.',
     task: 'Aufgabe',
-    person: 'Person, die es erledigt hat',
     dateDone: 'Erledigt am',
     note: 'Notiz',
     optional: 'Optional',
@@ -121,7 +126,6 @@ const translations = {
     binFull: 'Tonne ist voll / muss gereinigt werden',
     linkedDeep: 'In diesem Zyklus mit der Nassreinigung gebündelt.',
     deepIncludesVacuum: 'Diese Aufgabe enthält Staubsaugen am selben Tag.',
-    hiddenBecauseBundled: 'Staubsaugen ist in diesem Zyklus in der Nassreinigung enthalten.',
     didVacuumQuestion: 'Hast du auch staubgesaugt?',
     didVacuumHelp:
       'Vor der Nassreinigung sollte normalerweise staubgesaugt werden. Wähle dies nur aus, wenn Staubsaugen wirklich erledigt wurde.',
@@ -140,6 +144,14 @@ const translations = {
     close: 'Schließen',
     jumpTo: 'Springen zu',
     selectPlaceholder: 'Auswählen',
+    whoAreYou: 'Wer bist du?',
+    chooseProfile: 'Wähle dein Profil einmal auf diesem Gerät.',
+    continueAs: 'Weiter als',
+    loggedInAs: 'Angemeldet als',
+    switchUser: 'Benutzer wechseln',
+    yourTask: 'Deine Aufgabe',
+    markingAs: 'Dies wird gespeichert als',
+    noUserSelected: 'Bitte wähle zuerst aus, wer du bist.',
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -342,7 +354,6 @@ function shouldBundleVacuumWithDeep(vacuumRow, deepRow) {
   const gap = diffDays(vacuumRow.dueDate, deepRow.dueDate);
 
   if (gap === null) return false;
-
   if (vacuumRow.dueDate === deepRow.dueDate) return true;
 
   return gap >= 0 && gap <= FLOOR_MERGE_WINDOW_DAYS;
@@ -429,6 +440,9 @@ function App() {
   const lang = getLanguageFromSetting(languageSetting);
   const t = translations[lang];
 
+  const [currentUser, setCurrentUser] = useState(
+    localStorage.getItem('flatclean_user') || ''
+  );
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -438,13 +452,29 @@ function App() {
   const [includeVacuumWithDeep, setIncludeVacuumWithDeep] = useState(true);
   const [form, setForm] = useState({
     taskId: 'gas_stove',
-    person: 'Animesh',
     date: TODAY,
     note: ''
   });
 
+  const languageOptions = [
+    { value: 'auto', label: t.auto },
+    { value: 'de', label: t.german },
+    { value: 'en', label: t.english }
+  ];
+
   function taskLabel(task) {
     return t.taskNames[task.id] || task.name || task.id;
+  }
+
+  function chooseCurrentUser(person) {
+    const normalized = normalizeName(person);
+    localStorage.setItem('flatclean_user', normalized);
+    setCurrentUser(normalized);
+  }
+
+  function switchCurrentUser() {
+    localStorage.removeItem('flatclean_user');
+    setCurrentUser('');
   }
 
   function changeLanguage(value) {
@@ -579,9 +609,18 @@ function App() {
       }
     }
 
+    const activeUser = normalizeName(currentUser);
+
     return base
       .filter(row => !row.bundledIntoDeep)
       .sort((a, b) => {
+        const aMine = normalizeName(a.person) === activeUser;
+        const bMine = normalizeName(b.person) === activeUser;
+
+        if (aMine !== bMine) {
+          return aMine ? -1 : 1;
+        }
+
         if (a.task.type !== b.task.type) {
           return a.task.type === 'scheduled' ? -1 : 1;
         }
@@ -590,12 +629,17 @@ function App() {
           b.dueDate || '9999-12-31'
         );
       });
-  }, [data]);
+  }, [data, currentUser]);
 
   async function markDone() {
     try {
       setError('');
       setSuccess('');
+
+      if (!currentUser) {
+        setError(t.noUserSelected);
+        return;
+      }
 
       if (form.date > TODAY) {
         setError(t.futureDateError);
@@ -606,7 +650,7 @@ function App() {
 
       await apiPost('/api/log', {
         ...form,
-        person: normalizeName(form.person),
+        person: normalizeName(currentUser),
         includeAlsoLogs: form.taskId === 'deep_water' ? includeVacuumWithDeep : true
       });
 
@@ -643,16 +687,9 @@ function App() {
     label: taskLabel(task)
   }));
 
-  const personOptions = (data?.flatmates || []).map(person => ({
-    value: person,
-    label: normalizeName(person)
-  }));
-
-  const languageOptions = [
-    { value: 'auto', label: t.auto },
-    { value: 'de', label: t.german },
-    { value: 'en', label: t.english }
-  ];
+  const hasValidCurrentUser =
+    !!currentUser &&
+    !!data?.flatmates?.some(person => normalizeName(person) === normalizeName(currentUser));
 
   if (loading) {
     return (
@@ -666,6 +703,52 @@ function App() {
     return (
       <main className="page">
         <div className="card bad">{error || t.loadError}</div>
+      </main>
+    );
+  }
+
+  if (!hasValidCurrentUser) {
+    return (
+      <main className="page user-picker-page">
+        <section className="user-picker-card">
+          <div className="eyebrow">
+            <Sparkles size={16} />
+            {t.badge}
+          </div>
+
+          <h1>{t.whoAreYou}</h1>
+          <p className="sub">{t.chooseProfile}</p>
+
+          <div className="profile-grid">
+            {data.flatmates.map(person => (
+              <button
+                type="button"
+                key={person}
+                className="profile-card"
+                onClick={() => chooseCurrentUser(person)}
+              >
+                <span className="profile-avatar">
+                  {normalizeName(person).slice(0, 1)}
+                </span>
+                <span>
+                  {t.continueAs}
+                  <b>{normalizeName(person)}</b>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="profile-language">
+            <FancySelect
+              label=""
+              value={languageSetting}
+              onChange={changeLanguage}
+              options={languageOptions}
+              placeholder={t.auto}
+              className="language-fancy"
+            />
+          </div>
+        </section>
       </main>
     );
   }
@@ -741,6 +824,14 @@ function App() {
               className="language-fancy"
             />
 
+            <div className="session-pill">
+              <span>{t.loggedInAs}</span>
+              <b>{normalizeName(currentUser)}</b>
+              <button type="button" onClick={switchCurrentUser}>
+                {t.switchUser}
+              </button>
+            </div>
+
             <div className="today">
               <span>{t.today}</span>
               <b>{fmt(TODAY, '', lang)}</b>
@@ -774,14 +865,18 @@ function App() {
             <div className="task-list">
               {rows.map(row => {
                 const [label, tone] = status(row, data.fullBins || {}, t);
+                const isMine = normalizeName(row.person) === normalizeName(currentUser);
 
                 return (
                   <div
-                    className={`task ${row.bundledVacuumRow ? 'task-bundled' : ''}`}
+                    className={`task ${row.bundledVacuumRow ? 'task-bundled' : ''} ${isMine ? 'task-mine' : ''}`}
                     key={row.task.id}
                   >
                     <div className="task-main">
-                      <h3>{taskLabel(row.task)}</h3>
+                      <div className="task-title-row">
+                        <h3>{taskLabel(row.task)}</h3>
+                        {isMine && <span className="mine-badge">{t.yourTask}</span>}
+                      </div>
 
                       <p>
                         {t.lastDone}:{' '}
@@ -908,13 +1003,10 @@ function App() {
                   </div>
                 )}
 
-                <FancySelect
-                  label={t.person}
-                  value={form.person}
-                  onChange={value => setForm({ ...form, person: value })}
-                  options={personOptions}
-                  placeholder={t.selectPlaceholder}
-                />
+                <div className="marking-as">
+                  <span>{t.markingAs}</span>
+                  <b>{normalizeName(currentUser)}</b>
+                </div>
 
                 <label>
                   {t.dateDone}

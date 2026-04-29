@@ -787,3 +787,170 @@ button:disabled {
   background: linear-gradient(135deg, #475569, #64748b);
   border-color: #475569;
 }
+
+/* Simple profile/session login */
+
+.user-picker-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.user-picker-card {
+  width: min(760px, 100%);
+  background: rgba(255, 255, 255, .9);
+  border: 1px solid rgba(203, 213, 225, .9);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, .12);
+  backdrop-filter: blur(18px);
+  border-radius: 34px;
+  padding: clamp(22px, 4vw, 42px);
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 26px;
+}
+
+.profile-card {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  text-align: left;
+  padding: 18px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.94));
+  border: 1px solid rgba(199, 210, 254, .9);
+  color: #0f172a;
+  box-shadow: 0 16px 38px rgba(15, 23, 42, .08);
+}
+
+.profile-card:hover {
+  transform: translateY(-3px);
+  border-color: #818cf8;
+  box-shadow: 0 22px 55px rgba(79, 70, 229, .16);
+}
+
+.profile-card span:last-child {
+  display: grid;
+  gap: 4px;
+  color: #64748b;
+  font-size: .9rem;
+}
+
+.profile-card b {
+  color: #0f172a;
+  font-size: 1.25rem;
+}
+
+.profile-avatar {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #4338ca, #06b6d4);
+  color: white;
+  font-size: 1.45rem;
+  font-weight: 900;
+  box-shadow: 0 14px 28px rgba(67, 56, 202, .22);
+}
+
+.profile-language {
+  margin-top: 22px;
+  max-width: 220px;
+}
+
+.session-pill {
+  min-width: 180px;
+  padding: 12px 14px;
+  border-radius: 24px;
+  background: rgba(255,255,255,.88);
+  border: 1px solid rgba(203, 213, 225, .9);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, .08);
+  backdrop-filter: blur(16px);
+  display: grid;
+  gap: 3px;
+}
+
+.session-pill span {
+  color: #64748b;
+  font-size: .82rem;
+}
+
+.session-pill b {
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.session-pill button {
+  margin-top: 5px;
+  padding: 6px 9px;
+  width: max-content;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.task-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.mine-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  color: #047857;
+  font-size: .76rem;
+  font-weight: 900;
+  border: 1px solid #86efac;
+}
+
+.task-mine {
+  border-color: rgba(16, 185, 129, .48);
+}
+
+.marking-as {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 11px;
+  padding: 13px 14px;
+  margin: 2px 0 14px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #eef2ff, #e0f2fe);
+  border: 1px solid #c7d2fe;
+  color: #475569;
+  font-weight: 750;
+}
+
+.marking-as b {
+  color: #1e1b4b;
+}
+
+@media (max-width: 760px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .user-picker-card {
+    border-radius: 26px;
+  }
+
+  .profile-language {
+    max-width: none;
+  }
+
+  .session-pill {
+    width: 100%;
+  }
+}

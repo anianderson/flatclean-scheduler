@@ -1905,3 +1905,191 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+/* Previous period / history layout fix */
+
+.history-card {
+  overflow: hidden;
+}
+
+.history-list {
+  display: grid;
+  gap: 14px;
+}
+
+.period-history-row {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.94), rgba(248,250,252,.88));
+  box-shadow: 0 14px 36px rgba(15, 23, 42, .06);
+}
+
+.history-summary-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 18px 20px;
+  border-radius: 0;
+  background:
+    linear-gradient(135deg, rgba(248,250,252,.98), rgba(238,242,255,.85));
+  color: #0f172a;
+  text-align: left;
+  box-shadow: none;
+}
+
+.history-summary-button:hover {
+  transform: none;
+  background:
+    linear-gradient(135deg, rgba(239,246,255,.98), rgba(224,231,255,.92));
+}
+
+.history-summary-button > span {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.history-summary-button b {
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  color: #172033;
+  word-break: break-word;
+}
+
+.history-summary-button small {
+  display: block;
+  color: #64748b;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.history-summary-button > small {
+  justify-self: end;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.8);
+  border: 1px solid rgba(203,213,225,.8);
+  color: #4f46e5;
+}
+
+.period-detail {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  background: rgba(255,255,255,.55);
+}
+
+.period-detail h3 {
+  margin: 0 0 -6px;
+  font-size: 1.05rem;
+  color: #172033;
+}
+
+.score-grid.compact {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.score-grid.compact .score-person-card {
+  margin: 0;
+  padding: 16px;
+  border-radius: 22px;
+}
+
+.score-grid.compact .score-person-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.score-grid.compact .score-person-head strong {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.period-log-list {
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.empty-state {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(248,250,252,.9);
+  border: 1px dashed rgba(148,163,184,.75);
+  color: #64748b;
+  font-weight: 700;
+}
+
+.milestone-list {
+  display: grid;
+  gap: 10px;
+}
+
+.milestone-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border-radius: 18px;
+  background: rgba(248,250,252,.9);
+  border: 1px solid rgba(226,232,240,.95);
+}
+
+.milestone-row span {
+  font-weight: 850;
+  color: #4f46e5;
+}
+
+/* Make old generic history rows also look consistent */
+
+.history-row:not(.period-history-row) {
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  background: rgba(255,255,255,.78);
+}
+
+.history-row:not(.period-history-row) b,
+.history-row:not(.period-history-row) span,
+.history-row:not(.period-history-row) small {
+  display: block;
+  line-height: 1.35;
+}
+
+.history-row:not(.period-history-row) span,
+.history-row:not(.period-history-row) small {
+  color: #64748b;
+}
+
+/* Mobile */
+
+@media (max-width: 760px) {
+  .history-summary-button {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .history-summary-button > small {
+    justify-self: start;
+  }
+
+  .period-detail {
+    padding: 16px;
+  }
+
+  .score-grid.compact {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1173,3 +1173,96 @@ button:disabled {
     display: none;
   }
 }
+
+/* Subtasks */
+
+.subtask-box {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  margin: 4px 0 14px;
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(240, 249, 255, .95), rgba(238, 242, 255, .95));
+  border: 1px solid rgba(99, 102, 241, .2);
+}
+
+.subtask-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.subtask-head b {
+  display: block;
+  color: #1e1b4b;
+}
+
+.subtask-head p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: .88rem;
+}
+
+.mini-action {
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: .8rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.subtask-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.subtask-item {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  border-radius: 15px;
+  background: rgba(255,255,255,.78);
+  border: 1px solid rgba(203, 213, 225, .9);
+  cursor: pointer;
+}
+
+.subtask-item input {
+  width: 18px;
+  height: 18px;
+  accent-color: #4f46e5;
+}
+
+.subtask-item small {
+  color: #64748b;
+  font-weight: 900;
+  background: #f1f5f9;
+  padding: 4px 7px;
+  border-radius: 999px;
+}
+
+.pending-subtasks {
+  display: grid;
+  gap: 3px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fff7ed, #fffbeb);
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+}
+
+.pending-subtasks b {
+  font-size: .82rem;
+}
+
+.pending-subtasks span {
+  font-size: .9rem;
+  line-height: 1.35;
+}

@@ -89,6 +89,10 @@ const translations = {
     onePendingTask: '1 pending task',
     manyPendingTasks: n => `${n} pending tasks`,
     noPendingTasks: 'No pending tasks',
+    subtasks: 'Areas / subtasks',
+    selectAll: 'Select all',
+    partialTask: 'Uncheck anything that was not completed.',
+    pendingParts: 'Still pending',
     late: n => `${n} day${n === 1 ? '' : 's'} late`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -173,6 +177,10 @@ const translations = {
     onePendingTask: '1 offene Aufgabe',
     manyPendingTasks: n => `${n} offene Aufgaben`,
     noPendingTasks: 'Keine offenen Aufgaben',
+    subtasks: 'Bereiche / Teilaufgaben',
+    selectAll: 'Alle auswählen',
+    partialTask: 'Entferne alles, was nicht erledigt wurde.',
+    pendingParts: 'Noch offen',
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -475,6 +483,7 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalTask, setModalTask] = useState(null);
   const [includeVacuumWithDeep, setIncludeVacuumWithDeep] = useState(true);
+  const [selectedSubtasks, setSelectedSubtasks] = useState([]);
   const [form, setForm] = useState({
     taskId: 'gas_stove',
     date: TODAY,
@@ -489,6 +498,80 @@ function App() {
 
   function taskLabel(task) {
     return t.taskNames[task.id] || task.name || task.id;
+  }
+
+  function getSubtaskName(subtask) {
+    return lang === 'de' ? subtask.nameDe : subtask.nameEn;
+  }
+
+  function getTaskSubtasks(taskId) {
+    return data?.tasks?.find(task => task.id === taskId)?.subtasks || [];
+  }
+
+  function setAllSubtasksForTask(taskId) {
+    const subtasks = getTaskSubtasks(taskId);
+    setSelectedSubtasks(subtasks.map(subtask => subtask.id));
+  }
+
+  function toggleSubtask(subtaskId) {
+    setSelectedSubtasks(current => {
+      if (current.includes(subtaskId)) {
+        return current.filter(id => id !== subtaskId);
+      }
+
+      return [...current, subtaskId];
+    });
+  }
+
+  function getCycleCompletion(row) {
+    const subtasks = row.task.subtasks || [];
+
+    if (!subtasks.length || !row.dueDate) {
+      return { completed: [], pending: [], ratio: 1 };
+    }
+
+    const cycleId = `${row.task.id}:${row.dueDate}`;
+    const completedIds = new Set();
+
+    for (const log of data.logs || []) {
+      if (log.taskId !== row.task.id) continue;
+      if (log.cycleId !== cycleId) continue;
+
+      for (const subtask of log.completedSubtasks || []) {
+        completedIds.add(subtask.id);
+      }
+    }
+
+    const completed = subtasks.filter(subtask => completedIds.has(subtask.id));
+    const pending = subtasks.filter(subtask => !completedIds.has(subtask.id));
+
+    const totalWeight = subtasks.reduce(
+      (sum, subtask) => sum + Number(subtask.weight || 1),
+      0
+    );
+    const completedWeight = completed.reduce(
+      (sum, subtask) => sum + Number(subtask.weight || 1),
+      0
+    );
+
+    return {
+      completed,
+      pending,
+      ratio: totalWeight > 0 ? completedWeight / totalWeight : 1
+    };
+  }
+
+  function getMyDueRows(allRows) {
+    return allRows.filter(row => {
+      const isMine = normalizeName(row.person) === normalizeName(currentUser);
+      if (!isMine) return false;
+
+      if (row.task.type === 'on_demand') {
+        return !!data?.fullBins?.[row.task.id];
+      }
+
+      return !!row.dueDate && row.dueDate <= TODAY;
+    });
   }
 
   function chooseCurrentUser(person) {
@@ -534,6 +617,9 @@ function App() {
       note: ''
     }));
 
+    const subtasks = row.task.subtasks || [];
+    setSelectedSubtasks(subtasks.map(subtask => subtask.id));
+
     if (row.task.id === 'deep_water') {
       setIncludeVacuumWithDeep(true);
     }
@@ -561,15 +647,21 @@ function App() {
         ...log,
         person: normalizeName(log.person),
         actualPerson: normalizeName(log.actualPerson || log.person),
-        assignedPerson: normalizeName(log.assignedPerson)
+        assignedPerson: normalizeName(log.assignedPerson),
+        completedSubtasks: log.completedSubtasks || []
+      }));
+      json.tasks = (json.tasks || []).map(task => ({
+        ...task,
+        subtasks: task.subtasks || []
       }));
 
       setData(json);
 
       if (!json.tasks?.some(task => task.id === form.taskId)) {
+        const firstTaskId = json.tasks?.[0]?.id || '';
         setForm(current => ({
           ...current,
-          taskId: json.tasks?.[0]?.id || ''
+          taskId: firstTaskId
         }));
       }
     } catch (e) {
@@ -602,7 +694,12 @@ function App() {
       ...log,
       person: normalizeName(log.person),
       actualPerson: normalizeName(log.actualPerson || log.person),
-      assignedPerson: normalizeName(log.assignedPerson)
+      assignedPerson: normalizeName(log.assignedPerson),
+      completedSubtasks: log.completedSubtasks || []
+    }));
+    json.tasks = (json.tasks || []).map(task => ({
+      ...task,
+      subtasks: task.subtasks || []
     }));
 
     setData(json);
@@ -681,14 +778,17 @@ function App() {
   }, [data, currentUser]);
 
   const myRows = useMemo(() => {
-    return rows.filter(row => normalizeName(row.person) === normalizeName(currentUser));
-  }, [rows, currentUser]);
+    return getMyDueRows(rows);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, currentUser, data]);
 
   const myPendingLabel = useMemo(() => {
     if (!myRows.length) return t.noPendingTasks;
     if (myRows.length === 1) return t.onePendingTask;
     return t.manyPendingTasks(myRows.length);
   }, [myRows, t]);
+
+  const currentTaskSubtasks = getTaskSubtasks(form.taskId);
 
   async function markDone() {
     try {
@@ -710,6 +810,8 @@ function App() {
       await apiPost('/api/log', {
         ...form,
         person: normalizeName(currentUser),
+        completedSubtaskIds: selectedSubtasks,
+        alsoLogSubtaskIds: selectedSubtasks,
         includeAlsoLogs: form.taskId === 'deep_water' ? includeVacuumWithDeep : true
       });
 
@@ -751,6 +853,43 @@ function App() {
   const hasValidCurrentUser =
     !!currentUser &&
     !!data?.flatmates?.some(person => normalizeName(person) === normalizeName(currentUser));
+
+  function renderSubtaskSelector() {
+    if (!currentTaskSubtasks.length) return null;
+
+    return (
+      <div className="subtask-box">
+        <div className="subtask-head">
+          <div>
+            <b>{t.subtasks}</b>
+            <p>{t.partialTask}</p>
+          </div>
+
+          <button
+            type="button"
+            className="mini-action"
+            onClick={() => setAllSubtasksForTask(form.taskId)}
+          >
+            {t.selectAll}
+          </button>
+        </div>
+
+        <div className="subtask-grid">
+          {currentTaskSubtasks.map(subtask => (
+            <label className="subtask-item" key={subtask.id}>
+              <input
+                type="checkbox"
+                checked={selectedSubtasks.includes(subtask.id)}
+                onChange={() => toggleSubtask(subtask.id)}
+              />
+              <span>{getSubtaskName(subtask)}</span>
+              <small>{subtask.weight}</small>
+            </label>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -942,6 +1081,9 @@ function App() {
               {rows.map(row => {
                 const [label, tone] = status(row, data.fullBins || {}, t);
                 const isMine = normalizeName(row.person) === normalizeName(currentUser);
+                const completion = getCycleCompletion(row);
+                const hasPendingSubtasks =
+                  completion.pending.length > 0 && completion.ratio < 1;
 
                 return (
                   <div
@@ -970,6 +1112,17 @@ function App() {
                           ? `${fmt(row.last.date, '', lang)} ${t.by} ${normalizeName(row.last.actualPerson || row.last.person)}`
                           : t.noRecord}
                       </p>
+
+                      {hasPendingSubtasks && (
+                        <div className="pending-subtasks">
+                          <b>{t.pendingParts}</b>
+                          <span>
+                            {completion.pending
+                              .map(subtask => getSubtaskName(subtask))
+                              .join(', ')}
+                          </span>
+                        </div>
+                      )}
 
                       {row.bundledVacuumRow && (
                         <div className="bundle-pill">
@@ -1052,6 +1205,8 @@ function App() {
                   value={form.taskId}
                   onChange={value => {
                     setForm({ ...form, taskId: value });
+                    setAllSubtasksForTask(value);
+
                     if (value === 'deep_water') {
                       setIncludeVacuumWithDeep(true);
                     }
@@ -1088,6 +1243,8 @@ function App() {
                     </div>
                   </div>
                 )}
+
+                {renderSubtaskSelector()}
 
                 <div className="marking-as">
                   <span>{t.markingAs}</span>
@@ -1207,6 +1364,8 @@ function App() {
                 </div>
               </div>
             )}
+
+            {renderSubtaskSelector()}
 
             <div className="modal-grid">
               <label>

@@ -1,0 +1,10 @@
+name = "flatclean-scheduler"
+compatibility_date = "2026-04-29"
+pages_build_output_dir = "dist"
+
+# After creating your D1 database, replace the database_id below.
+# You can also configure the D1 binding in the Cloudflare Pages dashboard.
+[[d1_databases]]
+binding = "DB"
+database_name = "flatclean_db"
+database_id = "047b8f83-65f5-49e4-be72-65972a0347e9"

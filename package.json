@@ -1,0 +1,24 @@
+{
+  "name": "flatclean-cloudflare",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "cf:dev": "wrangler pages dev dist --d1 DB=flatclean_db",
+    "db:local": "wrangler d1 execute flatclean_db --local --file=schema.sql",
+    "db:remote": "wrangler d1 execute flatclean_db --remote --file=schema.sql"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "lucide-react": "latest"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}

@@ -15,8 +15,8 @@ function diffDays(from, to) {
   const b = new Date(`${to}T00:00:00`);
   return Math.round((b - a) / 86400000);
 }
-function fmt(date) {
-  if (!date) return 'When full';
+function fmt(date, fallback = 'Not scheduled yet') {
+  if (!date) return fallback;
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${date}T00:00:00`));
 }
 function lastLog(logs, taskId) {
@@ -35,7 +35,14 @@ function fairPerson(people, logs, task) {
   return [...people].sort((a, b) => (counts[a] - counts[b]) || lastDates[a].localeCompare(lastDates[b]))[0];
 }
 function status(row, fullBins) {
-  if (row.task.type === 'on_demand') return fullBins[row.task.id] ? ['Needs cleaning', 'bad'] : ['On demand', 'plain'];
+  if (row.task.type === 'on_demand') {
+    return fullBins[row.task.id] ? ['Needs cleaning', 'bad'] : ['On demand', 'plain'];
+  }
+
+  if (!row.dueDate) {
+    return ['Add first record', 'plain'];
+  }
+
   const d = diffDays(TODAY, row.dueDate);
   if (d < 0) return [`${Math.abs(d)} day${Math.abs(d) === 1 ? '' : 's'} late`, 'bad'];
   if (d === 0) return ['Due today', 'warn'];
@@ -184,7 +191,7 @@ function App() {
                   {row.task.type === 'on_demand' && <label className="check"><input type="checkbox" checked={!!data.fullBins[row.task.id]} onChange={e => toggleBin(row.task.id, e.target.checked)} /> Bin is full / needs cleaning</label>}
                 </div>
                 <div className="task-meta">
-                  <div><span>Next date</span><b>{fmt(row.dueDate)}</b></div>
+                  <div><span>Next date</span><b>{fmt(row.dueDate, row.task.type === 'on_demand' ? 'When full' : 'Not scheduled yet')}</b></div><div><span>Next date</span><b>{fmt(row.dueDate)}</b></div>
                   <div><span>Next person</span><b>{row.person}</b></div>
                   <div className={tone}><span>Status</span><b>{label}</b></div>
                 </div>

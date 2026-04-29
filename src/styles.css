@@ -78,9 +78,10 @@ h3 {
 .today,
 .card,
 .task,
-.language-select,
 .nav-panel,
-.mobile-menu-button {
+.mobile-menu-button,
+.fancy-trigger,
+.fancy-menu {
   background: rgba(255, 255, 255, .88);
   border: 1px solid rgba(203, 213, 225, .9);
   box-shadow: 0 18px 50px rgba(15, 23, 42, .08);
@@ -110,30 +111,6 @@ h3 {
   font-size: .82rem;
   display: block;
   margin-bottom: 2px;
-}
-
-.language-select {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 9px 12px;
-  margin: 0;
-  font-weight: 800;
-  color: #334155;
-}
-
-.language-select select {
-  width: auto;
-  border: 0;
-  padding: 0 22px 0 0;
-  border-radius: 0;
-  background: transparent;
-  color: #0f172a;
-  font-weight: 800;
-  outline: none;
-  cursor: pointer;
-  appearance: auto;
 }
 
 .layout {
@@ -239,7 +216,8 @@ h3 {
   color: #334155;
 }
 
-label {
+label,
+.fancy-field {
   display: grid;
   gap: 8px;
   font-weight: 800;
@@ -247,8 +225,11 @@ label {
   margin-bottom: 14px;
 }
 
-input,
-select {
+.field-label {
+  display: block;
+}
+
+input {
   width: 100%;
   padding: 13px 14px;
   border: 1px solid #cbd5e1;
@@ -259,24 +240,9 @@ select {
   transition: border-color .16s ease, box-shadow .16s ease;
 }
 
-input:focus,
-select:focus {
+input:focus {
   border-color: #6366f1;
   box-shadow: 0 0 0 4px rgba(99, 102, 241, .14);
-}
-
-select {
-  appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, #64748b 50%),
-    linear-gradient(135deg, #64748b 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) 52%,
-    calc(100% - 12px) 52%;
-  background-size: 6px 6px, 6px 6px;
-  background-repeat: no-repeat;
-  padding-right: 38px;
-  cursor: pointer;
 }
 
 button {
@@ -368,6 +334,129 @@ button:active {
   margin-top: 60px;
   text-align: center;
   font-weight: 800;
+}
+
+/* Custom fancy dropdown */
+
+.form-grid {
+  display: grid;
+  gap: 2px;
+}
+
+.fancy-select {
+  position: relative;
+}
+
+.fancy-trigger {
+  width: 100%;
+  min-height: 56px;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 18px;
+  color: #0f172a;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92));
+  border: 1px solid #c7d2fe;
+  box-shadow:
+    0 10px 30px rgba(15, 23, 42, .06),
+    inset 0 1px 0 rgba(255,255,255,.6);
+}
+
+.fancy-trigger:hover {
+  border-color: #a5b4fc;
+  box-shadow:
+    0 14px 32px rgba(79, 70, 229, .12),
+    inset 0 1px 0 rgba(255,255,255,.75);
+}
+
+.fancy-select.open .fancy-trigger {
+  border-color: #6366f1;
+  box-shadow:
+    0 0 0 4px rgba(99, 102, 241, .14),
+    0 14px 32px rgba(79, 70, 229, .12);
+}
+
+.fancy-value {
+  flex: 1;
+  text-align: left;
+  font-weight: 750;
+  line-height: 1.35;
+  padding-right: 12px;
+}
+
+.fancy-chevron {
+  color: #6366f1;
+  transition: transform .18s ease;
+  flex-shrink: 0;
+}
+
+.fancy-select.open .fancy-chevron {
+  transform: rotate(180deg);
+}
+
+.fancy-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 100%;
+  border-radius: 20px;
+  padding: 8px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+  border: 1px solid rgba(199, 210, 254, .9);
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, .16),
+    0 8px 24px rgba(79, 70, 229, .08);
+  max-height: 280px;
+  overflow: auto;
+  animation: dropdownIn .16s ease;
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.fancy-option {
+  width: 100%;
+  justify-content: space-between;
+  text-align: left;
+  padding: 13px 14px;
+  background: transparent;
+  color: #1e293b;
+  border-radius: 14px;
+  font-weight: 700;
+}
+
+.fancy-option:hover {
+  background: linear-gradient(135deg, #eef2ff, #e0f2fe);
+  color: #312e81;
+}
+
+.fancy-option.active {
+  background: linear-gradient(135deg, #4338ca, #6366f1);
+  color: white;
+  box-shadow: 0 10px 22px rgba(67, 56, 202, .24);
+}
+
+.fancy-option.active svg {
+  color: white;
+}
+
+.language-fancy {
+  margin-bottom: 0;
+  min-width: 180px;
+}
+
+.language-fancy .field-label {
+  display: none;
 }
 
 /* Sidebar / hamburger navigation */
@@ -513,18 +602,8 @@ button:active {
   }
 
   .today,
-  .language-select {
+  .language-fancy {
     width: 100%;
-  }
-
-  .language-select {
-    justify-content: space-between;
-    border-radius: 20px;
-  }
-
-  .language-select select {
-    flex: 1;
-    text-align: right;
   }
 
   .card {
@@ -542,6 +621,14 @@ button:active {
 
   .task-meta > div {
     min-height: auto;
+  }
+
+  .fancy-trigger {
+    min-height: 54px;
+  }
+
+  .fancy-menu {
+    max-height: 240px;
   }
 
   h1 {

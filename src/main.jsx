@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   AlertTriangle,
   CalendarDays,
+  Check,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
   Globe2,
   History,
@@ -60,6 +62,7 @@ const translations = {
     menu: 'Menu',
     close: 'Close',
     jumpTo: 'Jump to',
+    selectPlaceholder: 'Select',
     late: n => `${n} day${n === 1 ? '' : 's'} late`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -117,6 +120,7 @@ const translations = {
     menu: 'Menü',
     close: 'Schließen',
     jumpTo: 'Springen zu',
+    selectPlaceholder: 'Auswählen',
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -247,6 +251,79 @@ function status(row, fullBins, t) {
 
 function normalizeName(name) {
   return name === 'Neveen' ? 'Naveen' : name;
+}
+
+function FancySelect({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  className = ''
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (!ref.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
+
+  const selected = options.find(option => option.value === value);
+
+  return (
+    <label className={`fancy-field ${className}`}>
+      <span className="field-label">{label}</span>
+
+      <div className={`fancy-select ${open ? 'open' : ''}`} ref={ref}>
+        <button
+          type="button"
+          className="fancy-trigger"
+          onClick={() => setOpen(current => !current)}
+          aria-expanded={open}
+        >
+          <span className="fancy-value">
+            {selected?.label || placeholder}
+          </span>
+          <ChevronDown size={18} className="fancy-chevron" />
+        </button>
+
+        {open && (
+          <div className="fancy-menu">
+            {options.map(option => (
+              <button
+                type="button"
+                key={option.value}
+                className={`fancy-option ${option.value === value ? 'active' : ''}`}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+              >
+                <span>{option.label}</span>
+                {option.value === value && <Check size={16} />}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </label>
+  );
 }
 
 function App() {
@@ -414,6 +491,22 @@ function App() {
     { id: 'recent-log', label: t.recentLog, icon: History }
   ];
 
+  const taskOptions = (data?.tasks || []).map(task => ({
+    value: task.id,
+    label: taskLabel(task)
+  }));
+
+  const personOptions = (data?.flatmates || []).map(person => ({
+    value: person,
+    label: normalizeName(person)
+  }));
+
+  const languageOptions = [
+    { value: 'auto', label: t.auto },
+    { value: 'de', label: t.german },
+    { value: 'en', label: t.english }
+  ];
+
   if (loading) {
     return (
       <main className="page">
@@ -491,17 +584,14 @@ function App() {
           </div>
 
           <div className="hero-actions">
-            <label className="language-select">
-              <Globe2 size={17} />
-              <select
-                value={languageSetting}
-                onChange={e => changeLanguage(e.target.value)}
-              >
-                <option value="auto">{t.auto}</option>
-                <option value="de">{t.german}</option>
-                <option value="en">{t.english}</option>
-              </select>
-            </label>
+            <FancySelect
+              label=""
+              value={languageSetting}
+              onChange={changeLanguage}
+              options={languageOptions}
+              placeholder={t.auto}
+              className="language-fancy"
+            />
 
             <div className="today">
               <span>{t.today}</span>
@@ -601,51 +691,41 @@ function App() {
                 <p>{t.markDoneHelp}</p>
               </div>
 
-              <label>
-                {t.task}
-                <select
+              <div className="form-grid">
+                <FancySelect
+                  label={t.task}
                   value={form.taskId}
-                  onChange={e => setForm({ ...form, taskId: e.target.value })}
-                >
-                  {data.tasks.map(task => (
-                    <option key={task.id} value={task.id}>
-                      {taskLabel(task)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  onChange={value => setForm({ ...form, taskId: value })}
+                  options={taskOptions}
+                  placeholder={t.selectPlaceholder}
+                />
 
-              <label>
-                {t.person}
-                <select
+                <FancySelect
+                  label={t.person}
                   value={form.person}
-                  onChange={e => setForm({ ...form, person: e.target.value })}
-                >
-                  {data.flatmates.map(person => (
-                    <option key={person} value={person}>
-                      {normalizeName(person)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                {t.dateDone}
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={e => setForm({ ...form, date: e.target.value })}
+                  onChange={value => setForm({ ...form, person: value })}
+                  options={personOptions}
+                  placeholder={t.selectPlaceholder}
                 />
-              </label>
 
-              <label>
-                {t.note}
-                <input
-                  value={form.note}
-                  onChange={e => setForm({ ...form, note: e.target.value })}
-                  placeholder={t.optional}
-                />
-              </label>
+                <label>
+                  {t.dateDone}
+                  <input
+                    type="date"
+                    value={form.date}
+                    onChange={e => setForm({ ...form, date: e.target.value })}
+                  />
+                </label>
+
+                <label>
+                  {t.note}
+                  <input
+                    value={form.note}
+                    onChange={e => setForm({ ...form, note: e.target.value })}
+                    placeholder={t.optional}
+                  />
+                </label>
+              </div>
 
               <button className="primary" onClick={markDone}>
                 <CheckCircle2 size={20} />

@@ -55,6 +55,11 @@ const translations = {
     linkedDeep: 'Bundled with deep water cleaning on this date.',
     deepIncludesVacuum: 'This task includes vacuum cleaning on the same day.',
     hiddenBecauseBundled: 'Vacuum is bundled into deep water cleaning for this cycle.',
+    didVacuumQuestion: 'Have you also vacuumed the flat?',
+    didVacuumHelp:
+      'Deep water cleaning usually needs vacuuming first. Select this only if vacuuming was actually done too.',
+    yesVacuumDone: 'Yes, vacuum was also done',
+    noVacuumDone: 'No, only deep water cleaning',
     by: 'by',
     loading: 'Loading…',
     loadError: 'Could not load app data.',
@@ -117,6 +122,11 @@ const translations = {
     linkedDeep: 'In diesem Zyklus mit der Nassreinigung gebündelt.',
     deepIncludesVacuum: 'Diese Aufgabe enthält Staubsaugen am selben Tag.',
     hiddenBecauseBundled: 'Staubsaugen ist in diesem Zyklus in der Nassreinigung enthalten.',
+    didVacuumQuestion: 'Hast du auch staubgesaugt?',
+    didVacuumHelp:
+      'Vor der Nassreinigung sollte normalerweise staubgesaugt werden. Wähle dies nur aus, wenn Staubsaugen wirklich erledigt wurde.',
+    yesVacuumDone: 'Ja, Staubsaugen wurde auch erledigt',
+    noVacuumDone: 'Nein, nur Nassreinigung erledigt',
     by: 'von',
     loading: 'Lädt…',
     loadError: 'App-Daten konnten nicht geladen werden.',
@@ -216,7 +226,7 @@ function getDueDateFromLastLog(task, last) {
   return null;
 }
 
-function fairPerson(people, logs, task) {
+function calculateFloorScores(people, logs, task) {
   const normalizedPeople = people.map(normalizeName);
 
   const taskIds =
@@ -258,7 +268,40 @@ function fairPerson(people, logs, task) {
     }
   }
 
+  return { scores, lastDates, normalizedPeople };
+}
+
+function fairPerson(people, logs, task) {
+  const { scores, lastDates, normalizedPeople } = calculateFloorScores(
+    people,
+    logs,
+    task
+  );
+
   return [...normalizedPeople].sort((a, b) => {
+    if ((scores[a] || 0) !== (scores[b] || 0)) {
+      return (scores[a] || 0) - (scores[b] || 0);
+    }
+
+    return (lastDates[a] || '1900-01-01').localeCompare(
+      lastDates[b] || '1900-01-01'
+    );
+  })[0];
+}
+
+function fairPersonAvoiding(people, logs, task, avoidPerson) {
+  const avoid = normalizeName(avoidPerson);
+  const { scores, lastDates, normalizedPeople } = calculateFloorScores(
+    people,
+    logs,
+    task
+  );
+
+  const candidates = normalizedPeople.filter(person => person !== avoid);
+
+  if (!candidates.length) return avoid;
+
+  return candidates.sort((a, b) => {
     if ((scores[a] || 0) !== (scores[b] || 0)) {
       return (scores[a] || 0) - (scores[b] || 0);
     }
@@ -392,6 +435,7 @@ function App() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [includeVacuumWithDeep, setIncludeVacuumWithDeep] = useState(true);
   const [form, setForm] = useState({
     taskId: 'gas_stove',
     person: 'Animesh',
@@ -511,19 +555,28 @@ function App() {
     const deep = base.find(row => row.task.id === 'deep_water');
     const vacuum = base.find(row => row.task.id === 'vacuum');
 
-    if (deep && vacuum && shouldBundleVacuumWithDeep(vacuum, deep)) {
+    if (deep && vacuum) {
       const floorPerson = fairPerson(data.flatmates, data.logs, deep);
-
       deep.person = floorPerson;
-      deep.bundledVacuumRow = {
-        ...vacuum,
-        dueDate: deep.dueDate,
-        person: floorPerson
-      };
 
-      vacuum.person = floorPerson;
-      vacuum.dueDate = deep.dueDate;
-      vacuum.bundledIntoDeep = true;
+      if (shouldBundleVacuumWithDeep(vacuum, deep)) {
+        deep.bundledVacuumRow = {
+          ...vacuum,
+          dueDate: deep.dueDate,
+          person: floorPerson
+        };
+
+        vacuum.person = floorPerson;
+        vacuum.dueDate = deep.dueDate;
+        vacuum.bundledIntoDeep = true;
+      } else if (vacuum.person === deep.person) {
+        vacuum.person = fairPersonAvoiding(
+          data.flatmates,
+          data.logs,
+          vacuum.task,
+          deep.person
+        );
+      }
     }
 
     return base
@@ -553,7 +606,8 @@ function App() {
 
       await apiPost('/api/log', {
         ...form,
-        person: normalizeName(form.person)
+        person: normalizeName(form.person),
+        includeAlsoLogs: form.taskId === 'deep_water' ? includeVacuumWithDeep : true
       });
 
       setForm(current => ({ ...current, note: '' }));
@@ -815,10 +869,44 @@ function App() {
                 <FancySelect
                   label={t.task}
                   value={form.taskId}
-                  onChange={value => setForm({ ...form, taskId: value })}
+                  onChange={value => {
+                    setForm({ ...form, taskId: value });
+                    if (value === 'deep_water') {
+                      setIncludeVacuumWithDeep(true);
+                    }
+                  }}
                   options={taskOptions}
                   placeholder={t.selectPlaceholder}
                 />
+
+                {form.taskId === 'deep_water' && (
+                  <div className="vacuum-question">
+                    <div>
+                      <b>{t.didVacuumQuestion}</b>
+                      <p>{t.didVacuumHelp}</p>
+                    </div>
+
+                    <div className="vacuum-choice-row">
+                      <button
+                        type="button"
+                        className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+                        onClick={() => setIncludeVacuumWithDeep(true)}
+                      >
+                        <CheckCircle2 size={18} />
+                        {t.yesVacuumDone}
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+                        onClick={() => setIncludeVacuumWithDeep(false)}
+                      >
+                        <X size={18} />
+                        {t.noVacuumDone}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <FancySelect
                   label={t.person}

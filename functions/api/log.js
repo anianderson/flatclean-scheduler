@@ -23,7 +23,7 @@ function getLastLog(logs, taskId) {
     })[0];
 }
 
-function fairPerson(people, logs, task) {
+function calculateScores(people, logs, task) {
   const normalizedPeople = people.map(normalizeName);
 
   const taskIds =
@@ -64,6 +64,12 @@ function fairPerson(people, logs, task) {
       scores[assignedPerson] = (scores[assignedPerson] || 0) - 1;
     }
   }
+
+  return { scores, lastDates, normalizedPeople };
+}
+
+function fairPerson(people, logs, task) {
+  const { scores, lastDates, normalizedPeople } = calculateScores(people, logs, task);
 
   return [...normalizedPeople].sort((a, b) => {
     if ((scores[a] || 0) !== (scores[b] || 0)) {
@@ -198,6 +204,8 @@ export async function onRequestPost({ request, env }) {
   const body = await request.json();
   const { taskId, person, date, note } = body;
 
+  const includeAlsoLogs = body.includeAlsoLogs !== false;
+
   if (!taskId || !person || !date) {
     return json({ error: 'Missing task, person, or date' }, 400);
   }
@@ -241,7 +249,7 @@ export async function onRequestPost({ request, env }) {
     note: note || 'Marked done'
   });
 
-  if (mainInfo.task.alsoLogs?.length) {
+  if (includeAlsoLogs && mainInfo.task.alsoLogs?.length) {
     for (const extraTaskId of mainInfo.task.alsoLogs) {
       const updatedState = await readState(env);
       const extraInfo = await getTaskInfo(updatedState, extraTaskId);

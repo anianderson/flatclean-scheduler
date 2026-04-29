@@ -8,7 +8,7 @@ export function json(data, status = 200) {
 }
 
 export function normalizeName(name) {
-  return name === 'Neveen' ? 'Naveen' : name;
+  return name === 'Neveen' ? 'Naveen' : String(name || '').trim();
 }
 
 export function isValidEmail(email) {
@@ -31,7 +31,7 @@ export function diffDays(from, to) {
 
 export function lastLog(logs, taskId) {
   return logs
-    .filter(log => log.taskId === taskId)
+    .filter(log => log.taskId === taskId && !log.isDummy)
     .sort((a, b) => {
       if (b.date !== a.date) return b.date.localeCompare(a.date);
       return (b.createdAt || '').localeCompare(a.createdAt || '');
@@ -40,7 +40,6 @@ export function lastLog(logs, taskId) {
 
 export function getDueDateFromLastLog(task, last) {
   if (!last) return null;
-
   if (last.nextDueDate) return last.nextDueDate;
 
   if (task.type === 'scheduled' && task.intervalDays) {
@@ -50,7 +49,11 @@ export function getDueDateFromLastLog(task, last) {
   return null;
 }
 
-export function calculateScores(people, logs, task) {
+export function getActivePeriod(state) {
+  return state.scoringPeriods?.find(period => !period.endedAt) || state.scoringPeriods?.[0];
+}
+
+export function calculateScores(people, logs, task, activePeriodId = null) {
   const normalizedPeople = people.map(normalizeName);
 
   const taskIds =
@@ -66,6 +69,8 @@ export function calculateScores(people, logs, task) {
   );
 
   for (const log of logs || []) {
+    if (log.isDummy) continue;
+    if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
     if (taskIds.length && !taskIds.includes(log.taskId)) continue;
 
     const actualPerson = normalizeName(log.actualPerson || log.person);
@@ -97,11 +102,12 @@ export function calculateScores(people, logs, task) {
   return { scores, lastDates, normalizedPeople };
 }
 
-export function fairPerson(people, logs, task) {
+export function fairPerson(people, logs, task, activePeriodId = null) {
   const { scores, lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
-    task
+    task,
+    activePeriodId
   );
 
   return [...normalizedPeople].sort((a, b) => {
@@ -119,10 +125,13 @@ export function buildScoreSummary(state) {
   const people = state.flatmates || [];
   const tasks = state.tasks || [];
   const logs = state.logs || [];
+  const activePeriod = getActivePeriod(state);
+  const activePeriodId = activePeriod?.id;
 
   const byPerson = {};
   const byTask = {};
   const byPersonTask = {};
+  const byPersonTaskSubtask = {};
 
   for (const person of people) {
     byPerson[person] = {
@@ -133,21 +142,35 @@ export function buildScoreSummary(state) {
     };
 
     byPersonTask[person] = {};
+    byPersonTaskSubtask[person] = {};
   }
 
   for (const task of tasks) {
     byTask[task.id] = {
       taskId: task.id,
       taskName: task.name,
-      total: 0
+      baseWeight: Number(task.baseWeight || 1),
+      total: 0,
+      subtasks: (task.subtasks || []).map(subtask => ({
+        ...subtask,
+        total: 0
+      }))
     };
 
     for (const person of people) {
       byPersonTask[person][task.id] = 0;
+      byPersonTaskSubtask[person][task.id] = {};
+      for (const subtask of task.subtasks || []) {
+        byPersonTaskSubtask[person][task.id][subtask.id] = 0;
+      }
     }
   }
 
   for (const log of logs) {
+    if (log.isDummy) continue;
+    if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
+
+    const task = tasks.find(item => item.id === log.taskId);
     const person = normalizeName(log.actualPerson || log.person);
     const assigned = normalizeName(log.assignedPerson);
     const value = Number(log.creditWeight || 0);
@@ -155,26 +178,55 @@ export function buildScoreSummary(state) {
     if (!byPerson[person]) {
       byPerson[person] = { person, positive: 0, negative: 0, total: 0 };
       byPersonTask[person] = {};
+      byPersonTaskSubtask[person] = {};
     }
 
     byPerson[person].positive += value;
     byPerson[person].total += value;
 
-    if (!byPersonTask[person][log.taskId]) {
-      byPersonTask[person][log.taskId] = 0;
-    }
-
+    if (!byPersonTask[person][log.taskId]) byPersonTask[person][log.taskId] = 0;
     byPersonTask[person][log.taskId] += value;
 
     if (!byTask[log.taskId]) {
       byTask[log.taskId] = {
         taskId: log.taskId,
         taskName: log.taskId,
-        total: 0
+        baseWeight: 1,
+        total: 0,
+        subtasks: []
       };
     }
 
     byTask[log.taskId].total += value;
+
+    const taskSubtasks = task?.subtasks || [];
+    const totalSubtaskWeight = taskSubtasks.reduce(
+      (sum, subtask) => sum + Number(subtask.weight || 1),
+      0
+    );
+
+    if (taskSubtasks.length && log.completedSubtasks?.length) {
+      for (const completedSubtask of log.completedSubtasks) {
+        const fullSubtask = taskSubtasks.find(item => item.id === completedSubtask.id);
+        if (!fullSubtask || !totalSubtaskWeight) continue;
+
+        const subtaskPoints =
+          Number(task.baseWeight || 1) *
+          (Number(fullSubtask.weight || 1) / totalSubtaskWeight);
+
+        if (!byPersonTaskSubtask[person][log.taskId]) {
+          byPersonTaskSubtask[person][log.taskId] = {};
+        }
+
+        byPersonTaskSubtask[person][log.taskId][fullSubtask.id] =
+          (byPersonTaskSubtask[person][log.taskId][fullSubtask.id] || 0) +
+          subtaskPoints;
+
+        const taskScore = byTask[log.taskId];
+        const subtaskScore = taskScore.subtasks.find(item => item.id === fullSubtask.id);
+        if (subtaskScore) subtaskScore.total += subtaskPoints;
+      }
+    }
 
     const someoneElseCoveredOverdue =
       assigned &&
@@ -200,23 +252,51 @@ export function buildScoreSummary(state) {
     }
   }
 
+  const round = value => Number(Number(value || 0).toFixed(2));
+
   return {
+    activePeriod,
     byPerson: Object.values(byPerson).map(row => ({
       ...row,
-      positive: Number(row.positive.toFixed(2)),
-      negative: Number(row.negative.toFixed(2)),
-      total: Number(row.total.toFixed(2))
+      positive: round(row.positive),
+      negative: round(row.negative),
+      total: round(row.total)
     })),
     byTask: Object.values(byTask).map(row => ({
       ...row,
-      total: Number(row.total.toFixed(2))
+      total: round(row.total),
+      subtasks: (row.subtasks || []).map(subtask => ({
+        ...subtask,
+        total: round(subtask.total)
+      }))
     })),
-    byPersonTask
+    byPersonTask,
+    byPersonTaskSubtask
   };
 }
 
 export async function readState(env) {
-  const [flatmates, tasks, taskSubtasks, logs, logSubtasks, bins] = await Promise.all([
+  const [
+    periods,
+    flatmates,
+    tasks,
+    taskSubtasks,
+    logs,
+    logSubtasks,
+    bins,
+    flatmateHistory
+  ] = await Promise.all([
+    env.DB.prepare(`
+      SELECT
+        id,
+        name,
+        started_at AS startedAt,
+        ended_at AS endedAt,
+        reason
+      FROM scoring_periods
+      ORDER BY started_at DESC
+    `).all(),
+
     env.DB.prepare(`
       SELECT
         name,
@@ -266,6 +346,8 @@ export async function readState(env) {
         COALESCE(is_partial, 0) AS isPartial,
         COALESCE(completion_ratio, 1) AS completionRatio,
         cycle_id AS cycleId,
+        scoring_period_id AS scoringPeriodId,
+        COALESCE(is_dummy, 0) AS isDummy,
         note,
         created_at AS createdAt
       FROM logs
@@ -286,6 +368,19 @@ export async function readState(env) {
         task_id AS taskId,
         is_full AS isFull
       FROM bin_status
+    `).all(),
+
+    env.DB.prepare(`
+      SELECT
+        id,
+        name,
+        email,
+        action,
+        scoring_period_id AS scoringPeriodId,
+        created_at AS createdAt,
+        note
+      FROM flatmate_history
+      ORDER BY created_at DESC
     `).all()
   ]);
 
@@ -323,8 +418,15 @@ export async function readState(env) {
   }));
 
   const state = {
+    scoringPeriods: periods.results || [],
+
     flatmates: people.map(person => person.name),
     flatmateProfiles: people,
+
+    flatmateHistory: (flatmateHistory.results || []).map(row => ({
+      ...row,
+      name: normalizeName(row.name)
+    })),
 
     tasks: (tasks.results || []).map(task => ({
       ...task,
@@ -346,12 +448,14 @@ export async function readState(env) {
       creditWeight: Number(log.creditWeight || 1),
       isPartial: !!log.isPartial,
       completionRatio: Number(log.completionRatio || 1),
+      isDummy: !!log.isDummy,
       completedSubtasks: logSubtasksByLog[log.id] || []
     })),
 
     fullBins
   };
 
+  state.activeScoringPeriod = getActivePeriod(state);
   state.scores = buildScoreSummary(state);
 
   return state;

@@ -42,6 +42,7 @@ const translations = {
     positiveScore: 'Work points',
     negativeScore: 'Covered by others',
     taskScores: 'Task scores',
+    subtaskScores: 'Subtask scores',
     task: 'Task',
     dateDone: 'Date done',
     note: 'Note',
@@ -110,6 +111,22 @@ const translations = {
     changeEmail: 'Change email',
     emailSaved: 'Email saved successfully.',
     invalidEmail: 'Please enter a valid email address.',
+    admin: 'Admin',
+    adminPanel: 'Admin panel',
+    adminHelp: 'Add, update, or delete flatmates. Changing users starts a new fair scoring period.',
+    adminPin: 'Admin PIN',
+    userName: 'User name',
+    addUser: 'Add user',
+    updateUser: 'Update user',
+    deleteUser: 'Delete user',
+    dummyTask: 'Developer dummy task',
+    dummyTaskHelp: 'Test saving and UI without affecting real scores, due dates, bin status, emails, or milestones.',
+    previousPeriods: 'Previous periods',
+    showDetails: 'Show details',
+    hideDetails: 'Hide details',
+    baseScore: 'Base score',
+    singleTask: 'Single task',
+    activePeriod: 'Active scoring period',
     late: n => `${n} day${n === 1 ? '' : 's'} late`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -144,6 +161,7 @@ const translations = {
     positiveScore: 'Arbeitspunkte',
     negativeScore: 'Von anderen übernommen',
     taskScores: 'Punkte nach Aufgabe',
+    subtaskScores: 'Teilaufgaben-Punkte',
     task: 'Aufgabe',
     dateDone: 'Erledigt am',
     note: 'Notiz',
@@ -212,6 +230,22 @@ const translations = {
     changeEmail: 'E-Mail ändern',
     emailSaved: 'E-Mail erfolgreich gespeichert.',
     invalidEmail: 'Bitte gib eine gültige E-Mail-Adresse ein.',
+    admin: 'Admin',
+    adminPanel: 'Adminbereich',
+    adminHelp: 'Mitbewohner hinzufügen, ändern oder löschen. Änderungen starten eine neue faire Punkteperiode.',
+    adminPin: 'Admin-PIN',
+    userName: 'Name',
+    addUser: 'Benutzer hinzufügen',
+    updateUser: 'Benutzer ändern',
+    deleteUser: 'Benutzer löschen',
+    dummyTask: 'Entwickler-Testaufgabe',
+    dummyTaskHelp: 'Speichern und UI testen, ohne echte Punkte, Fälligkeiten, Tonnenstatus, E-Mails oder Meilensteine zu beeinflussen.',
+    previousPeriods: 'Frühere Perioden',
+    showDetails: 'Details anzeigen',
+    hideDetails: 'Details ausblenden',
+    baseScore: 'Basis-Punkte',
+    singleTask: 'Einzelaufgabe',
+    activePeriod: 'Aktive Punkteperiode',
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -272,7 +306,7 @@ function fmt(date, fallback = 'Not scheduled yet', lang = 'de') {
 }
 
 function normalizeName(name) {
-  return name === 'Neveen' ? 'Naveen' : name;
+  return name === 'Neveen' ? 'Naveen' : String(name || '').trim();
 }
 
 function isValidEmail(email) {
@@ -281,7 +315,7 @@ function isValidEmail(email) {
 
 function lastLog(logs, taskId) {
   return logs
-    .filter(log => log.taskId === taskId)
+    .filter(log => log.taskId === taskId && !log.isDummy)
     .sort((a, b) => {
       if (b.date !== a.date) return b.date.localeCompare(a.date);
       return (b.createdAt || '').localeCompare(a.createdAt || '');
@@ -290,7 +324,6 @@ function lastLog(logs, taskId) {
 
 function getDueDateFromLastLog(task, last) {
   if (!last) return null;
-
   if (last.nextDueDate) return last.nextDueDate;
 
   if (task.type === 'scheduled' && task.intervalDays) {
@@ -300,7 +333,7 @@ function getDueDateFromLastLog(task, last) {
   return null;
 }
 
-function calculateScores(people, logs, task) {
+function calculateScores(people, logs, task, activePeriodId = null) {
   const normalizedPeople = people.map(normalizeName);
   const taskIds = task.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task.id];
 
@@ -310,6 +343,8 @@ function calculateScores(people, logs, task) {
   );
 
   for (const log of logs) {
+    if (log.isDummy) continue;
+    if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
     if (!taskIds.includes(log.taskId)) continue;
 
     const actualPerson = normalizeName(log.actualPerson || log.person);
@@ -340,15 +375,18 @@ function calculateScores(people, logs, task) {
   return { scores, lastDates, normalizedPeople };
 }
 
-function fairPerson(people, logs, task) {
+function fairPerson(people, logs, task, activePeriodId = null) {
   const { scores, lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
-    task
+    task,
+    activePeriodId
   );
 
   return [...normalizedPeople].sort((a, b) => {
-    if ((scores[a] || 0) !== (scores[b] || 0)) return (scores[a] || 0) - (scores[b] || 0);
+    if ((scores[a] || 0) !== (scores[b] || 0)) {
+      return (scores[a] || 0) - (scores[b] || 0);
+    }
 
     return (lastDates[a] || '1900-01-01').localeCompare(
       lastDates[b] || '1900-01-01'
@@ -356,19 +394,22 @@ function fairPerson(people, logs, task) {
   })[0];
 }
 
-function fairPersonAvoiding(people, logs, task, avoidPerson) {
+function fairPersonAvoiding(people, logs, task, avoidPerson, activePeriodId = null) {
   const avoid = normalizeName(avoidPerson);
   const { scores, lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
-    task
+    task,
+    activePeriodId
   );
 
   const candidates = normalizedPeople.filter(person => person !== avoid);
   if (!candidates.length) return avoid;
 
   return candidates.sort((a, b) => {
-    if ((scores[a] || 0) !== (scores[b] || 0)) return (scores[a] || 0) - (scores[b] || 0);
+    if ((scores[a] || 0) !== (scores[b] || 0)) {
+      return (scores[a] || 0) - (scores[b] || 0);
+    }
 
     return (lastDates[a] || '1900-01-01').localeCompare(
       lastDates[b] || '1900-01-01'
@@ -490,6 +531,12 @@ function App() {
   const [modalTask, setModalTask] = useState(null);
   const [includeVacuumWithDeep, setIncludeVacuumWithDeep] = useState(true);
   const [selectedSubtasks, setSelectedSubtasks] = useState([]);
+  const [isDummyTask, setIsDummyTask] = useState(false);
+  const [openScoreTasks, setOpenScoreTasks] = useState({});
+  const [adminPin, setAdminPin] = useState('');
+  const [adminForm, setAdminForm] = useState({ name: '', email: '' });
+  const [adminSaving, setAdminSaving] = useState(false);
+
   const [form, setForm] = useState({
     taskId: 'gas_stove',
     date: TODAY,
@@ -546,6 +593,7 @@ function App() {
     const completedIds = new Set();
 
     for (const log of data.logs || []) {
+      if (log.isDummy) continue;
       if (log.taskId !== row.task.id) continue;
       if (log.cycleId !== cycleId) continue;
 
@@ -660,6 +708,31 @@ function App() {
     if (!saving) setModalTask(null);
   }
 
+  function normalizeApiData(json) {
+    json.flatmates = (json.flatmates || []).map(normalizeName);
+
+    json.flatmateProfiles = (json.flatmateProfiles || []).map(profile => ({
+      ...profile,
+      name: normalizeName(profile.name)
+    }));
+
+    json.logs = (json.logs || []).map(log => ({
+      ...log,
+      person: normalizeName(log.person),
+      actualPerson: normalizeName(log.actualPerson || log.person),
+      assignedPerson: normalizeName(log.assignedPerson),
+      completedSubtasks: log.completedSubtasks || [],
+      isDummy: !!log.isDummy
+    }));
+
+    json.tasks = (json.tasks || []).map(task => ({
+      ...task,
+      subtasks: task.subtasks || []
+    }));
+
+    return json;
+  }
+
   async function load() {
     try {
       setError('');
@@ -667,25 +740,7 @@ function App() {
 
       if (!res.ok) throw new Error(t.loadError);
 
-      const json = await res.json();
-
-      json.flatmates = (json.flatmates || []).map(normalizeName);
-      json.flatmateProfiles = (json.flatmateProfiles || []).map(profile => ({
-        ...profile,
-        name: normalizeName(profile.name)
-      }));
-      json.logs = (json.logs || []).map(log => ({
-        ...log,
-        person: normalizeName(log.person),
-        actualPerson: normalizeName(log.actualPerson || log.person),
-        assignedPerson: normalizeName(log.assignedPerson),
-        completedSubtasks: log.completedSubtasks || []
-      }));
-      json.tasks = (json.tasks || []).map(task => ({
-        ...task,
-        subtasks: task.subtasks || []
-      }));
-
+      const json = normalizeApiData(await res.json());
       setData(json);
 
       if (!json.tasks?.some(task => task.id === form.taskId)) {
@@ -715,25 +770,9 @@ function App() {
 
     if (!res.ok) throw new Error(json.error || t.saveError);
 
-    json.flatmates = (json.flatmates || []).map(normalizeName);
-    json.flatmateProfiles = (json.flatmateProfiles || []).map(profile => ({
-      ...profile,
-      name: normalizeName(profile.name)
-    }));
-    json.logs = (json.logs || []).map(log => ({
-      ...log,
-      person: normalizeName(log.person),
-      actualPerson: normalizeName(log.actualPerson || log.person),
-      assignedPerson: normalizeName(log.assignedPerson),
-      completedSubtasks: log.completedSubtasks || []
-    }));
-    json.tasks = (json.tasks || []).map(task => ({
-      ...task,
-      subtasks: task.subtasks || []
-    }));
-
-    setData(json);
-    return json;
+    const normalized = normalizeApiData(json);
+    setData(normalized);
+    return normalized;
   }
 
   async function saveEmail() {
@@ -766,10 +805,61 @@ function App() {
     }
   }
 
+  async function adminUserAction(action) {
+    try {
+      setError('');
+      setAdminSaving(true);
+
+      const res = await fetch('/api/admin-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pin': adminPin
+        },
+        body: JSON.stringify({
+          action,
+          name: adminForm.name,
+          email: adminForm.email
+        })
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json.error || t.saveError);
+      }
+
+      const normalized = normalizeApiData(json);
+      setData(normalized);
+      setAdminForm({ name: '', email: '' });
+      setSuccess(t.saved);
+      clearSuccessSoon();
+
+      const stillExists = normalized.flatmates.some(
+        person => normalizeName(person) === normalizeName(currentUser)
+      );
+
+      const currentProfile = normalized.flatmateProfiles.find(
+        profile => normalizeName(profile.name) === normalizeName(currentUser)
+      );
+
+      if (!stillExists || !currentProfile?.email) {
+        localStorage.removeItem('flatclean_user');
+        setCurrentUser('');
+      }
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setAdminSaving(false);
+    }
+  }
+
   const taskById = useMemo(
     () => Object.fromEntries((data?.tasks || []).map(task => [task.id, task])),
     [data]
   );
+
+  const activePeriodId = data?.activeScoringPeriod?.id || data?.scores?.activePeriod?.id || null;
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -782,7 +872,7 @@ function App() {
         task,
         last,
         dueDate,
-        person: fairPerson(data.flatmates, data.logs, task),
+        person: fairPerson(data.flatmates, data.logs, task, activePeriodId),
         bundledIntoDeep: false,
         bundledVacuumRow: null
       };
@@ -792,7 +882,7 @@ function App() {
     const vacuum = base.find(row => row.task.id === 'vacuum');
 
     if (deep && vacuum) {
-      const floorPerson = fairPerson(data.flatmates, data.logs, deep);
+      const floorPerson = fairPerson(data.flatmates, data.logs, deep, activePeriodId);
       deep.person = floorPerson;
 
       if (shouldBundleVacuumWithDeep(vacuum, deep)) {
@@ -810,7 +900,8 @@ function App() {
           data.flatmates,
           data.logs,
           vacuum.task,
-          deep.person
+          deep.person,
+          activePeriodId
         );
       }
     }
@@ -833,7 +924,7 @@ function App() {
           b.dueDate || '9999-12-31'
         );
       });
-  }, [data, currentUser]);
+  }, [data, currentUser, activePeriodId]);
 
   const myRows = useMemo(() => {
     return getMyDueRows(rows);
@@ -847,6 +938,30 @@ function App() {
   }, [myRows, t]);
 
   const currentTaskSubtasks = getTaskSubtasks(form.taskId);
+
+  const hasValidCurrentUser =
+    !!currentUser &&
+    !!data?.flatmates?.some(person => normalizeName(person) === normalizeName(currentUser));
+
+  const currentUserProfile = getProfile(currentUser);
+  const currentUserScore = data?.scores?.byPerson?.find(
+    row => normalizeName(row.person) === normalizeName(currentUser)
+  );
+
+  useEffect(() => {
+    if (!data || !currentUser) return;
+
+    const profile = (data.flatmateProfiles || []).find(
+      item => normalizeName(item.name) === normalizeName(currentUser)
+    );
+
+    if (!profile || !profile.email) {
+      localStorage.removeItem('flatclean_user');
+      setCurrentUser('');
+      setPendingUser('');
+      setEmailMode(false);
+    }
+  }, [data, currentUser]);
 
   async function markDone() {
     try {
@@ -870,7 +985,8 @@ function App() {
         person: normalizeName(currentUser),
         completedSubtaskIds: selectedSubtasks,
         alsoLogSubtaskIds: selectedSubtasks,
-        includeAlsoLogs: form.taskId === 'deep_water' ? includeVacuumWithDeep : true
+        includeAlsoLogs: form.taskId === 'deep_water' ? includeVacuumWithDeep : true,
+        isDummy: isDummyTask
       });
 
       setForm(current => ({ ...current, note: '' }));
@@ -901,22 +1017,14 @@ function App() {
     { id: 'next-tasks', label: t.nextTasks, icon: ClipboardList },
     { id: 'mark-done', label: t.markDone, icon: CheckCircle2 },
     { id: 'scores', label: t.scores, icon: Trophy },
-    { id: 'recent-log', label: t.recentLog, icon: History }
+    { id: 'recent-log', label: t.recentLog, icon: History },
+    { id: 'admin', label: t.admin, icon: Pencil }
   ];
 
   const taskOptions = (data?.tasks || []).map(task => ({
     value: task.id,
     label: taskLabel(task)
   }));
-
-  const hasValidCurrentUser =
-    !!currentUser &&
-    !!data?.flatmates?.some(person => normalizeName(person) === normalizeName(currentUser));
-
-  const currentUserProfile = getProfile(currentUser);
-  const currentUserScore = data?.scores?.byPerson?.find(
-    row => normalizeName(row.person) === normalizeName(currentUser)
-  );
 
   function renderSubtaskSelector() {
     if (!currentTaskSubtasks.length) return null;
@@ -952,6 +1060,22 @@ function App() {
           ))}
         </div>
       </div>
+    );
+  }
+
+  function renderDummyToggle() {
+    return (
+      <label className="check dummy-check">
+        <input
+          type="checkbox"
+          checked={isDummyTask}
+          onChange={event => setIsDummyTask(event.target.checked)}
+        />
+        <span>
+          <b>{t.dummyTask}</b>
+          <small>{t.dummyTaskHelp}</small>
+        </span>
+      </label>
     );
   }
 
@@ -1390,6 +1514,7 @@ function App() {
                 )}
 
                 {renderSubtaskSelector()}
+                {renderDummyToggle()}
 
                 <div className="marking-as">
                   <span>{t.markingAs}</span>
@@ -1443,7 +1568,7 @@ function App() {
 
               <div className="log-list">
                 {data.logs.slice(0, 24).map(log => (
-                  <div className="log" key={log.id}>
+                  <div className={`log ${log.isDummy ? 'dummy-log' : ''}`} key={log.id}>
                     <b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b>
                     <span>
                       <CalendarDays size={14} />
@@ -1463,6 +1588,11 @@ function App() {
             <div>
               <h2>{t.scores}</h2>
               <p>{t.scoresHelp}</p>
+              {data.activeScoringPeriod && (
+                <p>
+                  {t.activePeriod}: <b>{data.activeScoringPeriod.name}</b>
+                </p>
+              )}
             </div>
           </div>
 
@@ -1487,6 +1617,38 @@ function App() {
                     <b>{row.negative.toFixed(2)}</b>
                   </span>
                 </div>
+
+                <div className="person-task-score-list">
+                  {(data.tasks || []).map(task => {
+                    const value = Number(data.scores?.byPersonTask?.[row.person]?.[task.id] || 0);
+                    const subtaskMap = data.scores?.byPersonTaskSubtask?.[row.person]?.[task.id] || {};
+
+                    if (!value) return null;
+
+                    return (
+                      <details key={task.id} className="person-task-score">
+                        <summary>
+                          <span>{taskLabel(task)}</span>
+                          <b>{value.toFixed(2)}</b>
+                        </summary>
+
+                        {(task.subtasks || []).length > 0 ? (
+                          task.subtasks.map(subtask => (
+                            <div className="person-subtask-score" key={subtask.id}>
+                              <span>{getSubtaskName(subtask)}</span>
+                              <b>{Number(subtaskMap[subtask.id] || 0).toFixed(2)}</b>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="person-subtask-score">
+                            <span>{taskLabel(task)}</span>
+                            <b>{value.toFixed(2)}</b>
+                          </div>
+                        )}
+                      </details>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
@@ -1494,10 +1656,113 @@ function App() {
           <h3 className="score-subtitle">{t.taskScores}</h3>
 
           <div className="task-score-table">
-            {(data.scores?.byTask || []).map(row => (
-              <div className="task-score-row" key={row.taskId}>
-                <span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span>
-                <b>{row.total.toFixed(2)}</b>
+            {(data.scores?.byTask || []).map(row => {
+              const open = !!openScoreTasks[row.taskId];
+
+              return (
+                <div className="task-score-accordion" key={row.taskId}>
+                  <button
+                    type="button"
+                    className="task-score-row"
+                    onClick={() =>
+                      setOpenScoreTasks(current => ({
+                        ...current,
+                        [row.taskId]: !current[row.taskId]
+                      }))
+                    }
+                  >
+                    <span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span>
+                    <b>{row.total.toFixed(2)}</b>
+                    <small>{open ? t.hideDetails : t.showDetails}</small>
+                  </button>
+
+                  {open && (
+                    <div className="task-score-detail">
+                      <div className="task-score-base">
+                        {t.baseScore}: <b>{Number(row.baseWeight || 0).toFixed(2)}</b>
+                      </div>
+
+                      {(row.subtasks || []).length > 0 ? (
+                        row.subtasks.map(subtask => (
+                          <div className="subtask-score-row" key={subtask.id}>
+                            <span>{getSubtaskName(subtask)}</span>
+                            <small>weight {subtask.weight}</small>
+                            <b>{Number(subtask.total || 0).toFixed(2)}</b>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="subtask-score-row">
+                          <span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span>
+                          <small>{t.singleTask}</small>
+                          <b>{row.total.toFixed(2)}</b>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="card admin-card" id="admin">
+          <div className="card-head">
+            <div>
+              <h2>{t.adminPanel}</h2>
+              <p>{t.adminHelp}</p>
+            </div>
+          </div>
+
+          <div className="admin-grid">
+            <label>
+              {t.adminPin}
+              <input
+                type="password"
+                value={adminPin}
+                onChange={event => setAdminPin(event.target.value)}
+              />
+            </label>
+
+            <label>
+              {t.userName}
+              <input
+                value={adminForm.name}
+                onChange={event => setAdminForm({ ...adminForm, name: event.target.value })}
+                placeholder="Name"
+              />
+            </label>
+
+            <label>
+              {t.emailAddress}
+              <input
+                type="email"
+                value={adminForm.email}
+                onChange={event => setAdminForm({ ...adminForm, email: event.target.value })}
+                placeholder="name@example.com"
+              />
+            </label>
+          </div>
+
+          <div className="admin-actions">
+            <button disabled={adminSaving} onClick={() => adminUserAction('add')}>
+              {t.addUser}
+            </button>
+            <button disabled={adminSaving} onClick={() => adminUserAction('update')}>
+              {t.updateUser}
+            </button>
+            <button disabled={adminSaving} onClick={() => adminUserAction('delete')}>
+              {t.deleteUser}
+            </button>
+          </div>
+
+          <h3>{t.previousPeriods}</h3>
+
+          <div className="history-list">
+            {(data.scoringPeriods || []).map(period => (
+              <div className="history-row" key={period.id}>
+                <b>{period.name}</b>
+                <span>{period.startedAt} → {period.endedAt || 'active'}</span>
+                <small>{period.reason}</small>
               </div>
             ))}
           </div>
@@ -1556,6 +1821,7 @@ function App() {
             )}
 
             {renderSubtaskSelector()}
+            {renderDummyToggle()}
 
             <div className="modal-grid">
               <label>

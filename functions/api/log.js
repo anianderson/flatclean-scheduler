@@ -76,14 +76,18 @@ function calculateNextDueDate({
   return addDays(anchorDate, intervalDays);
 }
 
-async function getTaskInfo(state, taskId) {
+async function getTaskInfo(state, taskId, scoringPeriodId = null) {
   const task = state.tasks.find(item => item.id === taskId);
-
   if (!task) return null;
 
   const last = lastLog(state.logs, taskId);
   const dueDate = getDueDateFromLastLog(task, last);
-  const assignedPerson = fairPerson(state.flatmates, state.logs, task);
+  const assignedPerson = fairPerson(
+    state.flatmates,
+    state.logs,
+    task,
+    scoringPeriodId || state.activeScoringPeriod?.id || null
+  );
 
   return {
     task,
@@ -114,6 +118,7 @@ function getAggregateCompletedSubtaskIds(logs, taskId, cycleId, newSelectedIds) 
   const completed = new Set(newSelectedIds);
 
   for (const log of logs) {
+    if (log.isDummy) continue;
     if (log.taskId !== taskId) continue;
     if (log.cycleId !== cycleId) continue;
 
@@ -174,7 +179,9 @@ async function insertCompletionLog({
   isPartial,
   completionRatio,
   cycleId,
-  selectedSubtasks
+  selectedSubtasks,
+  scoringPeriodId,
+  isDummy
 }) {
   const logId = crypto.randomUUID();
 
@@ -193,9 +200,11 @@ async function insertCompletionLog({
       is_partial,
       completion_ratio,
       cycle_id,
+      scoring_period_id,
+      is_dummy,
       note
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
     .bind(
       logId,
@@ -211,6 +220,8 @@ async function insertCompletionLog({
       isPartial ? 1 : 0,
       completionRatio,
       cycleId,
+      scoringPeriodId || null,
+      isDummy ? 1 : 0,
       note || 'Marked done'
     )
     .run();
@@ -241,9 +252,11 @@ async function completeTask({
   note,
   completedSubtaskIds,
   forcedCompletionType,
-  forcedNote
+  forcedNote,
+  scoringPeriodId = null,
+  isDummy = false
 }) {
-  const info = await getTaskInfo(stateBefore, taskId);
+  const info = await getTaskInfo(stateBefore, taskId, scoringPeriodId);
 
   if (!info) {
     return { error: 'Unknown task' };
@@ -279,11 +292,13 @@ async function completeTask({
     shouldAdvance
   });
 
-  const creditWeight = getCreditWeight(
-    completionType,
-    info.task.baseWeight,
-    completion.selectedRatio
-  );
+  const creditWeight = isDummy
+    ? 0
+    : getCreditWeight(
+        completionType,
+        info.task.baseWeight,
+        completion.selectedRatio
+      );
 
   const logId = await insertCompletionLog({
     env,
@@ -295,14 +310,18 @@ async function completeTask({
     nextDueDate,
     completionType,
     creditWeight,
-    note: forcedNote || note || 'Marked done',
+    note: isDummy
+      ? `[DUMMY TEST] ${forcedNote || note || 'Marked done'}`
+      : forcedNote || note || 'Marked done',
     isPartial: completion.isPartial,
     completionRatio: completion.selectedRatio,
     cycleId,
-    selectedSubtasks
+    selectedSubtasks,
+    scoringPeriodId,
+    isDummy
   });
 
-  if (info.task.type === 'on_demand') {
+  if (!isDummy && info.task.type === 'on_demand') {
     await env.DB.prepare(`
       UPDATE bin_status
       SET is_full = 0,
@@ -319,7 +338,8 @@ async function completeTask({
     info,
     completionType,
     creditWeight,
-    selectedSubtasks
+    selectedSubtasks,
+    isDummy
   };
 }
 
@@ -479,7 +499,8 @@ export async function onRequestPost({ request, env }) {
     note,
     completedSubtaskIds,
     includeAlsoLogs = true,
-    alsoLogSubtaskIds
+    alsoLogSubtaskIds,
+    isDummy = false
   } = body;
 
   if (!taskId || !person || !date) {
@@ -492,6 +513,8 @@ export async function onRequestPost({ request, env }) {
 
   const actualPerson = normalizeName(person);
   const stateBefore = await readState(env);
+  const activePeriod = stateBefore.activeScoringPeriod;
+  const scoringPeriodId = activePeriod?.id || null;
 
   const completionResults = [];
 
@@ -502,7 +525,9 @@ export async function onRequestPost({ request, env }) {
     actualPerson,
     date,
     note,
-    completedSubtaskIds
+    completedSubtaskIds,
+    scoringPeriodId,
+    isDummy
   });
 
   if (mainResult.error) {
@@ -516,7 +541,7 @@ export async function onRequestPost({ request, env }) {
   if (includeAlsoLogs && mainTask.alsoLogs?.length) {
     for (const extraTaskId of mainTask.alsoLogs) {
       const updatedState = await readState(env);
-      const extraInfo = await getTaskInfo(updatedState, extraTaskId);
+      const extraInfo = await getTaskInfo(updatedState, extraTaskId, scoringPeriodId);
 
       if (!extraInfo) continue;
 
@@ -542,7 +567,9 @@ export async function onRequestPost({ request, env }) {
         forcedCompletionType: completionType,
         forcedNote: overdueForSomeoneElse
           ? `Auto-added because ${taskId} includes this task. It was overdue for ${extraInfo.assignedPerson}.`
-          : `Auto-added because ${taskId} includes this task.`
+          : `Auto-added because ${taskId} includes this task.`,
+        scoringPeriodId,
+        isDummy
       });
 
       if (extraResult.ok) {
@@ -553,8 +580,10 @@ export async function onRequestPost({ request, env }) {
 
   const stateAfter = await readState(env);
 
-  await sendCompletionEmails(env, stateAfter, completionResults, actualPerson, date);
-  await sendMilestoneEmails(env, stateAfter);
+  if (!isDummy) {
+    await sendCompletionEmails(env, stateAfter, completionResults, actualPerson, date);
+    await sendMilestoneEmails(env, stateAfter);
+  }
 
   return json(await readState(env));
 }

@@ -1497,3 +1497,161 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.task-score-accordion {
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255,255,255,.74);
+}
+
+.task-score-accordion + .task-score-accordion {
+  margin-top: 8px;
+}
+
+.task-score-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+}
+
+.task-score-row small {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.task-score-detail {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.task-score-base {
+  padding: 10px;
+  border-radius: 14px;
+  background: white;
+  color: #475569;
+}
+
+.subtask-score-row,
+.person-subtask-score {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: white;
+  align-items: center;
+}
+
+.subtask-score-row small {
+  color: #64748b;
+}
+
+.person-task-score-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.person-task-score {
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.person-task-score summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.person-subtask-score {
+  margin: 0 8px 8px;
+  grid-template-columns: 1fr auto;
+}
+
+.dummy-check {
+  align-items: flex-start;
+  border-radius: 18px;
+}
+
+.dummy-check span {
+  display: grid;
+  gap: 3px;
+}
+
+.dummy-check small {
+  color: #64748b;
+  font-weight: 650;
+}
+
+.admin-card {
+  margin-top: 20px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0 20px;
+}
+
+.admin-actions button {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.admin-actions button:last-child {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.history-row {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.history-row span,
+.history-row small {
+  color: #64748b;
+}
+
+@media (max-width: 800px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .task-score-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .task-score-row small {
+    grid-column: 1 / -1;
+  }
+}

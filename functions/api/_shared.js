@@ -1,3 +1,15 @@
+const TASK_TIE_OFFSETS = {
+  gas_stove: 0,
+  deep_water: 1,
+  bath_toilet_basin: 2,
+  driveway_backyard: 0,
+  vacuum: 2,
+  bio_bin: 1,
+  yellow_bin: 2,
+  black_bin: 0,
+  paper_bin: 1
+};
+
 export function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -58,6 +70,18 @@ export function getActivePeriod(state) {
     state.scoringPeriods?.[0] ||
     null
   );
+}
+
+function rotatedRank(person, people, taskId) {
+  const normalizedPeople = people.map(normalizeName);
+  const offset = TASK_TIE_OFFSETS[taskId] ?? 0;
+  const rotated = [
+    ...normalizedPeople.slice(offset),
+    ...normalizedPeople.slice(0, offset)
+  ];
+
+  const index = rotated.indexOf(normalizeName(person));
+  return index === -1 ? 999 : index;
 }
 
 export function calculateScores(people, logs, task, activePeriodId = null) {
@@ -122,9 +146,13 @@ export function fairPerson(people, logs, task, activePeriodId = null) {
       return (scores[a] || 0) - (scores[b] || 0);
     }
 
-    return (lastDates[a] || '1900-01-01').localeCompare(
-      lastDates[b] || '1900-01-01'
-    );
+    if ((lastDates[a] || '1900-01-01') !== (lastDates[b] || '1900-01-01')) {
+      return (lastDates[a] || '1900-01-01').localeCompare(
+        lastDates[b] || '1900-01-01'
+      );
+    }
+
+    return rotatedRank(a, normalizedPeople, task.id) - rotatedRank(b, normalizedPeople, task.id);
   })[0];
 }
 

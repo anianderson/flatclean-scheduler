@@ -22,6 +22,18 @@ import './styles.css';
 const TODAY = new Date().toISOString().slice(0, 10);
 const FLOOR_MERGE_WINDOW_DAYS = 2;
 
+const TASK_TIE_OFFSETS = {
+  gas_stove: 0,
+  deep_water: 1,
+  bath_toilet_basin: 2,
+  driveway_backyard: 0,
+  vacuum: 2,
+  bio_bin: 1,
+  yellow_bin: 2,
+  black_bin: 0,
+  paper_bin: 1
+};
+
 const translations = {
   en: {
     badge: 'Shared apartment scheduler',
@@ -43,7 +55,6 @@ const translations = {
     positiveScore: 'Work points',
     negativeScore: 'Covered by others',
     taskScores: 'Task scores',
-    subtaskScores: 'Subtask scores',
     task: 'Task',
     dateDone: 'Date done',
     note: 'Note',
@@ -115,7 +126,6 @@ const translations = {
     adminPanel: 'Admin panel',
     adminHelp:
       'Manage active flatmates. User changes start a new fair scoring period for everyone.',
-    adminPin: 'Admin PIN',
     userName: 'User name',
     addUser: 'Add user',
     updateUser: 'Update email',
@@ -141,7 +151,6 @@ const translations = {
     singleTask: 'Single task',
     activePeriod: 'Active scoring period',
     confirmAdminPin: 'Enter admin PIN',
-    missingAdminPin: 'Admin PIN is required.',
     noEmail: 'No email yet',
     enabled: 'Enabled',
     disabled: 'Disabled',
@@ -180,7 +189,6 @@ const translations = {
     positiveScore: 'Arbeitspunkte',
     negativeScore: 'Von anderen übernommen',
     taskScores: 'Punkte nach Aufgabe',
-    subtaskScores: 'Teilaufgaben-Punkte',
     task: 'Aufgabe',
     dateDone: 'Erledigt am',
     note: 'Notiz',
@@ -252,7 +260,6 @@ const translations = {
     adminPanel: 'Adminbereich',
     adminHelp:
       'Aktive Mitbewohner verwalten. Änderungen starten eine neue faire Punkteperiode für alle.',
-    adminPin: 'Admin-PIN',
     userName: 'Name',
     addUser: 'Benutzer hinzufügen',
     updateUser: 'E-Mail ändern',
@@ -278,7 +285,6 @@ const translations = {
     singleTask: 'Einzelaufgabe',
     activePeriod: 'Aktive Punkteperiode',
     confirmAdminPin: 'Admin-PIN eingeben',
-    missingAdminPin: 'Admin-PIN ist erforderlich.',
     noEmail: 'Noch keine E-Mail',
     enabled: 'Aktiv',
     disabled: 'Inaktiv',
@@ -372,6 +378,18 @@ function getDueDateFromLastLog(task, last) {
   return null;
 }
 
+function rotatedRank(person, people, taskId) {
+  const normalizedPeople = people.map(normalizeName);
+  const offset = TASK_TIE_OFFSETS[taskId] ?? 0;
+  const rotated = [
+    ...normalizedPeople.slice(offset),
+    ...normalizedPeople.slice(0, offset)
+  ];
+
+  const index = rotated.indexOf(normalizeName(person));
+  return index === -1 ? 999 : index;
+}
+
 function calculateScores(people, logs, task, activePeriodId = null) {
   const normalizedPeople = people.map(normalizeName);
   const taskIds = task.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task.id];
@@ -428,9 +446,13 @@ function fairPerson(people, logs, task, activePeriodId = null) {
       return (scores[a] || 0) - (scores[b] || 0);
     }
 
-    return (lastDates[a] || '1900-01-01').localeCompare(
-      lastDates[b] || '1900-01-01'
-    );
+    if ((lastDates[a] || '1900-01-01') !== (lastDates[b] || '1900-01-01')) {
+      return (lastDates[a] || '1900-01-01').localeCompare(
+        lastDates[b] || '1900-01-01'
+      );
+    }
+
+    return rotatedRank(a, normalizedPeople, task.id) - rotatedRank(b, normalizedPeople, task.id);
   })[0];
 }
 
@@ -453,9 +475,13 @@ function fairPersonAvoiding(people, logs, task, avoidPerson, activePeriodId = nu
       return (scores[a] || 0) - (scores[b] || 0);
     }
 
-    return (lastDates[a] || '1900-01-01').localeCompare(
-      lastDates[b] || '1900-01-01'
-    );
+    if ((lastDates[a] || '1900-01-01') !== (lastDates[b] || '1900-01-01')) {
+      return (lastDates[a] || '1900-01-01').localeCompare(
+        lastDates[b] || '1900-01-01'
+      );
+    }
+
+    return rotatedRank(a, candidates, task.id) - rotatedRank(b, candidates, task.id);
   })[0];
 }
 
@@ -589,6 +615,11 @@ function App() {
     note: ''
   });
 
+  useEffect(() => {
+    setError('');
+    setSuccess('');
+  }, [activePage]);
+
   const languageOptions = [
     { value: 'auto', label: t.auto },
     { value: 'de', label: t.german },
@@ -712,6 +743,7 @@ function App() {
     setEmailMode(false);
     setPendingUser('');
     setEmailDraft('');
+    setError('');
   }
 
   function changeLanguage(value) {
@@ -720,6 +752,9 @@ function App() {
   }
 
   function jumpTo(sectionId) {
+    setError('');
+    setSuccess('');
+
     if (['dashboard', 'admin', 'history', 'developer'].includes(sectionId)) {
       setActivePage(sectionId);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -868,14 +903,7 @@ function App() {
   }
 
   function askAdminPin() {
-    const pin = window.prompt(t.confirmAdminPin);
-
-    if (!pin) {
-      setError(t.missingAdminPin);
-      return null;
-    }
-
-    return pin;
+    return window.prompt(t.confirmAdminPin);
   }
 
   async function adminUserAction(action, user = null) {
@@ -1898,13 +1926,15 @@ function App() {
 
   return (
     <>
-      <button
-        className="mobile-menu-button"
-        onClick={() => setMenuOpen(true)}
-        aria-label={t.menu}
-      >
-        <Menu size={22} />
-      </button>
+      {!menuOpen && (
+        <button
+          className="mobile-menu-button"
+          onClick={() => setMenuOpen(true)}
+          aria-label={t.menu}
+        >
+          <Menu size={22} />
+        </button>
+      )}
 
       {menuOpen && (
         <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />

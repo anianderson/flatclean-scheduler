@@ -1,6 +1,6 @@
 # Flat Cleaning Scheduler — Cloudflare Free Version
 
-This is a responsive shared apartment cleaning scheduler for Melanie, Animesh, and Neveen.
+This is a responsive shared apartment cleaning scheduler for Melanie, Animesh, and Naveen.
 
 ## Stack
 

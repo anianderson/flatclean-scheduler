@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS bin_status (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT OR IGNORE INTO flatmates (name) VALUES ('Melanie'), ('Animesh'), ('Neveen');
+INSERT OR IGNORE INTO flatmates (name) VALUES ('Melanie'), ('Animesh'), ('Naveen');
 
 INSERT OR IGNORE INTO tasks (id, name, type, interval_days, task_group, also_logs) VALUES
 ('vacuum', 'Vacuum cleaning whole flat', 'scheduled', 10, 'floor', NULL),

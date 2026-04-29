@@ -151,7 +151,7 @@ function App() {
         <div>
           <div className="eyebrow">Shared apartment scheduler</div>
           <h1>Cleaning schedule</h1>
-          <p className="sub">For Melanie, Animesh and Neveen. The next person is chosen by actual completed work, so swaps stay fair.</p>
+          <p className="sub">For Melanie, Animesh and Naveen. The next person is chosen by actual completed work, so swaps stay fair.</p>
         </div>
         <div className="today"><span>Today</span><b>{fmt(TODAY)}</b></div>
       </section>

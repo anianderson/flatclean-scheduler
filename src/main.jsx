@@ -79,6 +79,9 @@ const translations = {
     yourTask: 'Your task',
     markingAs: 'This will be saved as',
     noUserSelected: 'Please choose who you are first.',
+    quickMarkDone: 'Mark this task done',
+    openTask: 'Open task',
+    cancel: 'Cancel',
     late: n => `${n} day${n === 1 ? '' : 's'} late`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -152,6 +155,9 @@ const translations = {
     yourTask: 'Deine Aufgabe',
     markingAs: 'Dies wird gespeichert als',
     noUserSelected: 'Bitte wähle zuerst aus, wer du bist.',
+    quickMarkDone: 'Diese Aufgabe erledigt eintragen',
+    openTask: 'Aufgabe öffnen',
+    cancel: 'Abbrechen',
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -238,7 +244,7 @@ function getDueDateFromLastLog(task, last) {
   return null;
 }
 
-function calculateFloorScores(people, logs, task) {
+function calculateScores(people, logs, task) {
   const normalizedPeople = people.map(normalizeName);
 
   const taskIds =
@@ -284,7 +290,7 @@ function calculateFloorScores(people, logs, task) {
 }
 
 function fairPerson(people, logs, task) {
-  const { scores, lastDates, normalizedPeople } = calculateFloorScores(
+  const { scores, lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
     task
@@ -303,7 +309,7 @@ function fairPerson(people, logs, task) {
 
 function fairPersonAvoiding(people, logs, task, avoidPerson) {
   const avoid = normalizeName(avoidPerson);
-  const { scores, lastDates, normalizedPeople } = calculateFloorScores(
+  const { scores, lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
     task
@@ -449,6 +455,7 @@ function App() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [modalTask, setModalTask] = useState(null);
   const [includeVacuumWithDeep, setIncludeVacuumWithDeep] = useState(true);
   const [form, setForm] = useState({
     taskId: 'gas_stove',
@@ -475,6 +482,7 @@ function App() {
   function switchCurrentUser() {
     localStorage.removeItem('flatclean_user');
     setCurrentUser('');
+    setModalTask(null);
   }
 
   function changeLanguage(value) {
@@ -494,6 +502,28 @@ function App() {
     window.setTimeout(() => {
       setSuccess('');
     }, 2800);
+  }
+
+  function openTaskModal(row) {
+    setError('');
+    setSuccess('');
+    setModalTask(row);
+    setForm(current => ({
+      ...current,
+      taskId: row.task.id,
+      date: TODAY,
+      note: ''
+    }));
+
+    if (row.task.id === 'deep_water') {
+      setIncludeVacuumWithDeep(true);
+    }
+  }
+
+  function closeTaskModal() {
+    if (!saving) {
+      setModalTask(null);
+    }
   }
 
   async function load() {
@@ -655,6 +685,7 @@ function App() {
       });
 
       setForm(current => ({ ...current, note: '' }));
+      setModalTask(null);
       setSuccess(t.saved);
       clearSuccessSoon();
     } catch (e) {
@@ -869,8 +900,18 @@ function App() {
 
                 return (
                   <div
-                    className={`task ${row.bundledVacuumRow ? 'task-bundled' : ''} ${isMine ? 'task-mine' : ''}`}
+                    role="button"
+                    tabIndex={0}
+                    className={`task task-clickable ${row.bundledVacuumRow ? 'task-bundled' : ''} ${isMine ? 'task-mine' : ''}`}
                     key={row.task.id}
+                    onClick={() => openTaskModal(row)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openTaskModal(row);
+                      }
+                    }}
+                    aria-label={`${t.openTask}: ${taskLabel(row.task)}`}
                   >
                     <div className="task-main">
                       <div className="task-title-row">
@@ -893,12 +934,12 @@ function App() {
                       )}
 
                       {row.task.type === 'on_demand' && (
-                        <label className="check">
+                        <label className="check" onClick={event => event.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={!!data.fullBins?.[row.task.id]}
-                            onChange={e =>
-                              toggleBin(row.task.id, e.target.checked)
+                            onChange={event =>
+                              toggleBin(row.task.id, event.target.checked)
                             }
                           />
                           {t.binFull}
@@ -1014,7 +1055,7 @@ function App() {
                     type="date"
                     value={form.date}
                     max={TODAY}
-                    onChange={e => setForm({ ...form, date: e.target.value })}
+                    onChange={event => setForm({ ...form, date: event.target.value })}
                   />
                 </label>
 
@@ -1022,7 +1063,7 @@ function App() {
                   {t.note}
                   <input
                     value={form.note}
-                    onChange={e => setForm({ ...form, note: e.target.value })}
+                    onChange={event => setForm({ ...form, note: event.target.value })}
                     placeholder={t.optional}
                   />
                 </label>
@@ -1070,6 +1111,110 @@ function App() {
           </aside>
         </section>
       </main>
+
+      {modalTask && (
+        <div className="modal-backdrop" onClick={closeTaskModal}>
+          <section className="task-modal" onClick={event => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <span className="modal-kicker">{t.quickMarkDone}</span>
+                <h2>{taskLabel(modalTask.task)}</h2>
+                <p>
+                  {t.markingAs} <b>{normalizeName(currentUser)}</b>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="icon-button"
+                onClick={closeTaskModal}
+                aria-label={t.close}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {modalTask.task.id === 'deep_water' && (
+              <div className="vacuum-question">
+                <div>
+                  <b>{t.didVacuumQuestion}</b>
+                  <p>{t.didVacuumHelp}</p>
+                </div>
+
+                <div className="vacuum-choice-row">
+                  <button
+                    type="button"
+                    className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+                    onClick={() => setIncludeVacuumWithDeep(true)}
+                  >
+                    <CheckCircle2 size={18} />
+                    {t.yesVacuumDone}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+                    onClick={() => setIncludeVacuumWithDeep(false)}
+                  >
+                    <X size={18} />
+                    {t.noVacuumDone}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="modal-grid">
+              <label>
+                {t.dateDone}
+                <input
+                  type="date"
+                  value={form.date}
+                  max={TODAY}
+                  onChange={event => setForm({ ...form, date: event.target.value })}
+                />
+              </label>
+
+              <label>
+                {t.note}
+                <input
+                  value={form.note}
+                  onChange={event => setForm({ ...form, note: event.target.value })}
+                  placeholder={t.optional}
+                />
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={closeTaskModal}
+                disabled={saving}
+              >
+                {t.cancel}
+              </button>
+
+              <button
+                className={`primary ${saving ? 'saving' : ''}`}
+                onClick={markDone}
+                disabled={saving}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 size={20} className="spin" />
+                    {t.saving}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={20} />
+                    {t.saveCompleted}
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }

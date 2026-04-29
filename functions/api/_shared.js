@@ -1,8 +1,15 @@
+const HEAVY_TASK_IDS = new Set([
+  'driveway_backyard',
+  'deep_water',
+  'bath_toilet_basin',
+  'vacuum'
+]);
+
 const TASK_TIE_OFFSETS = {
   gas_stove: 0,
   deep_water: 1,
   bath_toilet_basin: 2,
-  driveway_backyard: 0,
+  driveway_backyard: 1,
   vacuum: 2,
   bio_bin: 1,
   yellow_bin: 2,
@@ -43,9 +50,28 @@ export function diffDays(from, to) {
   return Number.isNaN(diff) ? null : diff;
 }
 
+function getBaseWeight(task) {
+  return Number(task?.baseWeight || 1);
+}
+
+function isHeavyTask(task) {
+  return HEAVY_TASK_IDS.has(task?.id) || getBaseWeight(task) >= 2;
+}
+
 export function lastLog(logs, taskId) {
   return logs
     .filter(log => log.taskId === taskId && !log.isDummy)
+    .sort((a, b) => {
+      if (b.date !== a.date) return b.date.localeCompare(a.date);
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    })[0];
+}
+
+function lastGroupLog(logs, task) {
+  const ids = task?.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task?.id];
+
+  return (logs || [])
+    .filter(log => ids.includes(log.taskId) && !log.isDummy)
     .sort((a, b) => {
       if (b.date !== a.date) return b.date.localeCompare(a.date);
       return (b.createdAt || '').localeCompare(a.createdAt || '');
@@ -133,8 +159,46 @@ export function calculateScores(people, logs, task, activePeriodId = null) {
   return { scores, lastDates, normalizedPeople };
 }
 
-export function fairPerson(people, logs, task, activePeriodId = null) {
-  const { scores, lastDates, normalizedPeople } = calculateScores(
+function personFairnessScore({
+  person,
+  people,
+  logs,
+  task,
+  activePeriodId,
+  plannedLoad = {}
+}) {
+  const { scores } = calculateScores(people, logs, task, activePeriodId);
+
+  const normalizedPerson = normalizeName(person);
+  const baseWeight = getBaseWeight(task);
+  const heavy = isHeavyTask(task);
+
+  let score = Number(scores[normalizedPerson] || 0);
+  score += Number(plannedLoad[normalizedPerson] || 0);
+
+  const exactLast = lastLog(logs || [], task.id);
+  const exactLastPerson = normalizeName(exactLast?.actualPerson || exactLast?.person);
+
+  if (exactLastPerson && exactLastPerson === normalizedPerson) {
+    score += heavy ? baseWeight * 4 : baseWeight * 0.75;
+  }
+
+  const groupLast = lastGroupLog(logs || [], task);
+  const groupLastPerson = normalizeName(groupLast?.actualPerson || groupLast?.person);
+
+  if (
+    groupLastPerson &&
+    groupLastPerson === normalizedPerson &&
+    groupLast?.taskId !== task.id
+  ) {
+    score += heavy ? baseWeight * 1.5 : baseWeight * 0.5;
+  }
+
+  return score;
+}
+
+export function fairPerson(people, logs, task, activePeriodId = null, plannedLoad = {}) {
+  const { lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
     task,
@@ -142,8 +206,26 @@ export function fairPerson(people, logs, task, activePeriodId = null) {
   );
 
   return [...normalizedPeople].sort((a, b) => {
-    if ((scores[a] || 0) !== (scores[b] || 0)) {
-      return (scores[a] || 0) - (scores[b] || 0);
+    const aScore = personFairnessScore({
+      person: a,
+      people: normalizedPeople,
+      logs,
+      task,
+      activePeriodId,
+      plannedLoad
+    });
+
+    const bScore = personFairnessScore({
+      person: b,
+      people: normalizedPeople,
+      logs,
+      task,
+      activePeriodId,
+      plannedLoad
+    });
+
+    if (aScore !== bScore) {
+      return aScore - bScore;
     }
 
     if ((lastDates[a] || '1900-01-01') !== (lastDates[b] || '1900-01-01')) {

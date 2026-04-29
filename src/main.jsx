@@ -22,11 +22,18 @@ import './styles.css';
 const TODAY = new Date().toISOString().slice(0, 10);
 const FLOOR_MERGE_WINDOW_DAYS = 2;
 
+const HEAVY_TASK_IDS = new Set([
+  'driveway_backyard',
+  'deep_water',
+  'bath_toilet_basin',
+  'vacuum'
+]);
+
 const TASK_TIE_OFFSETS = {
   gas_stove: 0,
   deep_water: 1,
   bath_toilet_basin: 2,
-  driveway_backyard: 0,
+  driveway_backyard: 1,
   vacuum: 2,
   bio_bin: 1,
   yellow_bin: 2,
@@ -39,7 +46,7 @@ const translations = {
     badge: 'Shared apartment scheduler',
     title: 'Cleaning schedule',
     subtitle:
-      'For Melanie, Animesh and Naveen. The next person is chosen by actual completed work, so swaps stay fair.',
+      'For Melanie, Animesh and Naveen. The next person is chosen by completed work, last responsibility, and upcoming workload.',
     navigation: 'Navigation',
     dashboard: 'Dashboard',
     nextTasks: 'Next tasks',
@@ -173,7 +180,7 @@ const translations = {
     badge: 'WG-Putzplan',
     title: 'Putzplan',
     subtitle:
-      'Für Melanie, Animesh und Naveen. Die nächste Person wird anhand der tatsächlich erledigten Aufgaben gewählt, damit Tauschen fair bleibt.',
+      'Für Melanie, Animesh und Naveen. Die nächste Person wird anhand erledigter Arbeit, letzter Verantwortung und kommender Belastung gewählt.',
     navigation: 'Navigation',
     dashboard: 'Übersicht',
     nextTasks: 'Nächste Aufgaben',
@@ -357,9 +364,28 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
 
+function getBaseWeight(task) {
+  return Number(task?.baseWeight || 1);
+}
+
+function isHeavyTask(task) {
+  return HEAVY_TASK_IDS.has(task?.id) || getBaseWeight(task) >= 2;
+}
+
 function lastLog(logs, taskId) {
   return logs
     .filter(log => log.taskId === taskId && !log.isDummy)
+    .sort((a, b) => {
+      if (b.date !== a.date) return b.date.localeCompare(a.date);
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    })[0];
+}
+
+function lastGroupLog(logs, task) {
+  const ids = task.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task.id];
+
+  return logs
+    .filter(log => ids.includes(log.taskId) && !log.isDummy)
     .sort((a, b) => {
       if (b.date !== a.date) return b.date.localeCompare(a.date);
       return (b.createdAt || '').localeCompare(a.createdAt || '');
@@ -433,8 +459,47 @@ function calculateScores(people, logs, task, activePeriodId = null) {
   return { scores, lastDates, normalizedPeople };
 }
 
-function fairPerson(people, logs, task, activePeriodId = null) {
-  const { scores, lastDates, normalizedPeople } = calculateScores(
+function personFairnessScore({
+  person,
+  people,
+  logs,
+  task,
+  activePeriodId,
+  plannedLoad = {}
+}) {
+  const { scores } = calculateScores(people, logs, task, activePeriodId);
+
+  const normalizedPerson = normalizeName(person);
+  const baseWeight = getBaseWeight(task);
+  const heavy = isHeavyTask(task);
+
+  let score = Number(scores[normalizedPerson] || 0);
+
+  score += Number(plannedLoad[normalizedPerson] || 0);
+
+  const exactLast = lastLog(logs, task.id);
+  const exactLastPerson = normalizeName(exactLast?.actualPerson || exactLast?.person);
+
+  if (exactLastPerson && exactLastPerson === normalizedPerson) {
+    score += heavy ? baseWeight * 4 : baseWeight * 0.75;
+  }
+
+  const groupLast = lastGroupLog(logs, task);
+  const groupLastPerson = normalizeName(groupLast?.actualPerson || groupLast?.person);
+
+  if (
+    groupLastPerson &&
+    groupLastPerson === normalizedPerson &&
+    groupLast?.taskId !== task.id
+  ) {
+    score += heavy ? baseWeight * 1.5 : baseWeight * 0.5;
+  }
+
+  return score;
+}
+
+function fairPerson(people, logs, task, activePeriodId = null, plannedLoad = {}) {
+  const { lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
     task,
@@ -442,8 +507,26 @@ function fairPerson(people, logs, task, activePeriodId = null) {
   );
 
   return [...normalizedPeople].sort((a, b) => {
-    if ((scores[a] || 0) !== (scores[b] || 0)) {
-      return (scores[a] || 0) - (scores[b] || 0);
+    const aScore = personFairnessScore({
+      person: a,
+      people: normalizedPeople,
+      logs,
+      task,
+      activePeriodId,
+      plannedLoad
+    });
+
+    const bScore = personFairnessScore({
+      person: b,
+      people: normalizedPeople,
+      logs,
+      task,
+      activePeriodId,
+      plannedLoad
+    });
+
+    if (aScore !== bScore) {
+      return aScore - bScore;
     }
 
     if ((lastDates[a] || '1900-01-01') !== (lastDates[b] || '1900-01-01')) {
@@ -456,33 +539,20 @@ function fairPerson(people, logs, task, activePeriodId = null) {
   })[0];
 }
 
-function fairPersonAvoiding(people, logs, task, avoidPerson, activePeriodId = null) {
+function fairPersonAvoiding(
+  people,
+  logs,
+  task,
+  avoidPerson,
+  activePeriodId = null,
+  plannedLoad = {}
+) {
   const avoid = normalizeName(avoidPerson);
-
-  const { scores, lastDates, normalizedPeople } = calculateScores(
-    people,
-    logs,
-    task,
-    activePeriodId
-  );
-
-  const candidates = normalizedPeople.filter(person => person !== avoid);
+  const candidates = people.map(normalizeName).filter(person => person !== avoid);
 
   if (!candidates.length) return avoid;
 
-  return candidates.sort((a, b) => {
-    if ((scores[a] || 0) !== (scores[b] || 0)) {
-      return (scores[a] || 0) - (scores[b] || 0);
-    }
-
-    if ((lastDates[a] || '1900-01-01') !== (lastDates[b] || '1900-01-01')) {
-      return (lastDates[a] || '1900-01-01').localeCompare(
-        lastDates[b] || '1900-01-01'
-      );
-    }
-
-    return rotatedRank(a, candidates, task.id) - rotatedRank(b, candidates, task.id);
-  })[0];
+  return fairPerson(candidates, logs, task, activePeriodId, plannedLoad);
 }
 
 function status(row, fullBins, t) {
@@ -1017,38 +1087,88 @@ function App() {
         task,
         last,
         dueDate,
-        person: fairPerson(data.flatmates, data.logs, task, activePeriodId),
+        person: null,
         bundledIntoDeep: false,
         bundledVacuumRow: null
       };
     });
 
+    const plannedLoad = Object.fromEntries(
+      (data.flatmates || []).map(person => [normalizeName(person), 0])
+    );
+
     const deep = base.find(row => row.task.id === 'deep_water');
     const vacuum = base.find(row => row.task.id === 'vacuum');
 
-    if (deep && vacuum) {
-      const floorPerson = fairPerson(data.flatmates, data.logs, deep, activePeriodId);
+    if (deep && vacuum && shouldBundleVacuumWithDeep(vacuum, deep)) {
+      const combinedTask = {
+        ...deep.task,
+        id: 'deep_water',
+        baseWeight: getBaseWeight(deep.task) + getBaseWeight(vacuum.task),
+        taskGroup: 'floor'
+      };
+
+      const floorPerson = fairPerson(
+        data.flatmates,
+        data.logs,
+        combinedTask,
+        activePeriodId,
+        plannedLoad
+      );
+
       deep.person = floorPerson;
+      deep.bundledVacuumRow = {
+        ...vacuum,
+        dueDate: deep.dueDate,
+        person: floorPerson
+      };
 
-      if (shouldBundleVacuumWithDeep(vacuum, deep)) {
-        deep.bundledVacuumRow = {
-          ...vacuum,
-          dueDate: deep.dueDate,
-          person: floorPerson
-        };
+      vacuum.person = floorPerson;
+      vacuum.dueDate = deep.dueDate;
+      vacuum.bundledIntoDeep = true;
 
-        vacuum.person = floorPerson;
-        vacuum.dueDate = deep.dueDate;
-        vacuum.bundledIntoDeep = true;
-      } else if (vacuum.person === deep.person) {
-        vacuum.person = fairPersonAvoiding(
-          data.flatmates,
-          data.logs,
-          vacuum.task,
-          deep.person,
-          activePeriodId
+      plannedLoad[floorPerson] =
+        Number(plannedLoad[floorPerson] || 0) +
+        getBaseWeight(deep.task) +
+        getBaseWeight(vacuum.task);
+    }
+
+    const assignmentOrder = [...base]
+      .filter(row => !row.bundledIntoDeep)
+      .sort((a, b) => {
+        if (a.task.type !== b.task.type) {
+          return a.task.type === 'scheduled' ? -1 : 1;
+        }
+
+        return (a.dueDate || '9999-12-31').localeCompare(
+          b.dueDate || '9999-12-31'
         );
-      }
+      });
+
+    for (const row of assignmentOrder) {
+      if (row.person) continue;
+
+      row.person = fairPerson(
+        data.flatmates,
+        data.logs,
+        row.task,
+        activePeriodId,
+        plannedLoad
+      );
+
+      plannedLoad[row.person] =
+        Number(plannedLoad[row.person] || 0) + getBaseWeight(row.task);
+    }
+
+    if (deep && vacuum && !vacuum.bundledIntoDeep && deep.person && vacuum.person === deep.person) {
+      vacuum.person = fairPersonAvoiding(
+        data.flatmates,
+        data.logs,
+        vacuum.task,
+        deep.person,
+        activePeriodId,
+        plannedLoad
+      );
     }
 
     const activeUser = normalizeName(currentUser);

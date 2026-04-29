@@ -25,8 +25,8 @@ const translations = {
     title: 'Cleaning schedule',
     subtitle:
       'For Melanie, Animesh and Naveen. The next person is chosen by actual completed work, so swaps stay fair.',
-    today: 'Today',
     navigation: 'Navigation',
+    dashboard: 'Dashboard',
     nextTasks: 'Next tasks',
     nextTasksHelp: 'Upcoming, overdue and on-demand cleaning work.',
     markDone: 'Mark done',
@@ -67,7 +67,7 @@ const translations = {
     german: 'German',
     english: 'English',
     language: 'Language',
-    languageHelp: 'Choose the app language. “Auto” uses your device language.',
+    languageHelp: 'Choose the app language. Auto uses your device language.',
     dueToday: 'Due today',
     menu: 'Menu',
     close: 'Close',
@@ -84,6 +84,11 @@ const translations = {
     quickMarkDone: 'Mark this task done',
     openTask: 'Open task',
     cancel: 'Cancel',
+    profile: 'Profile',
+    yourPendingTasks: 'Your pending tasks',
+    onePendingTask: '1 pending task',
+    manyPendingTasks: n => `${n} pending tasks`,
+    noPendingTasks: 'No pending tasks',
     late: n => `${n} day${n === 1 ? '' : 's'} late`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -98,13 +103,14 @@ const translations = {
       driveway_backyard: 'Driveway and backyard cleaning'
     }
   },
+
   de: {
     badge: 'WG-Putzplan',
     title: 'Putzplan',
     subtitle:
       'Für Melanie, Animesh und Naveen. Die nächste Person wird anhand der tatsächlich erledigten Aufgaben gewählt, damit Tauschen fair bleibt.',
-    today: 'Heute',
     navigation: 'Navigation',
+    dashboard: 'Übersicht',
     nextTasks: 'Nächste Aufgaben',
     nextTasksHelp: 'Anstehende, überfällige und bedarfsabhängige Putzaufgaben.',
     markDone: 'Erledigt eintragen',
@@ -145,7 +151,7 @@ const translations = {
     german: 'Deutsch',
     english: 'Englisch',
     language: 'Sprache',
-    languageHelp: 'Wähle die App-Sprache. „Auto“ nutzt die Gerätesprache.',
+    languageHelp: 'Wähle die App-Sprache. Auto nutzt die Gerätesprache.',
     dueToday: 'Heute fällig',
     menu: 'Menü',
     close: 'Schließen',
@@ -162,6 +168,11 @@ const translations = {
     quickMarkDone: 'Diese Aufgabe erledigt eintragen',
     openTask: 'Aufgabe öffnen',
     cancel: 'Abbrechen',
+    profile: 'Profil',
+    yourPendingTasks: 'Deine offenen Aufgaben',
+    onePendingTask: '1 offene Aufgabe',
+    manyPendingTasks: n => `${n} offene Aufgaben`,
+    noPendingTasks: 'Keine offenen Aufgaben',
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -203,9 +214,11 @@ function addDays(date, days) {
 
 function diffDays(from, to) {
   if (!from || !to) return null;
+
   const a = new Date(`${from}T00:00:00`);
   const b = new Date(`${to}T00:00:00`);
   const diff = Math.round((b - a) / 86400000);
+
   return Number.isNaN(diff) ? null : diff;
 }
 
@@ -237,7 +250,9 @@ function lastLog(logs, taskId) {
 function getDueDateFromLastLog(task, last) {
   if (!last) return null;
 
-  if (last.nextDueDate) return last.nextDueDate;
+  if (last.nextDueDate) {
+    return last.nextDueDate;
+  }
 
   if (task.type === 'scheduled' && task.intervalDays) {
     return addDays(last.date, task.intervalDays);
@@ -311,6 +326,7 @@ function fairPerson(people, logs, task) {
 
 function fairPersonAvoiding(people, logs, task, avoidPerson) {
   const avoid = normalizeName(avoidPerson);
+
   const { scores, lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
@@ -318,6 +334,7 @@ function fairPersonAvoiding(people, logs, task, avoidPerson) {
   );
 
   const candidates = normalizedPeople.filter(person => person !== avoid);
+
   if (!candidates.length) return avoid;
 
   return candidates.sort((a, b) => {
@@ -336,10 +353,16 @@ function status(row, fullBins, t) {
     return fullBins[row.task.id] ? [t.needsCleaning, 'bad'] : [t.onDemand, 'plain'];
   }
 
-  if (!row.dueDate) return [t.addFirstRecord, 'plain'];
+  if (!row.dueDate) {
+    return [t.addFirstRecord, 'plain'];
+  }
 
   const d = diffDays(TODAY, row.dueDate);
-  if (d === null) return [t.addFirstRecord, 'plain'];
+
+  if (d === null) {
+    return [t.addFirstRecord, 'plain'];
+  }
+
   if (d < 0) return [t.late(Math.abs(d)), 'bad'];
   if (d === 0) return [t.dueToday, 'warn'];
   if (d <= 3) return [t.dueIn(d), 'warn'];
@@ -353,6 +376,7 @@ function shouldBundleVacuumWithDeep(vacuumRow, deepRow) {
   }
 
   const gap = diffDays(vacuumRow.dueDate, deepRow.dueDate);
+
   if (gap === null) return false;
   if (vacuumRow.dueDate === deepRow.dueDate) return true;
 
@@ -502,6 +526,7 @@ function App() {
     setError('');
     setSuccess('');
     setModalTask(row);
+
     setForm(current => ({
       ...current,
       taskId: row.task.id,
@@ -515,14 +540,19 @@ function App() {
   }
 
   function closeTaskModal() {
-    if (!saving) setModalTask(null);
+    if (!saving) {
+      setModalTask(null);
+    }
   }
 
   async function load() {
     try {
       setError('');
       const res = await fetch('/api/state');
-      if (!res.ok) throw new Error(t.loadError);
+
+      if (!res.ok) {
+        throw new Error(t.loadError);
+      }
 
       const json = await res.json();
 
@@ -636,7 +666,9 @@ function App() {
         const aMine = normalizeName(a.person) === activeUser;
         const bMine = normalizeName(b.person) === activeUser;
 
-        if (aMine !== bMine) return aMine ? -1 : 1;
+        if (aMine !== bMine) {
+          return aMine ? -1 : 1;
+        }
 
         if (a.task.type !== b.task.type) {
           return a.task.type === 'scheduled' ? -1 : 1;
@@ -647,6 +679,16 @@ function App() {
         );
       });
   }, [data, currentUser]);
+
+  const myRows = useMemo(() => {
+    return rows.filter(row => normalizeName(row.person) === normalizeName(currentUser));
+  }, [rows, currentUser]);
+
+  const myPendingLabel = useMemo(() => {
+    if (!myRows.length) return t.noPendingTasks;
+    if (myRows.length === 1) return t.onePendingTask;
+    return t.manyPendingTasks(myRows.length);
+  }, [myRows, t]);
 
   async function markDone() {
     try {
@@ -695,6 +737,7 @@ function App() {
   }
 
   const navItems = [
+    { id: 'top', label: t.dashboard, icon: Home },
     { id: 'next-tasks', label: t.nextTasks, icon: ClipboardList },
     { id: 'mark-done', label: t.markDone, icon: CheckCircle2 },
     { id: 'recent-log', label: t.recentLog, icon: History }
@@ -757,13 +800,9 @@ function App() {
           </div>
 
           <div className="profile-language-card">
-            <div className="control-card">
-              <div className="control-header">
-                <div>
-                  <span className="control-label">{t.language}</span>
-                  <p className="control-help">{t.languageHelp}</p>
-                </div>
-              </div>
+            <div className="dashboard-card dashboard-language-card language-card-top">
+              <span className="dashboard-label">{t.language}</span>
+              <p>{t.languageHelp}</p>
 
               <FancySelect
                 label=""
@@ -809,13 +848,9 @@ function App() {
           </button>
         </div>
 
-        <button className="nav-link" onClick={() => jumpTo('top')}>
-          <Home size={18} />
-          <span>{t.title}</span>
-        </button>
-
         {navItems.map(item => {
           const Icon = item.icon;
+
           return (
             <button
               className="nav-link"
@@ -830,24 +865,21 @@ function App() {
       </aside>
 
       <main className="page" id="top">
-        <section className="hero">
+        <section className="hero dashboard-hero">
           <div className="hero-main">
             <div className="eyebrow">
               <Sparkles size={16} />
               {t.badge}
             </div>
+
             <h1>{t.title}</h1>
             <p className="sub">{t.subtitle}</p>
           </div>
 
-          <div className="hero-panel-grid">
-            <div className="control-card">
-              <div className="control-header">
-                <div>
-                  <span className="control-label">{t.language}</span>
-                  <p className="control-help">{t.languageHelp}</p>
-                </div>
-              </div>
+          <div className="dashboard-header">
+            <div className="dashboard-card dashboard-language-card language-card-top">
+              <span className="dashboard-label">{t.language}</span>
+              <p>{t.languageHelp}</p>
 
               <FancySelect
                 label=""
@@ -859,12 +891,26 @@ function App() {
               />
             </div>
 
-            <div className="control-card session-card">
-              <span className="control-label">{t.loggedInAs}</span>
-              <b className="session-name">{normalizeName(currentUser)}</b>
-              <button type="button" onClick={switchCurrentUser}>
-                {t.switchUser}
-              </button>
+            <div className="dashboard-card dashboard-user-card">
+              <span className="dashboard-label">{t.profile}</span>
+
+              <div className="dashboard-user-row">
+                <span className="dashboard-avatar">
+                  {normalizeName(currentUser).slice(0, 1)}
+                </span>
+
+                <div>
+                  <b>{normalizeName(currentUser)}</b>
+                  <button type="button" onClick={switchCurrentUser}>
+                    {t.switchUser}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="dashboard-card dashboard-pending-card">
+              <span className="dashboard-label">{t.yourPendingTasks}</span>
+              <strong>{myPendingLabel}</strong>
             </div>
           </div>
         </section>

@@ -5,11 +5,11 @@ function requireAdmin(request, env) {
   const provided = request.headers.get('x-admin-pin') || '';
 
   if (!configuredPin) {
-    return json({ error: 'Admin PIN is not configured' }, 500);
+    return json({ error: 'Admin PIN has not been set up yet.' }, 500);
   }
 
   if (provided !== configuredPin) {
-    return json({ error: 'Wrong or missing admin PIN' }, 401);
+    return json({ error: 'The admin PIN is missing or incorrect.' }, 401);
   }
 
   return null;
@@ -88,11 +88,11 @@ export async function onRequestPost({ request, env }) {
   const email = String(body.email || '').trim();
 
   if (!action || !name) {
-    return json({ error: 'Missing action or user name' }, 400);
+    return json({ error: 'Please choose an action and enter a name.' }, 400);
   }
 
   if (email && !isValidEmail(email)) {
-    return json({ error: 'Invalid email address' }, 400);
+    return json({ error: 'Please enter a valid email address.' }, 400);
   }
 
   const existing = await env.DB.prepare(`
@@ -105,14 +105,14 @@ export async function onRequestPost({ request, env }) {
 
   if (action === 'add') {
     if (existing) {
-      return json({ error: 'User already exists' }, 400);
+      return json({ error: 'This flatmate already exists.' }, 400);
     }
 
     await insertHistory(env, {
       name,
       email,
       action: 'add',
-      note: `Added ${name}`
+      note: `${name} was added as an active flatmate.`
     });
 
     await env.DB.prepare(`
@@ -125,18 +125,18 @@ export async function onRequestPost({ request, env }) {
       .bind(name, email || '')
       .run();
 
-    await startNewPeriod(env, `User set changed: add ${name}`);
+    await startNewPeriod(env, `Flatmate list changed: ${name} was added.`);
 
     return json(await readState(env));
   }
 
   if (action === 'update') {
     if (!existing) {
-      return json({ error: 'User does not exist' }, 404);
+      return json({ error: 'This flatmate does not exist.' }, 404);
     }
 
     if (!email) {
-      return json({ error: 'Email is required for update' }, 400);
+      return json({ error: 'Please enter an email address to update.' }, 400);
     }
 
     await env.DB.prepare(`
@@ -151,7 +151,7 @@ export async function onRequestPost({ request, env }) {
       name,
       email,
       action: 'update',
-      note: `Updated email for ${name}`
+      note: `Email address was updated for ${name}.`
     });
 
     return json(await readState(env));
@@ -159,14 +159,14 @@ export async function onRequestPost({ request, env }) {
 
   if (action === 'delete') {
     if (!existing) {
-      return json({ error: 'User does not exist' }, 404);
+      return json({ error: 'This flatmate does not exist.' }, 404);
     }
 
     await insertHistory(env, {
       name: existing.name,
       email: existing.email || '',
       action: 'delete',
-      note: `Deleted ${existing.name}`
+      note: `${existing.name} was removed from the active flatmates.`
     });
 
     await env.DB.prepare(`
@@ -176,10 +176,10 @@ export async function onRequestPost({ request, env }) {
       .bind(name)
       .run();
 
-    await startNewPeriod(env, `User set changed: delete ${name}`);
+    await startNewPeriod(env, `Flatmate list changed: ${existing.name} was removed.`);
 
     return json(await readState(env));
   }
 
-  return json({ error: 'Unknown admin action' }, 400);
+  return json({ error: 'Unknown admin action.' }, 400);
 }

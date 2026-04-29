@@ -48,10 +48,10 @@ function buildFromHeader(env) {
   const fromEmail = escapeHeader(env.GMAIL_FROM_EMAIL);
 
   if (!fromEmail) {
-    throw new Error('Missing GMAIL_FROM_EMAIL');
+    throw new Error('GMAIL_FROM_EMAIL is missing.');
   }
 
-  const fromName = escapeHeader(env.GMAIL_FROM_NAME || 'Flat Cleaning');
+  const fromName = escapeHeader(env.GMAIL_FROM_NAME || 'Flat Cleaning Schedule');
 
   return `${encodeRFC2047(fromName)} <${fromEmail}>`;
 }
@@ -93,7 +93,7 @@ async function getGmailAccessToken(env) {
   const refreshToken = env.GMAIL_REFRESH_TOKEN;
 
   if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error('Missing Gmail OAuth secrets');
+    throw new Error('Gmail OAuth details are missing.');
   }
 
   const body = new URLSearchParams({
@@ -117,7 +117,7 @@ async function getGmailAccessToken(env) {
     throw new Error(
       result.error_description ||
       result.error ||
-      `Could not get Gmail access token: ${response.status}`
+      `Could not get a Gmail access token. Status: ${response.status}`
     );
   }
 
@@ -148,7 +148,7 @@ export async function sendEmail(env, { to, subject, html, text }) {
       throw new Error(
         result.error?.message ||
         result.message ||
-        `Gmail send failed with ${response.status}`
+        `Gmail could not send the email. Status: ${response.status}`
       );
     }
 
@@ -159,7 +159,7 @@ export async function sendEmail(env, { to, subject, html, text }) {
   } catch (error) {
     return {
       ok: false,
-      error: error.message || 'Could not send Gmail email'
+      error: error.message || 'Could not send the email.'
     };
   }
 }
@@ -264,5 +264,5 @@ export async function sendAndLog(env, payload, logPayload) {
 }
 
 export async function onRequestPost() {
-  return json({ error: 'Direct email API calls are disabled' }, 405);
+  return json({ error: 'Direct email API calls are disabled.' }, 405);
 }

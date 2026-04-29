@@ -6,11 +6,11 @@ export async function onRequestPost({ request, env }) {
   const email = String(body.email || '').trim();
 
   if (!person) {
-    return json({ error: 'Missing person' }, 400);
+    return json({ error: 'Please choose your profile first.' }, 400);
   }
 
   if (!isValidEmail(email)) {
-    return json({ error: 'Please enter a valid email address' }, 400);
+    return json({ error: 'Please enter a valid email address.' }, 400);
   }
 
   const existing = await env.DB.prepare(`
@@ -22,7 +22,7 @@ export async function onRequestPost({ request, env }) {
     .first();
 
   if (!existing) {
-    return json({ error: 'Unknown flatmate' }, 400);
+    return json({ error: 'This profile is no longer active. Please choose another profile.' }, 400);
   }
 
   await env.DB.prepare(`

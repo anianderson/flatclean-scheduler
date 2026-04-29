@@ -220,7 +220,7 @@ async function insertCompletionLog({
       completionRatio,
       cycleId,
       scoringPeriodId || null,
-      note || 'Marked done'
+      note || 'Marked as done'
     )
     .run();
 
@@ -255,7 +255,7 @@ async function completeTask({
   const info = await getTaskInfo(stateBefore, taskId);
 
   if (!info) {
-    return { error: 'Unknown task' };
+    return { error: 'Unknown chore' };
   }
 
   const activePeriod = getActivePeriod(stateBefore);
@@ -305,7 +305,7 @@ async function completeTask({
     nextDueDate,
     completionType,
     creditWeight,
-    note: forcedNote || note || 'Marked done',
+    note: forcedNote || note || 'Marked as done',
     isPartial: completion.isPartial,
     completionRatio: completion.selectedRatio,
     cycleId,
@@ -360,11 +360,11 @@ async function sendCompletionEmails(env, stateAfter, completionResults, actualPe
   if (actualProfile?.email) {
     const email = bilingualEmail({
       titleDe: `Punkte aktualisiert: +${totalPoints.toFixed(2)}`,
-      titleEn: `Score updated: +${totalPoints.toFixed(2)}`,
+      titleEn: `Points updated: +${totalPoints.toFixed(2)}`,
       summaryDe: `${actualPerson}, deine erledigte Aufgabe wurde gespeichert.`,
-      summaryEn: `${actualPerson}, your completed task has been saved.`,
+      summaryEn: `${actualPerson}, your completed chore has been saved.`,
       detailsDe: `Aufgabe(n): ${taskList}. Datum: ${date}. Neue Punkte aus diesem Eintrag: +${totalPoints.toFixed(2)}.`,
-      detailsEn: `Task(s): ${taskList}. Date: ${date}. New points from this entry: +${totalPoints.toFixed(2)}.`
+      detailsEn: `Chore(s): ${taskList}. Date: ${date}. Points earned from this entry: +${totalPoints.toFixed(2)}.`
     });
 
     await sendAndLog(
@@ -399,12 +399,12 @@ async function sendCompletionEmails(env, stateAfter, completionResults, actualPe
     if (!assignedProfile?.email) continue;
 
     const email = bilingualEmail({
-      titleDe: 'Fairness-Aktualisierung',
+      titleDe: 'Fairness-Update',
       titleEn: 'Fairness update',
       summaryDe: `${actualPerson} hat eine überfällige Aufgabe übernommen.`,
-      summaryEn: `${actualPerson} covered an overdue task.`,
-      detailsDe: `Die Aufgabe "${taskName(result.info.task.id, stateAfter)}" war ${assignedPerson} zugeordnet und wurde von ${actualPerson} erledigt. Die Fairness-Punkte wurden angepasst, damit zukünftige Aufgaben ausgeglichen verteilt werden.`,
-      detailsEn: `The task "${taskName(result.info.task.id, stateAfter)}" was assigned to ${assignedPerson} and was completed by ${actualPerson}. Fairness points were adjusted so future tasks stay balanced.`
+      summaryEn: `${actualPerson} covered an overdue chore.`,
+      detailsDe: `Die Aufgabe "${taskName(result.info.task.id, stateAfter)}" war ${assignedPerson} zugeordnet und wurde von ${actualPerson} erledigt. Die Fairness-Punkte wurden angepasst, damit die nächsten Aufgaben wieder ausgeglichener verteilt werden.`,
+      detailsEn: `The chore "${taskName(result.info.task.id, stateAfter)}" was assigned to ${assignedPerson} and was completed by ${actualPerson}. The fairness points were adjusted so upcoming chores can be shared more evenly.`
     });
 
     await sendAndLog(
@@ -459,8 +459,8 @@ async function sendMilestoneEmails(env, stateAfter) {
           titleEn: `🎉 ${row.person} reached ${milestone} points`,
           summaryDe: `${row.person} hat einen neuen Putzplan-Meilenstein erreicht.`,
           summaryEn: `${row.person} reached a new cleaning milestone.`,
-          detailsDe: `Aktueller Gesamtstand: ${row.total.toFixed(2)} Punkte. Glückwunsch und danke fürs Mithelfen in der WG!`,
-          detailsEn: `Current total score: ${row.total.toFixed(2)} points. Congratulations and thanks for helping in the shared apartment!`
+          detailsDe: `Aktueller Punktestand: ${row.total.toFixed(2)} Punkte. Glückwunsch und danke fürs Mithelfen in der WG!`,
+          detailsEn: `Current score: ${row.total.toFixed(2)} points. Congratulations, and thank you for helping keep the flat clean!`
         });
 
         await sendAndLog(
@@ -494,11 +494,11 @@ export async function onRequestPost({ request, env }) {
   } = body;
 
   if (!taskId || !person || !date) {
-    return json({ error: 'Missing task, person, or date' }, 400);
+    return json({ error: 'Please choose a chore, profile, and date.' }, 400);
   }
 
   if (date > todayIso()) {
-    return json({ error: 'Future dates are not allowed' }, 400);
+    return json({ error: 'Future dates are not allowed.' }, 400);
   }
 
   const actualPerson = normalizeName(person);
@@ -520,7 +520,7 @@ export async function onRequestPost({ request, env }) {
     completedSubtaskIds,
     forcedCompletionType: deepWithoutVacuum ? 'deep_without_vacuum' : undefined,
     forcedNote: deepWithoutVacuum
-      ? `${note || 'Marked done'} — vacuum was not included, so deep cleaning credit was reduced.`
+      ? `${note || 'Marked as done'} — vacuuming was not included, so mopping points were reduced.`
       : undefined
   });
 
@@ -560,8 +560,8 @@ export async function onRequestPost({ request, env }) {
           : completedSubtaskIds,
         forcedCompletionType: completionType,
         forcedNote: overdueForSomeoneElse
-          ? `Auto-added because ${taskId} includes this task. It was overdue for ${extraInfo.assignedPerson}.`
-          : `Auto-added because ${taskId} includes this task.`
+          ? `Automatically added because this chore includes ${extraTaskId}. It was overdue for ${extraInfo.assignedPerson}.`
+          : `Automatically added because this chore includes ${extraTaskId}.`
       });
 
       if (extraResult.ok) {

@@ -10,8 +10,11 @@ import {
   History,
   Home,
   Loader2,
+  Mail,
   Menu,
+  Pencil,
   Sparkles,
+  Trophy,
   X
 } from 'lucide-react';
 import './styles.css';
@@ -33,6 +36,12 @@ const translations = {
     markDoneHelp: 'Enter the task and date. It will be saved under your logged-in profile.',
     recentLog: 'Recent log',
     recentLogHelp: 'Latest completed cleaning entries.',
+    scores: 'Scores',
+    scoresHelp: 'Fairness points from completed work. Partial tasks count proportionally.',
+    totalScore: 'Total score',
+    positiveScore: 'Work points',
+    negativeScore: 'Covered by others',
+    taskScores: 'Task scores',
     task: 'Task',
     dateDone: 'Date done',
     note: 'Note',
@@ -85,14 +94,22 @@ const translations = {
     openTask: 'Open task',
     cancel: 'Cancel',
     profile: 'Profile',
-    yourPendingTasks: 'Your pending tasks',
-    onePendingTask: '1 pending task',
-    manyPendingTasks: n => `${n} pending tasks`,
-    noPendingTasks: 'No pending tasks',
+    yourPendingTasks: 'Your due tasks',
+    onePendingTask: '1 due task',
+    manyPendingTasks: n => `${n} due tasks`,
+    noPendingTasks: 'No due tasks',
     subtasks: 'Areas / subtasks',
     selectAll: 'Select all',
     partialTask: 'Uncheck anything that was not completed.',
     pendingParts: 'Still pending',
+    emailTitle: 'Email required',
+    emailInfo:
+      'We use this email to send reminder emails, overdue notifications, score updates, and milestone emails.',
+    emailAddress: 'Email address',
+    saveAndContinue: 'Save and continue',
+    changeEmail: 'Change email',
+    emailSaved: 'Email saved successfully.',
+    invalidEmail: 'Please enter a valid email address.',
     late: n => `${n} day${n === 1 ? '' : 's'} late`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -121,6 +138,12 @@ const translations = {
     markDoneHelp: 'Wähle Aufgabe und Datum. Der Eintrag wird unter deinem Profil gespeichert.',
     recentLog: 'Letzte Einträge',
     recentLogHelp: 'Die neuesten erledigten Putzaufgaben.',
+    scores: 'Punkte',
+    scoresHelp: 'Fairness-Punkte aus erledigter Arbeit. Teilaufgaben zählen anteilig.',
+    totalScore: 'Gesamtpunkte',
+    positiveScore: 'Arbeitspunkte',
+    negativeScore: 'Von anderen übernommen',
+    taskScores: 'Punkte nach Aufgabe',
     task: 'Aufgabe',
     dateDone: 'Erledigt am',
     note: 'Notiz',
@@ -173,14 +196,22 @@ const translations = {
     openTask: 'Aufgabe öffnen',
     cancel: 'Abbrechen',
     profile: 'Profil',
-    yourPendingTasks: 'Deine offenen Aufgaben',
-    onePendingTask: '1 offene Aufgabe',
-    manyPendingTasks: n => `${n} offene Aufgaben`,
-    noPendingTasks: 'Keine offenen Aufgaben',
+    yourPendingTasks: 'Deine fälligen Aufgaben',
+    onePendingTask: '1 fällige Aufgabe',
+    manyPendingTasks: n => `${n} fällige Aufgaben`,
+    noPendingTasks: 'Keine fälligen Aufgaben',
     subtasks: 'Bereiche / Teilaufgaben',
     selectAll: 'Alle auswählen',
     partialTask: 'Entferne alles, was nicht erledigt wurde.',
     pendingParts: 'Noch offen',
+    emailTitle: 'E-Mail erforderlich',
+    emailInfo:
+      'Wir verwenden diese E-Mail für Erinnerungen, überfällige Aufgaben, Punkte-Updates und Meilenstein-E-Mails.',
+    emailAddress: 'E-Mail-Adresse',
+    saveAndContinue: 'Speichern und weiter',
+    changeEmail: 'E-Mail ändern',
+    emailSaved: 'E-Mail erfolgreich gespeichert.',
+    invalidEmail: 'Bitte gib eine gültige E-Mail-Adresse ein.',
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -222,11 +253,9 @@ function addDays(date, days) {
 
 function diffDays(from, to) {
   if (!from || !to) return null;
-
   const a = new Date(`${from}T00:00:00`);
   const b = new Date(`${to}T00:00:00`);
   const diff = Math.round((b - a) / 86400000);
-
   return Number.isNaN(diff) ? null : diff;
 }
 
@@ -246,6 +275,10 @@ function normalizeName(name) {
   return name === 'Neveen' ? 'Naveen' : name;
 }
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+}
+
 function lastLog(logs, taskId) {
   return logs
     .filter(log => log.taskId === taskId)
@@ -258,9 +291,7 @@ function lastLog(logs, taskId) {
 function getDueDateFromLastLog(task, last) {
   if (!last) return null;
 
-  if (last.nextDueDate) {
-    return last.nextDueDate;
-  }
+  if (last.nextDueDate) return last.nextDueDate;
 
   if (task.type === 'scheduled' && task.intervalDays) {
     return addDays(last.date, task.intervalDays);
@@ -271,11 +302,7 @@ function getDueDateFromLastLog(task, last) {
 
 function calculateScores(people, logs, task) {
   const normalizedPeople = people.map(normalizeName);
-
-  const taskIds =
-    task.taskGroup === 'floor'
-      ? ['vacuum', 'deep_water']
-      : [task.id];
+  const taskIds = task.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task.id];
 
   const scores = Object.fromEntries(normalizedPeople.map(person => [person, 0]));
   const lastDates = Object.fromEntries(
@@ -291,7 +318,6 @@ function calculateScores(people, logs, task) {
 
     if (actualPerson) {
       scores[actualPerson] = (scores[actualPerson] || 0) + weight;
-
       if (log.date > (lastDates[actualPerson] || '1900-01-01')) {
         lastDates[actualPerson] = log.date;
       }
@@ -322,9 +348,7 @@ function fairPerson(people, logs, task) {
   );
 
   return [...normalizedPeople].sort((a, b) => {
-    if ((scores[a] || 0) !== (scores[b] || 0)) {
-      return (scores[a] || 0) - (scores[b] || 0);
-    }
+    if ((scores[a] || 0) !== (scores[b] || 0)) return (scores[a] || 0) - (scores[b] || 0);
 
     return (lastDates[a] || '1900-01-01').localeCompare(
       lastDates[b] || '1900-01-01'
@@ -334,7 +358,6 @@ function fairPerson(people, logs, task) {
 
 function fairPersonAvoiding(people, logs, task, avoidPerson) {
   const avoid = normalizeName(avoidPerson);
-
   const { scores, lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
@@ -342,13 +365,10 @@ function fairPersonAvoiding(people, logs, task, avoidPerson) {
   );
 
   const candidates = normalizedPeople.filter(person => person !== avoid);
-
   if (!candidates.length) return avoid;
 
   return candidates.sort((a, b) => {
-    if ((scores[a] || 0) !== (scores[b] || 0)) {
-      return (scores[a] || 0) - (scores[b] || 0);
-    }
+    if ((scores[a] || 0) !== (scores[b] || 0)) return (scores[a] || 0) - (scores[b] || 0);
 
     return (lastDates[a] || '1900-01-01').localeCompare(
       lastDates[b] || '1900-01-01'
@@ -361,16 +381,10 @@ function status(row, fullBins, t) {
     return fullBins[row.task.id] ? [t.needsCleaning, 'bad'] : [t.onDemand, 'plain'];
   }
 
-  if (!row.dueDate) {
-    return [t.addFirstRecord, 'plain'];
-  }
+  if (!row.dueDate) return [t.addFirstRecord, 'plain'];
 
   const d = diffDays(TODAY, row.dueDate);
-
-  if (d === null) {
-    return [t.addFirstRecord, 'plain'];
-  }
-
+  if (d === null) return [t.addFirstRecord, 'plain'];
   if (d < 0) return [t.late(Math.abs(d)), 'bad'];
   if (d === 0) return [t.dueToday, 'warn'];
   if (d <= 3) return [t.dueIn(d), 'warn'];
@@ -379,9 +393,7 @@ function status(row, fullBins, t) {
 }
 
 function shouldBundleVacuumWithDeep(vacuumRow, deepRow) {
-  if (!vacuumRow || !deepRow || !vacuumRow.dueDate || !deepRow.dueDate) {
-    return false;
-  }
+  if (!vacuumRow || !deepRow || !vacuumRow.dueDate || !deepRow.dueDate) return false;
 
   const gap = diffDays(vacuumRow.dueDate, deepRow.dueDate);
 
@@ -391,22 +403,13 @@ function shouldBundleVacuumWithDeep(vacuumRow, deepRow) {
   return gap >= 0 && gap <= FLOOR_MERGE_WINDOW_DAYS;
 }
 
-function FancySelect({
-  label,
-  value,
-  onChange,
-  options,
-  placeholder,
-  className = ''
-}) {
+function FancySelect({ label, value, onChange, options, placeholder, className = '' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (!ref.current?.contains(event.target)) {
-        setOpen(false);
-      }
+      if (!ref.current?.contains(event.target)) setOpen(false);
     }
 
     function handleEscape(event) {
@@ -435,9 +438,7 @@ function FancySelect({
           onClick={() => setOpen(current => !current)}
           aria-expanded={open}
         >
-          <span className="fancy-value">
-            {selected?.label || placeholder}
-          </span>
+          <span className="fancy-value">{selected?.label || placeholder}</span>
           <ChevronDown size={18} className="fancy-chevron" />
         </button>
 
@@ -475,6 +476,11 @@ function App() {
   const [currentUser, setCurrentUser] = useState(
     localStorage.getItem('flatclean_user') || ''
   );
+  const [pendingUser, setPendingUser] = useState('');
+  const [emailDraft, setEmailDraft] = useState('');
+  const [emailMode, setEmailMode] = useState(false);
+  const [emailSaving, setEmailSaving] = useState(false);
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -498,6 +504,12 @@ function App() {
 
   function taskLabel(task) {
     return t.taskNames[task.id] || task.name || task.id;
+  }
+
+  function getProfile(person) {
+    return (data?.flatmateProfiles || []).find(
+      profile => normalizeName(profile.name) === normalizeName(person)
+    );
   }
 
   function getSubtaskName(subtask) {
@@ -566,9 +578,7 @@ function App() {
       const isMine = normalizeName(row.person) === normalizeName(currentUser);
       if (!isMine) return false;
 
-      if (row.task.type === 'on_demand') {
-        return !!data?.fullBins?.[row.task.id];
-      }
+      if (row.task.type === 'on_demand') return !!data?.fullBins?.[row.task.id];
 
       return !!row.dueDate && row.dueDate <= TODAY;
     });
@@ -576,6 +586,15 @@ function App() {
 
   function chooseCurrentUser(person) {
     const normalized = normalizeName(person);
+    const profile = getProfile(normalized);
+
+    if (!profile?.email) {
+      setPendingUser(normalized);
+      setEmailDraft('');
+      setEmailMode(true);
+      return;
+    }
+
     localStorage.setItem('flatclean_user', normalized);
     setCurrentUser(normalized);
   }
@@ -583,7 +602,21 @@ function App() {
   function switchCurrentUser() {
     localStorage.removeItem('flatclean_user');
     setCurrentUser('');
+    setPendingUser('');
     setModalTask(null);
+  }
+
+  function startChangeEmail() {
+    const profile = getProfile(currentUser);
+    setPendingUser(currentUser);
+    setEmailDraft(profile?.email || '');
+    setEmailMode(true);
+  }
+
+  function cancelEmail() {
+    setEmailMode(false);
+    setPendingUser('');
+    setEmailDraft('');
   }
 
   function changeLanguage(value) {
@@ -620,15 +653,11 @@ function App() {
     const subtasks = row.task.subtasks || [];
     setSelectedSubtasks(subtasks.map(subtask => subtask.id));
 
-    if (row.task.id === 'deep_water') {
-      setIncludeVacuumWithDeep(true);
-    }
+    if (row.task.id === 'deep_water') setIncludeVacuumWithDeep(true);
   }
 
   function closeTaskModal() {
-    if (!saving) {
-      setModalTask(null);
-    }
+    if (!saving) setModalTask(null);
   }
 
   async function load() {
@@ -636,13 +665,15 @@ function App() {
       setError('');
       const res = await fetch('/api/state');
 
-      if (!res.ok) {
-        throw new Error(t.loadError);
-      }
+      if (!res.ok) throw new Error(t.loadError);
 
       const json = await res.json();
 
       json.flatmates = (json.flatmates || []).map(normalizeName);
+      json.flatmateProfiles = (json.flatmateProfiles || []).map(profile => ({
+        ...profile,
+        name: normalizeName(profile.name)
+      }));
       json.logs = (json.logs || []).map(log => ({
         ...log,
         person: normalizeName(log.person),
@@ -659,10 +690,7 @@ function App() {
 
       if (!json.tasks?.some(task => task.id === form.taskId)) {
         const firstTaskId = json.tasks?.[0]?.id || '';
-        setForm(current => ({
-          ...current,
-          taskId: firstTaskId
-        }));
+        setForm(current => ({ ...current, taskId: firstTaskId }));
       }
     } catch (e) {
       setError(e.message || t.loadError);
@@ -685,11 +713,13 @@ function App() {
 
     const json = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
-      throw new Error(json.error || t.saveError);
-    }
+    if (!res.ok) throw new Error(json.error || t.saveError);
 
     json.flatmates = (json.flatmates || []).map(normalizeName);
+    json.flatmateProfiles = (json.flatmateProfiles || []).map(profile => ({
+      ...profile,
+      name: normalizeName(profile.name)
+    }));
     json.logs = (json.logs || []).map(log => ({
       ...log,
       person: normalizeName(log.person),
@@ -704,6 +734,36 @@ function App() {
 
     setData(json);
     return json;
+  }
+
+  async function saveEmail() {
+    try {
+      setError('');
+
+      if (!isValidEmail(emailDraft)) {
+        setError(t.invalidEmail);
+        return;
+      }
+
+      setEmailSaving(true);
+
+      await apiPost('/api/profile', {
+        person: pendingUser,
+        email: emailDraft.trim()
+      });
+
+      localStorage.setItem('flatclean_user', normalizeName(pendingUser));
+      setCurrentUser(normalizeName(pendingUser));
+      setPendingUser('');
+      setEmailMode(false);
+      setEmailDraft('');
+      setSuccess(t.emailSaved);
+      clearSuccessSoon();
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setEmailSaving(false);
+    }
   }
 
   const taskById = useMemo(
@@ -763,9 +823,7 @@ function App() {
         const aMine = normalizeName(a.person) === activeUser;
         const bMine = normalizeName(b.person) === activeUser;
 
-        if (aMine !== bMine) {
-          return aMine ? -1 : 1;
-        }
+        if (aMine !== bMine) return aMine ? -1 : 1;
 
         if (a.task.type !== b.task.type) {
           return a.task.type === 'scheduled' ? -1 : 1;
@@ -842,6 +900,7 @@ function App() {
     { id: 'top', label: t.dashboard, icon: Home },
     { id: 'next-tasks', label: t.nextTasks, icon: ClipboardList },
     { id: 'mark-done', label: t.markDone, icon: CheckCircle2 },
+    { id: 'scores', label: t.scores, icon: Trophy },
     { id: 'recent-log', label: t.recentLog, icon: History }
   ];
 
@@ -853,6 +912,11 @@ function App() {
   const hasValidCurrentUser =
     !!currentUser &&
     !!data?.flatmates?.some(person => normalizeName(person) === normalizeName(currentUser));
+
+  const currentUserProfile = getProfile(currentUser);
+  const currentUserScore = data?.scores?.byPerson?.find(
+    row => normalizeName(row.person) === normalizeName(currentUser)
+  );
 
   function renderSubtaskSelector() {
     if (!currentTaskSubtasks.length) return null;
@@ -891,6 +955,70 @@ function App() {
     );
   }
 
+  function renderEmailGate() {
+    return (
+      <main className="page user-picker-page">
+        <section className="user-picker-card email-card">
+          <div className="eyebrow">
+            <Mail size={16} />
+            {t.emailTitle}
+          </div>
+
+          <h1>{pendingUser || currentUser}</h1>
+          <p className="sub">{t.emailInfo}</p>
+
+          {error && (
+            <div className="notice bad">
+              <AlertTriangle size={20} />
+              {error}
+            </div>
+          )}
+
+          <label>
+            {t.emailAddress}
+            <input
+              type="email"
+              value={emailDraft}
+              onChange={event => setEmailDraft(event.target.value)}
+              placeholder="name@example.com"
+              autoFocus
+            />
+          </label>
+
+          <div className="email-actions">
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={cancelEmail}
+              disabled={emailSaving}
+            >
+              {t.cancel}
+            </button>
+
+            <button
+              type="button"
+              className="primary"
+              onClick={saveEmail}
+              disabled={emailSaving}
+            >
+              {emailSaving ? (
+                <>
+                  <Loader2 size={20} className="spin" />
+                  {t.saving}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={20} />
+                  {t.saveAndContinue}
+                </>
+              )}
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   if (loading) {
     return (
       <main className="page">
@@ -905,6 +1033,10 @@ function App() {
         <div className="card bad">{error || t.loadError}</div>
       </main>
     );
+  }
+
+  if (emailMode) {
+    return renderEmailGate();
   }
 
   if (!hasValidCurrentUser) {
@@ -1040,9 +1172,16 @@ function App() {
 
                 <div>
                   <b>{normalizeName(currentUser)}</b>
-                  <button type="button" onClick={switchCurrentUser}>
-                    {t.switchUser}
-                  </button>
+                  <small>{currentUserProfile?.email}</small>
+                  <div className="profile-actions">
+                    <button type="button" onClick={switchCurrentUser}>
+                      {t.switchUser}
+                    </button>
+                    <button type="button" onClick={startChangeEmail}>
+                      <Pencil size={13} />
+                      {t.changeEmail}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1050,6 +1189,9 @@ function App() {
             <div className="dashboard-card dashboard-pending-card">
               <span className="dashboard-label">{t.yourPendingTasks}</span>
               <strong>{myPendingLabel}</strong>
+              <span className="score-mini">
+                {t.totalScore}: {(currentUserScore?.total || 0).toFixed(2)}
+              </span>
             </div>
           </div>
         </section>
@@ -1082,8 +1224,11 @@ function App() {
                 const [label, tone] = status(row, data.fullBins || {}, t);
                 const isMine = normalizeName(row.person) === normalizeName(currentUser);
                 const completion = getCycleCompletion(row);
-                const hasPendingSubtasks =
-                  completion.pending.length > 0 && completion.ratio < 1;
+                const showPendingSubtasks =
+                  completion.pending.length > 0 &&
+                  completion.ratio < 1 &&
+                  row.dueDate &&
+                  row.dueDate <= TODAY;
 
                 return (
                   <div
@@ -1113,7 +1258,7 @@ function App() {
                           : t.noRecord}
                       </p>
 
-                      {hasPendingSubtasks && row.dueDate && row.dueDate <= TODAY && (
+                      {showPendingSubtasks && (
                         <div className="pending-subtasks">
                           <b>{t.pendingParts}</b>
                           <span>
@@ -1311,6 +1456,51 @@ function App() {
               </div>
             </div>
           </aside>
+        </section>
+
+        <section className="card score-card" id="scores">
+          <div className="card-head">
+            <div>
+              <h2>{t.scores}</h2>
+              <p>{t.scoresHelp}</p>
+            </div>
+          </div>
+
+          <div className="score-grid">
+            {(data.scores?.byPerson || []).map(row => (
+              <div className="score-person-card" key={row.person}>
+                <div className="score-person-head">
+                  <span className="dashboard-avatar">{row.person.slice(0, 1)}</span>
+                  <div>
+                    <b>{row.person}</b>
+                    <strong>{row.total.toFixed(2)}</strong>
+                  </div>
+                </div>
+
+                <div className="score-split">
+                  <span>
+                    {t.positiveScore}
+                    <b>{row.positive.toFixed(2)}</b>
+                  </span>
+                  <span>
+                    {t.negativeScore}
+                    <b>{row.negative.toFixed(2)}</b>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <h3 className="score-subtitle">{t.taskScores}</h3>
+
+          <div className="task-score-table">
+            {(data.scores?.byTask || []).map(row => (
+              <div className="task-score-row" key={row.taskId}>
+                <span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span>
+                <b>{row.total.toFixed(2)}</b>
+              </div>
+            ))}
+          </div>
         </section>
       </main>
 

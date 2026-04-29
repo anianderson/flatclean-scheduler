@@ -1,121 +1,24 @@
-import { json, readState } from './_shared.js';
+import {
+  fairPerson,
+  getDueDateFromLastLog,
+  json,
+  lastLog,
+  normalizeName,
+  readState
+} from './_shared.js';
+import { bilingualEmail, sendAndLog } from './email.js';
 
 const ADVANCE_THRESHOLD = 0.7;
+const MILESTONES = [5, 10, 25, 50, 100, 150, 200];
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function normalizeName(name) {
-  return name === 'Neveen' ? 'Naveen' : name;
 }
 
 function addDays(date, days) {
   const d = new Date(`${date}T00:00:00`);
   d.setDate(d.getDate() + Number(days || 0));
   return d.toISOString().slice(0, 10);
-}
-
-function getLastLog(logs, taskId) {
-  return logs
-    .filter(log => log.taskId === taskId)
-    .sort((a, b) => {
-      if (b.date !== a.date) return b.date.localeCompare(a.date);
-      return (b.createdAt || '').localeCompare(a.createdAt || '');
-    })[0];
-}
-
-function calculateScores(people, logs, task) {
-  const normalizedPeople = people.map(normalizeName);
-
-  const taskIds =
-    task.taskGroup === 'floor'
-      ? ['vacuum', 'deep_water']
-      : [task.id];
-
-  const scores = Object.fromEntries(normalizedPeople.map(person => [person, 0]));
-  const lastDates = Object.fromEntries(
-    normalizedPeople.map(person => [person, '1900-01-01'])
-  );
-
-  for (const log of logs) {
-    if (!taskIds.includes(log.taskId)) continue;
-
-    const actualPerson = normalizeName(log.actualPerson || log.person);
-    const assignedPerson = normalizeName(log.assignedPerson);
-    const weight = Number(log.creditWeight ?? 1);
-
-    if (actualPerson) {
-      scores[actualPerson] = (scores[actualPerson] || 0) + weight;
-
-      if (log.date > (lastDates[actualPerson] || '1900-01-01')) {
-        lastDates[actualPerson] = log.date;
-      }
-    }
-
-    const wasOverdueForSomeoneElse =
-      assignedPerson &&
-      actualPerson &&
-      assignedPerson !== actualPerson &&
-      (
-        log.completionType === 'completed_by_other_late' ||
-        log.completionType === 'auto_included_overdue_for_other'
-      );
-
-    if (wasOverdueForSomeoneElse) {
-      scores[assignedPerson] = (scores[assignedPerson] || 0) - 1;
-    }
-  }
-
-  return { scores, lastDates, normalizedPeople };
-}
-
-function fairPerson(people, logs, task) {
-  const { scores, lastDates, normalizedPeople } = calculateScores(people, logs, task);
-
-  return [...normalizedPeople].sort((a, b) => {
-    if ((scores[a] || 0) !== (scores[b] || 0)) {
-      return (scores[a] || 0) - (scores[b] || 0);
-    }
-
-    return (lastDates[a] || '1900-01-01').localeCompare(
-      lastDates[b] || '1900-01-01'
-    );
-  })[0];
-}
-
-function getDueDateFromLastLog(task, last) {
-  if (!last) return null;
-
-  if (last.nextDueDate) {
-    return last.nextDueDate;
-  }
-
-  if (task.type === 'scheduled' && task.intervalDays) {
-    return addDays(last.date, task.intervalDays);
-  }
-
-  return null;
-}
-
-function calculateNextDueDate({
-  scheduledDueDate,
-  actualDoneDate,
-  intervalDays,
-  shouldAdvance
-}) {
-  if (!intervalDays) return null;
-
-  if (!shouldAdvance) {
-    return scheduledDueDate || actualDoneDate;
-  }
-
-  const anchorDate =
-    scheduledDueDate && actualDoneDate <= scheduledDueDate
-      ? scheduledDueDate
-      : actualDoneDate;
-
-  return addDays(anchorDate, intervalDays);
 }
 
 function getCompletionType({ assignedPerson, actualPerson, scheduledDueDate, actualDoneDate }) {
@@ -153,12 +56,32 @@ function getCreditWeight(completionType, taskBaseWeight, completionRatio) {
   }
 }
 
+function calculateNextDueDate({
+  scheduledDueDate,
+  actualDoneDate,
+  intervalDays,
+  shouldAdvance
+}) {
+  if (!intervalDays) return null;
+
+  if (!shouldAdvance) {
+    return scheduledDueDate || actualDoneDate;
+  }
+
+  const anchorDate =
+    scheduledDueDate && actualDoneDate <= scheduledDueDate
+      ? scheduledDueDate
+      : actualDoneDate;
+
+  return addDays(anchorDate, intervalDays);
+}
+
 async function getTaskInfo(state, taskId) {
   const task = state.tasks.find(item => item.id === taskId);
 
   if (!task) return null;
 
-  const last = getLastLog(state.logs, taskId);
+  const last = lastLog(state.logs, taskId);
   const dueDate = getDueDateFromLastLog(task, last);
   const assignedPerson = fairPerson(state.flatmates, state.logs, task);
 
@@ -168,12 +91,6 @@ async function getTaskInfo(state, taskId) {
     dueDate,
     assignedPerson
   };
-}
-
-function getTotalSubtaskWeight(task) {
-  return (task.subtasks || []).reduce((sum, subtask) => {
-    return sum + Number(subtask.weight || 1);
-  }, 0);
 }
 
 function getSelectedSubtasks(task, completedSubtaskIds) {
@@ -213,20 +130,21 @@ function calculateCompletion(task, selectedSubtasks, aggregateCompletedIds) {
 
   if (!taskSubtasks.length) {
     return {
-      selectedWeight: 1,
-      aggregateWeight: 1,
-      totalWeight: 1,
       selectedRatio: 1,
       aggregateRatio: 1,
       isPartial: false
     };
   }
 
-  const totalWeight = getTotalSubtaskWeight(task);
+  const totalWeight = taskSubtasks.reduce(
+    (sum, subtask) => sum + Number(subtask.weight || 1),
+    0
+  );
 
-  const selectedWeight = selectedSubtasks.reduce((sum, subtask) => {
-    return sum + Number(subtask.weight || 1);
-  }, 0);
+  const selectedWeight = selectedSubtasks.reduce(
+    (sum, subtask) => sum + Number(subtask.weight || 1),
+    0
+  );
 
   const aggregateWeight = taskSubtasks
     .filter(subtask => aggregateCompletedIds.has(subtask.id))
@@ -236,9 +154,6 @@ function calculateCompletion(task, selectedSubtasks, aggregateCompletedIds) {
   const aggregateRatio = totalWeight > 0 ? aggregateWeight / totalWeight : 1;
 
   return {
-    selectedWeight,
-    aggregateWeight,
-    totalWeight,
     selectedRatio: Math.min(selectedRatio, 1),
     aggregateRatio: Math.min(aggregateRatio, 1),
     isPartial: aggregateRatio < 1
@@ -370,7 +285,7 @@ async function completeTask({
     completion.selectedRatio
   );
 
-  await insertCompletionLog({
+  const logId = await insertCompletionLog({
     env,
     taskId,
     actualPerson,
@@ -398,7 +313,161 @@ async function completeTask({
       .run();
   }
 
-  return { ok: true, info };
+  return {
+    ok: true,
+    logId,
+    info,
+    completionType,
+    creditWeight,
+    selectedSubtasks
+  };
+}
+
+function getProfile(state, person) {
+  return (state.flatmateProfiles || []).find(
+    profile => normalizeName(profile.name) === normalizeName(person)
+  );
+}
+
+function taskName(taskId, state) {
+  const task = state.tasks.find(item => item.id === taskId);
+  return task?.name || taskId;
+}
+
+async function sendCompletionEmails(env, stateAfter, completionResults, actualPerson, date) {
+  const actualProfile = getProfile(stateAfter, actualPerson);
+
+  const totalPoints = completionResults.reduce(
+    (sum, item) => sum + Number(item.creditWeight || 0),
+    0
+  );
+
+  const taskList = completionResults
+    .map(item => taskName(item.info.task.id, stateAfter))
+    .join(', ');
+
+  if (actualProfile?.email) {
+    const email = bilingualEmail({
+      titleDe: `Punkte aktualisiert: +${totalPoints.toFixed(2)}`,
+      titleEn: `Score updated: +${totalPoints.toFixed(2)}`,
+      summaryDe: `${actualPerson}, deine erledigte Aufgabe wurde gespeichert.`,
+      summaryEn: `${actualPerson}, your completed task has been saved.`,
+      detailsDe: `Aufgabe(n): ${taskList}. Datum: ${date}. Neue Punkte aus diesem Eintrag: +${totalPoints.toFixed(2)}.`,
+      detailsEn: `Task(s): ${taskList}. Date: ${date}. New points from this entry: +${totalPoints.toFixed(2)}.`
+    });
+
+    await sendAndLog(
+      env,
+      {
+        to: actualProfile.email,
+        ...email
+      },
+      {
+        emailType: 'score_update',
+        taskId: completionResults[0]?.info?.task?.id || null,
+        recipientPerson: actualPerson,
+        referenceDate: date
+      }
+    );
+  }
+
+  for (const result of completionResults) {
+    const assignedPerson = normalizeName(result.info.assignedPerson);
+    const someoneElseCoveredOverdue =
+      assignedPerson &&
+      actualPerson &&
+      assignedPerson !== actualPerson &&
+      (
+        result.completionType === 'completed_by_other_late' ||
+        result.completionType === 'auto_included_overdue_for_other'
+      );
+
+    if (!someoneElseCoveredOverdue) continue;
+
+    const assignedProfile = getProfile(stateAfter, assignedPerson);
+    if (!assignedProfile?.email) continue;
+
+    const email = bilingualEmail({
+      titleDe: 'Fairness-Aktualisierung',
+      titleEn: 'Fairness update',
+      summaryDe: `${actualPerson} hat eine überfällige Aufgabe übernommen.`,
+      summaryEn: `${actualPerson} covered an overdue task.`,
+      detailsDe: `Die Aufgabe "${taskName(result.info.task.id, stateAfter)}" war ${assignedPerson} zugeordnet und wurde von ${actualPerson} erledigt. Die Fairness-Punkte wurden angepasst, damit zukünftige Aufgaben ausgeglichen verteilt werden.`,
+      detailsEn: `The task "${taskName(result.info.task.id, stateAfter)}" was assigned to ${assignedPerson} and was completed by ${actualPerson}. Fairness points were adjusted so future tasks stay balanced.`
+    });
+
+    await sendAndLog(
+      env,
+      {
+        to: assignedProfile.email,
+        ...email
+      },
+      {
+        emailType: 'fairness_adjustment',
+        taskId: result.info.task.id,
+        recipientPerson: assignedPerson,
+        referenceDate: date
+      }
+    );
+  }
+}
+
+async function sendMilestoneEmails(env, stateAfter) {
+  const scores = stateAfter.scores?.byPerson || [];
+
+  for (const row of scores) {
+    const reached = MILESTONES.filter(milestone => row.total >= milestone);
+    if (!reached.length) continue;
+
+    for (const milestone of reached) {
+      const alreadySent = await env.DB.prepare(`
+        SELECT person
+        FROM score_milestones
+        WHERE person = ? AND milestone = ?
+      `)
+        .bind(row.person, milestone)
+        .first();
+
+      if (alreadySent) continue;
+
+      await env.DB.prepare(`
+        INSERT INTO score_milestones (
+          person,
+          milestone
+        )
+        VALUES (?, ?)
+      `)
+        .bind(row.person, milestone)
+        .run();
+
+      for (const profile of stateAfter.flatmateProfiles || []) {
+        if (!profile.email) continue;
+
+        const email = bilingualEmail({
+          titleDe: `🎉 ${row.person} hat ${milestone} Punkte erreicht`,
+          titleEn: `🎉 ${row.person} reached ${milestone} points`,
+          summaryDe: `${row.person} hat einen neuen Putzplan-Meilenstein erreicht.`,
+          summaryEn: `${row.person} reached a new cleaning milestone.`,
+          detailsDe: `Aktueller Gesamtstand: ${row.total.toFixed(2)} Punkte. Glückwunsch und danke fürs Mithelfen in der WG!`,
+          detailsEn: `Current total score: ${row.total.toFixed(2)} points. Congratulations and thanks for helping in the shared apartment!`
+        });
+
+        await sendAndLog(
+          env,
+          {
+            to: profile.email,
+            ...email
+          },
+          {
+            emailType: 'milestone',
+            taskId: null,
+            recipientPerson: profile.name,
+            referenceDate: String(milestone)
+          }
+        );
+      }
+    }
+  }
 }
 
 export async function onRequestPost({ request, env }) {
@@ -424,6 +493,8 @@ export async function onRequestPost({ request, env }) {
   const actualPerson = normalizeName(person);
   const stateBefore = await readState(env);
 
+  const completionResults = [];
+
   const mainResult = await completeTask({
     env,
     stateBefore,
@@ -437,6 +508,8 @@ export async function onRequestPost({ request, env }) {
   if (mainResult.error) {
     return json({ error: mainResult.error }, 400);
   }
+
+  completionResults.push(mainResult);
 
   const mainTask = mainResult.info.task;
 
@@ -457,7 +530,7 @@ export async function onRequestPost({ request, env }) {
         ? 'auto_included_overdue_for_other'
         : 'auto_included';
 
-      await completeTask({
+      const extraResult = await completeTask({
         env,
         stateBefore: updatedState,
         taskId: extraTaskId,
@@ -471,8 +544,17 @@ export async function onRequestPost({ request, env }) {
           ? `Auto-added because ${taskId} includes this task. It was overdue for ${extraInfo.assignedPerson}.`
           : `Auto-added because ${taskId} includes this task.`
       });
+
+      if (extraResult.ok) {
+        completionResults.push(extraResult);
+      }
     }
   }
+
+  const stateAfter = await readState(env);
+
+  await sendCompletionEmails(env, stateAfter, completionResults, actualPerson, date);
+  await sendMilestoneEmails(env, stateAfter);
 
   return json(await readState(env));
 }

@@ -54,7 +54,7 @@ const translations = {
     markDone: 'Mark done',
     markDoneHelp: 'Enter the task and date. It will be saved under your logged-in profile.',
     recentLog: 'Recent log',
-    recentLogHelp: 'Latest completed cleaning entries.',
+    recentLogHelp: 'Latest completed cleaning entries from the current scoring period.',
     scores: 'Scores',
     scoresHelp:
       'Base score shows task difficulty. Earned score shows points collected in the current scoring period.',
@@ -84,7 +84,7 @@ const translations = {
     deepIncludesVacuum: 'This task includes vacuum cleaning on the same day.',
     didVacuumQuestion: 'Have you also vacuumed the flat?',
     didVacuumHelp:
-      'Deep water cleaning usually needs vacuuming first. Select this only if vacuuming was actually done too.',
+      'Deep water cleaning usually needs vacuuming first. If vacuum was not done, deep cleaning gets reduced credit.',
     yesVacuumDone: 'Yes, vacuum was also done',
     noVacuumDone: 'No, only deep water cleaning',
     by: 'by',
@@ -132,35 +132,31 @@ const translations = {
     admin: 'Admin',
     adminPanel: 'Admin panel',
     adminHelp:
-      'Manage active flatmates. User changes start a new fair scoring period for everyone.',
+      'Manage active flatmates. User changes close the current scoring period and start a new fair scoring period.',
     userName: 'User name',
     addUser: 'Add user',
     updateUser: 'Update email',
     deleteUser: 'Delete',
     activeUsers: 'Active users',
-    developer: 'Developer',
-    developerTools: 'Developer tools',
-    developerHelp:
-      'Test UI, scores, and email delivery without changing real scores.',
-    dummyTask: 'Developer dummy task',
-    dummyTaskHelp:
-      'Test saving and UI without affecting real scores, due dates, bin status, emails, or milestones.',
-    sendTestEmail: 'Send test email',
-    recentEmails: 'Recent email log',
     history: 'History',
     previousPeriods: 'Previous periods',
     historyHelp:
-      'Old scoring periods are kept here when flatmates change. This keeps the current period fair for new tenants.',
+      'When flatmates change, the current period is closed. Its logs, scores and milestones stay here, while the active period starts fresh.',
+    periodLogs: 'Logs',
+    periodScores: 'Scores',
+    periodMilestones: 'Milestones',
+    noPeriodLogs: 'No logs in this period',
+    noPeriodMilestones: 'No milestones in this period',
     showDetails: 'Show details',
     hideDetails: 'Hide details',
     baseScore: 'Base difficulty score',
     earnedScore: 'Earned score',
     singleTask: 'Single task',
     activePeriod: 'Active scoring period',
-    confirmAdminPin: 'Enter admin PIN',
     noEmail: 'No email yet',
-    enabled: 'Enabled',
-    disabled: 'Disabled',
+    adminPin: 'Admin PIN',
+    adminPinHelp: 'Enter the admin PIN to confirm this action.',
+    confirm: 'Confirm',
     late: n => `${n} day${n === 1 ? '' : 's'} late`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -188,7 +184,7 @@ const translations = {
     markDone: 'Erledigt eintragen',
     markDoneHelp: 'Wähle Aufgabe und Datum. Der Eintrag wird unter deinem Profil gespeichert.',
     recentLog: 'Letzte Einträge',
-    recentLogHelp: 'Die neuesten erledigten Putzaufgaben.',
+    recentLogHelp: 'Die neuesten erledigten Putzaufgaben aus der aktuellen Punkteperiode.',
     scores: 'Punkte',
     scoresHelp:
       'Basis-Punkte zeigen die Schwierigkeit. Erarbeitete Punkte zeigen Punkte in der aktuellen Punkteperiode.',
@@ -218,7 +214,7 @@ const translations = {
     deepIncludesVacuum: 'Diese Aufgabe enthält Staubsaugen am selben Tag.',
     didVacuumQuestion: 'Hast du auch staubgesaugt?',
     didVacuumHelp:
-      'Vor der Nassreinigung sollte normalerweise staubgesaugt werden. Wähle dies nur aus, wenn Staubsaugen wirklich erledigt wurde.',
+      'Vor der Nassreinigung sollte normalerweise staubgesaugt werden. Ohne Staubsaugen bekommt die Nassreinigung reduzierte Punkte.',
     yesVacuumDone: 'Ja, Staubsaugen wurde auch erledigt',
     noVacuumDone: 'Nein, nur Nassreinigung erledigt',
     by: 'von',
@@ -266,35 +262,31 @@ const translations = {
     admin: 'Admin',
     adminPanel: 'Adminbereich',
     adminHelp:
-      'Aktive Mitbewohner verwalten. Änderungen starten eine neue faire Punkteperiode für alle.',
+      'Aktive Mitbewohner verwalten. Änderungen schließen die aktuelle Punkteperiode und starten eine neue faire Punkteperiode.',
     userName: 'Name',
     addUser: 'Benutzer hinzufügen',
     updateUser: 'E-Mail ändern',
     deleteUser: 'Löschen',
     activeUsers: 'Aktive Benutzer',
-    developer: 'Entwickler',
-    developerTools: 'Entwickler-Tools',
-    developerHelp:
-      'UI, Punkte und E-Mail-Versand testen, ohne echte Punkte zu ändern.',
-    dummyTask: 'Entwickler-Testaufgabe',
-    dummyTaskHelp:
-      'Speichern und UI testen, ohne echte Punkte, Fälligkeiten, Tonnenstatus, E-Mails oder Meilensteine zu beeinflussen.',
-    sendTestEmail: 'Test-E-Mail senden',
-    recentEmails: 'Letzte E-Mail-Logs',
     history: 'Historie',
     previousPeriods: 'Frühere Perioden',
     historyHelp:
-      'Alte Punkteperioden bleiben hier erhalten, wenn Mitbewohner wechseln. So bleibt die aktuelle Periode fair für neue Mieter.',
+      'Wenn Mitbewohner wechseln, wird die aktuelle Periode geschlossen. Logs, Punkte und Meilensteine bleiben hier erhalten, während die aktive Periode neu startet.',
+    periodLogs: 'Einträge',
+    periodScores: 'Punkte',
+    periodMilestones: 'Meilensteine',
+    noPeriodLogs: 'Keine Einträge in dieser Periode',
+    noPeriodMilestones: 'Keine Meilensteine in dieser Periode',
     showDetails: 'Details anzeigen',
     hideDetails: 'Details ausblenden',
     baseScore: 'Basis-Schwierigkeitspunkte',
     earnedScore: 'Erarbeitete Punkte',
     singleTask: 'Einzelaufgabe',
     activePeriod: 'Aktive Punkteperiode',
-    confirmAdminPin: 'Admin-PIN eingeben',
     noEmail: 'Noch keine E-Mail',
-    enabled: 'Aktiv',
-    disabled: 'Inaktiv',
+    adminPin: 'Admin-PIN',
+    adminPinHelp: 'Gib die Admin-PIN ein, um diese Aktion zu bestätigen.',
+    confirm: 'Bestätigen',
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -474,7 +466,6 @@ function personFairnessScore({
   const heavy = isHeavyTask(task);
 
   let score = Number(scores[normalizedPerson] || 0);
-
   score += Number(plannedLoad[normalizedPerson] || 0);
 
   const exactLast = lastLog(logs, task.id);
@@ -674,8 +665,12 @@ function App() {
   const [includeVacuumWithDeep, setIncludeVacuumWithDeep] = useState(true);
   const [selectedSubtasks, setSelectedSubtasks] = useState([]);
   const [openScoreTasks, setOpenScoreTasks] = useState({});
+  const [openHistoryPeriods, setOpenHistoryPeriods] = useState({});
   const [adminForm, setAdminForm] = useState({ name: '', email: '' });
   const [adminSaving, setAdminSaving] = useState(false);
+
+  const [adminModal, setAdminModal] = useState(null);
+  const [adminPin, setAdminPin] = useState('');
 
   const [form, setForm] = useState({
     taskId: 'gas_stove',
@@ -887,13 +882,22 @@ function App() {
       isDummy: !!log.isDummy
     }));
 
+    json.currentLogs = (json.currentLogs || []).map(log => ({
+      ...log,
+      person: normalizeName(log.person),
+      actualPerson: normalizeName(log.actualPerson || log.person),
+      assignedPerson: normalizeName(log.assignedPerson),
+      completedSubtasks: log.completedSubtasks || [],
+      isDummy: !!log.isDummy
+    }));
+
     json.tasks = (json.tasks || []).map(task => ({
       ...task,
       subtasks: task.subtasks || []
     }));
 
-    json.recentEmails = json.recentEmails || [];
     json.scoringPeriods = json.scoringPeriods || [];
+    json.periodHistory = json.periodHistory || [];
 
     return json;
   }
@@ -924,10 +928,13 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function apiPost(url, body) {
+  async function apiPost(url, body, extraHeaders = {}) {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...extraHeaders
+      },
       body: JSON.stringify(body)
     });
 
@@ -935,9 +942,9 @@ function App() {
 
     if (!res.ok) throw new Error(json.error || t.saveError);
 
-    const normalized = normalizeApiData(json);
-    setData(normalized);
-    return normalized;
+    const state = json.state ? normalizeApiData(json.state) : normalizeApiData(json);
+    setData(state);
+    return state;
   }
 
   async function saveEmail() {
@@ -970,29 +977,34 @@ function App() {
     }
   }
 
-  function askAdminPin() {
-    return window.prompt(t.confirmAdminPin);
+  function openAdminModal(action, payload) {
+    setError('');
+    setSuccess('');
+    setAdminPin('');
+    setAdminModal({ action, payload });
   }
 
-  async function adminUserAction(action, user = null) {
+  function closeAdminModal() {
+    if (!adminSaving) {
+      setAdminModal(null);
+      setAdminPin('');
+    }
+  }
+
+  async function confirmAdminAction() {
+    if (!adminModal) return;
+
     try {
       setError('');
       setAdminSaving(true);
-
-      const pin = askAdminPin();
-      if (!pin) return;
-
-      const payload = user
-        ? { action, name: user.name, email: user.email || '' }
-        : { action, name: adminForm.name, email: adminForm.email };
 
       const res = await fetch('/api/admin-users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-pin': pin
+          'x-admin-pin': adminPin
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(adminModal.payload)
       });
 
       const json = await res.json().catch(() => ({}));
@@ -1004,6 +1016,8 @@ function App() {
       const normalized = normalizeApiData(json);
       setData(normalized);
       setAdminForm({ name: '', email: '' });
+      setAdminModal(null);
+      setAdminPin('');
       setSuccess(t.saved);
       clearSuccessSoon();
 
@@ -1036,11 +1050,13 @@ function App() {
     data?.scores?.activePeriod?.id ||
     null;
 
+  const allLogsForScheduling = data?.logs || [];
+
   const rows = useMemo(() => {
     if (!data) return [];
 
     const base = data.tasks.map(task => {
-      const last = lastLog(data.logs, task.id);
+      const last = lastLog(allLogsForScheduling, task.id);
       const dueDate = getDueDateFromLastLog(task, last);
 
       return {
@@ -1070,7 +1086,7 @@ function App() {
 
       const floorPerson = fairPerson(
         data.flatmates,
-        data.logs,
+        allLogsForScheduling,
         combinedTask,
         activePeriodId,
         plannedLoad
@@ -1110,7 +1126,7 @@ function App() {
 
       row.person = fairPerson(
         data.flatmates,
-        data.logs,
+        allLogsForScheduling,
         row.task,
         activePeriodId,
         plannedLoad
@@ -1123,7 +1139,7 @@ function App() {
     if (deep && vacuum && !vacuum.bundledIntoDeep && deep.person && vacuum.person === deep.person) {
       vacuum.person = fairPersonAvoiding(
         data.flatmates,
-        data.logs,
+        allLogsForScheduling,
         vacuum.task,
         deep.person,
         activePeriodId,
@@ -1149,7 +1165,7 @@ function App() {
           b.dueDate || '9999-12-31'
         );
       });
-  }, [data, currentUser, activePeriodId]);
+  }, [data, currentUser, activePeriodId, allLogsForScheduling]);
 
   const myRows = useMemo(() => {
     return getMyDueRows(rows);
@@ -1590,8 +1606,8 @@ function App() {
               </div>
 
               <div className="log-list">
-                {data.logs.slice(0, 24).map(log => (
-                  <div className={`log ${log.isDummy ? 'dummy-log' : ''}`} key={log.id}>
+                {(data.currentLogs || []).slice(0, 24).map(log => (
+                  <div className="log" key={log.id}>
                     <b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b>
                     <span>
                       <CalendarDays size={14} />
@@ -1762,7 +1778,13 @@ function App() {
                 type="button"
                 className="danger-action"
                 disabled={adminSaving}
-                onClick={() => adminUserAction('delete', user)}
+                onClick={() =>
+                  openAdminModal('delete', {
+                    action: 'delete',
+                    name: user.name,
+                    email: user.email || ''
+                  })
+                }
               >
                 {t.deleteUser}
               </button>
@@ -1784,7 +1806,16 @@ function App() {
         </div>
 
         <div className="admin-actions">
-          <button disabled={adminSaving} onClick={() => adminUserAction('add')}>
+          <button
+            disabled={adminSaving}
+            onClick={() =>
+              openAdminModal('add', {
+                action: 'add',
+                name: adminForm.name,
+                email: ''
+              })
+            }
+          >
             {t.addUser}
           </button>
         </div>
@@ -1813,7 +1844,16 @@ function App() {
         </div>
 
         <div className="admin-actions">
-          <button disabled={adminSaving} onClick={() => adminUserAction('update')}>
+          <button
+            disabled={adminSaving}
+            onClick={() =>
+              openAdminModal('update', {
+                action: 'update',
+                name: adminForm.name,
+                email: adminForm.email
+              })
+            }
+          >
             {t.updateUser}
           </button>
         </div>
@@ -1832,13 +1872,83 @@ function App() {
         </div>
 
         <div className="history-list">
-          {(data.scoringPeriods || []).map(period => (
-            <div className="history-row" key={period.id}>
-              <b>{period.name}</b>
-              <span>{period.startedAt} → {period.endedAt || 'active'}</span>
-              <small>{period.reason}</small>
-            </div>
-          ))}
+          {(data.periodHistory || []).map(period => {
+            const open = !!openHistoryPeriods[period.id];
+
+            return (
+              <div className="history-row period-history-row" key={period.id}>
+                <button
+                  type="button"
+                  className="history-summary-button"
+                  onClick={() =>
+                    setOpenHistoryPeriods(current => ({
+                      ...current,
+                      [period.id]: !current[period.id]
+                    }))
+                  }
+                >
+                  <span>
+                    <b>{period.name}</b>
+                    <small>{period.startedAt} → {period.endedAt || 'active'}</small>
+                    <small>{period.reason}</small>
+                  </span>
+                  <small>{open ? t.hideDetails : t.showDetails}</small>
+                </button>
+
+                {open && (
+                  <div className="period-detail">
+                    <h3>{t.periodScores}</h3>
+                    <div className="score-grid compact">
+                      {(period.scores?.byPerson || []).map(row => (
+                        <div className="score-person-card" key={row.person}>
+                          <div className="score-person-head">
+                            <span className="dashboard-avatar">{row.person.slice(0, 1)}</span>
+                            <div>
+                              <b>{row.person}</b>
+                              <strong>{Number(row.total || 0).toFixed(2)}</strong>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <h3>{t.periodLogs}</h3>
+                    <div className="log-list period-log-list">
+                      {(period.logs || []).length ? (
+                        period.logs.map(log => (
+                          <div className="log" key={log.id}>
+                            <b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b>
+                            <span>
+                              <CalendarDays size={14} />
+                              {fmt(log.date, '', lang)} {t.by}{' '}
+                              {normalizeName(log.actualPerson || log.person)}
+                            </span>
+                            {log.note && <small>{log.note}</small>}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="empty-state">{t.noPeriodLogs}</div>
+                      )}
+                    </div>
+
+                    <h3>{t.periodMilestones}</h3>
+                    <div className="milestone-list">
+                      {(period.milestones || []).length ? (
+                        period.milestones.map(milestone => (
+                          <div className="milestone-row" key={`${milestone.person}-${milestone.milestone}`}>
+                            <b>{milestone.person}</b>
+                            <span>{milestone.milestone}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="empty-state">{t.noPeriodMilestones}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
     );
@@ -2042,6 +2152,69 @@ function App() {
         {activePage === 'admin' && renderAdminPage()}
         {activePage === 'history' && renderHistoryPage()}
       </main>
+
+      {adminModal && (
+        <div className="modal-backdrop" onClick={closeAdminModal}>
+          <section className="task-modal admin-pin-modal" onClick={event => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <span className="modal-kicker">{t.admin}</span>
+                <h2>{t.adminPin}</h2>
+                <p>{t.adminPinHelp}</p>
+              </div>
+
+              <button
+                type="button"
+                className="icon-button"
+                onClick={closeAdminModal}
+                aria-label={t.close}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <label>
+              {t.adminPin}
+              <input
+                type="password"
+                value={adminPin}
+                onChange={event => setAdminPin(event.target.value)}
+                autoFocus
+              />
+            </label>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={closeAdminModal}
+                disabled={adminSaving}
+              >
+                {t.cancel}
+              </button>
+
+              <button
+                type="button"
+                className={`primary ${adminSaving ? 'saving' : ''}`}
+                onClick={confirmAdminAction}
+                disabled={adminSaving}
+              >
+                {adminSaving ? (
+                  <>
+                    <Loader2 size={20} className="spin" />
+                    {t.saving}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={20} />
+                    {t.confirm}
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {modalTask && (
         <div className="modal-backdrop" onClick={closeTaskModal}>

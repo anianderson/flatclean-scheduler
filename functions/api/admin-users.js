@@ -1,89 +1,81 @@
 import { isValidEmail, json, normalizeName, readState } from './_shared.js';
 
 function requireAdmin(request, env) {
-  const configured = env.APP_ADMIN_PIN;
+  const configuredPin = env.ADMIN_PIN || env.APP_PIN;
   const provided = request.headers.get('x-admin-pin') || '';
 
-  if (!configured) {
-    return json({ error: 'APP_ADMIN_PIN is not configured' }, 500);
+  if (!configuredPin) {
+    return json({ error: 'Admin PIN is not configured' }, 500);
   }
 
-  if (provided !== configured) {
-    return json({ error: 'Wrong admin PIN' }, 401);
+  if (provided !== configuredPin) {
+    return json({ error: 'Wrong or missing admin PIN' }, 401);
   }
 
   return null;
 }
 
-async function getActivePeriodId(env) {
-  const active = await env.DB.prepare(`
+async function getActivePeriod(env) {
+  return env.DB.prepare(`
     SELECT id
     FROM scoring_periods
     WHERE ended_at IS NULL
     ORDER BY started_at DESC
     LIMIT 1
   `).first();
-
-  return active?.id || null;
 }
 
-async function snapshotCurrentUsers(env, action, note) {
-  const activePeriodId = await getActivePeriodId(env);
+async function startNewPeriod(env, reason) {
+  const active = await getActivePeriod(env);
 
-  const users = await env.DB.prepare(`
-    SELECT name, email
-    FROM flatmates
-  `).all();
-
-  for (const user of users.results || []) {
+  if (active?.id) {
     await env.DB.prepare(`
-      INSERT INTO flatmate_history (
-        id,
-        name,
-        email,
-        action,
-        scoring_period_id,
-        note
-      )
-      VALUES (?, ?, ?, ?, ?, ?)
+      UPDATE scoring_periods
+      SET ended_at = CURRENT_TIMESTAMP
+      WHERE id = ?
     `)
-      .bind(
-        crypto.randomUUID(),
-        normalizeName(user.name),
-        user.email || '',
-        action,
-        activePeriodId,
-        note || ''
-      )
+      .bind(active.id)
       .run();
   }
-}
-
-async function resetScoringPeriod(env, reason) {
-  await env.DB.prepare(`
-    UPDATE scoring_periods
-    SET ended_at = CURRENT_TIMESTAMP
-    WHERE ended_at IS NULL
-  `).run();
-
-  const newId = `period_${crypto.randomUUID()}`;
 
   await env.DB.prepare(`
     INSERT INTO scoring_periods (
       id,
       name,
+      started_at,
       reason
     )
-    VALUES (?, ?, ?)
+    VALUES (?, 'Current period', CURRENT_TIMESTAMP, ?)
   `)
-    .bind(newId, 'Current period', reason)
+    .bind(crypto.randomUUID(), reason)
     .run();
 
-  await env.DB.prepare(`
-    DELETE FROM score_milestones
-  `).run();
+  await env.DB.prepare(`DELETE FROM score_milestones`).run();
+}
 
-  return newId;
+async function insertHistory(env, { name, email, action, note }) {
+  const active = await getActivePeriod(env);
+
+  await env.DB.prepare(`
+    INSERT INTO flatmate_history (
+      id,
+      name,
+      email,
+      action,
+      scoring_period_id,
+      note
+    )
+    VALUES (?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      crypto.randomUUID(),
+      normalizeName(name),
+      email || '',
+      action,
+      active?.id || null,
+      note || ''
+    )
+    .run();
 }
 
 export async function onRequestPost({ request, env }) {
@@ -91,36 +83,37 @@ export async function onRequestPost({ request, env }) {
   if (adminError) return adminError;
 
   const body = await request.json();
-  const action = body.action;
+  const action = String(body.action || '').trim();
   const name = normalizeName(body.name);
   const email = String(body.email || '').trim();
 
-  if (!['add', 'update', 'delete'].includes(action)) {
-    return json({ error: 'Invalid action' }, 400);
+  if (!action || !name) {
+    return json({ error: 'Missing action or user name' }, 400);
   }
 
-  if (!name) {
-    return json({ error: 'Missing user name' }, 400);
+  if (email && !isValidEmail(email)) {
+    return json({ error: 'Invalid email address' }, 400);
   }
 
-  if (action === 'update' && !isValidEmail(email)) {
-    return json({ error: 'Valid email is required for update' }, 400);
-  }
-
-  await snapshotCurrentUsers(env, action, `Admin action before ${action}: ${name}`);
+  const existing = await env.DB.prepare(`
+    SELECT name, email
+    FROM flatmates
+    WHERE lower(name) = lower(?)
+  `)
+    .bind(name)
+    .first();
 
   if (action === 'add') {
-    const existing = await env.DB.prepare(`
-      SELECT name
-      FROM flatmates
-      WHERE lower(name) = lower(?)
-    `)
-      .bind(name)
-      .first();
-
     if (existing) {
       return json({ error: 'User already exists' }, 400);
     }
+
+    await insertHistory(env, {
+      name,
+      email,
+      action: 'add',
+      note: `Added ${name}`
+    });
 
     await env.DB.prepare(`
       INSERT INTO flatmates (
@@ -131,19 +124,19 @@ export async function onRequestPost({ request, env }) {
     `)
       .bind(name, email || '')
       .run();
+
+    await startNewPeriod(env, `User set changed: add ${name}`);
+
+    return json(await readState(env));
   }
 
   if (action === 'update') {
-    const existing = await env.DB.prepare(`
-      SELECT name
-      FROM flatmates
-      WHERE lower(name) = lower(?)
-    `)
-      .bind(name)
-      .first();
-
     if (!existing) {
-      return json({ error: 'User not found' }, 404);
+      return json({ error: 'User does not exist' }, 404);
+    }
+
+    if (!email) {
+      return json({ error: 'Email is required for update' }, 400);
     }
 
     await env.DB.prepare(`
@@ -153,20 +146,28 @@ export async function onRequestPost({ request, env }) {
     `)
       .bind(email, name)
       .run();
+
+    await insertHistory(env, {
+      name,
+      email,
+      action: 'update',
+      note: `Updated email for ${name}`
+    });
+
+    return json(await readState(env));
   }
 
   if (action === 'delete') {
-    const existing = await env.DB.prepare(`
-      SELECT name
-      FROM flatmates
-      WHERE lower(name) = lower(?)
-    `)
-      .bind(name)
-      .first();
-
     if (!existing) {
-      return json({ error: 'User not found' }, 404);
+      return json({ error: 'User does not exist' }, 404);
     }
+
+    await insertHistory(env, {
+      name: existing.name,
+      email: existing.email || '',
+      action: 'delete',
+      note: `Deleted ${existing.name}`
+    });
 
     await env.DB.prepare(`
       DELETE FROM flatmates
@@ -174,24 +175,11 @@ export async function onRequestPost({ request, env }) {
     `)
       .bind(name)
       .run();
+
+    await startNewPeriod(env, `User set changed: delete ${name}`);
+
+    return json(await readState(env));
   }
 
-  await resetScoringPeriod(env, `User set changed: ${action} ${name}`);
-
-  await env.DB.prepare(`
-    INSERT INTO admin_events (
-      id,
-      action,
-      details
-    )
-    VALUES (?, ?, ?)
-  `)
-    .bind(
-      crypto.randomUUID(),
-      action,
-      JSON.stringify({ name, email })
-    )
-    .run();
-
-  return json(await readState(env));
+  return json({ error: 'Unknown admin action' }, 400);
 }

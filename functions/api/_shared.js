@@ -17,6 +17,8 @@ const TASK_TIE_OFFSETS = {
   paper_bin: 1
 };
 
+const MILESTONE_LEVELS = [5, 10, 25, 50, 100, 150, 200];
+
 export function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -242,11 +244,14 @@ function round(value) {
   return Number(Number(value || 0).toFixed(2));
 }
 
-export function buildScoreSummary(state) {
+export function buildScoreSummary(state, periodId = null) {
   const people = state.flatmates || [];
   const tasks = state.tasks || [];
   const logs = state.logs || [];
-  const activePeriod = getActivePeriod(state);
+  const activePeriod = periodId
+    ? (state.scoringPeriods || []).find(period => period.id === periodId)
+    : getActivePeriod(state);
+
   const activePeriodId = activePeriod?.id || null;
 
   const byPerson = {};
@@ -406,6 +411,39 @@ export function buildScoreSummary(state) {
   };
 }
 
+function buildPeriodHistory(state) {
+  const periods = state.scoringPeriods || [];
+
+  return periods.map(period => {
+    const periodLogs = (state.logs || []).filter(log => log.scoringPeriodId === period.id);
+    const scoreState = {
+      ...state,
+      logs: periodLogs
+    };
+
+    const scores = buildScoreSummary(scoreState, period.id);
+
+    const milestones = [];
+    for (const row of scores.byPerson || []) {
+      for (const milestone of MILESTONE_LEVELS) {
+        if (row.total >= milestone) {
+          milestones.push({
+            person: row.person,
+            milestone
+          });
+        }
+      }
+    }
+
+    return {
+      ...period,
+      logs: periodLogs,
+      scores,
+      milestones
+    };
+  });
+}
+
 export async function readState(env) {
   const [
     periods,
@@ -415,8 +453,7 @@ export async function readState(env) {
     logs,
     logSubtasks,
     bins,
-    flatmateHistory,
-    emailLog
+    flatmateHistory
   ] = await Promise.all([
     env.DB.prepare(`
       SELECT
@@ -513,19 +550,6 @@ export async function readState(env) {
         note
       FROM flatmate_history
       ORDER BY created_at DESC
-    `).all(),
-
-    env.DB.prepare(`
-      SELECT
-        email_type AS emailType,
-        recipient_person AS recipientPerson,
-        recipient_email AS recipientEmail,
-        status,
-        error,
-        sent_at AS sentAt
-      FROM email_log
-      ORDER BY sent_at DESC
-      LIMIT 20
     `).all()
   ]);
 
@@ -574,8 +598,6 @@ export async function readState(env) {
       name: normalizeName(row.name)
     })),
 
-    recentEmails: emailLog.results || [],
-
     tasks: (tasks.results || []).map(task => ({
       ...task,
       baseWeight: Number(task.baseWeight || 1),
@@ -604,7 +626,11 @@ export async function readState(env) {
   };
 
   state.activeScoringPeriod = getActivePeriod(state);
+  state.currentLogs = state.logs.filter(
+    log => log.scoringPeriodId === state.activeScoringPeriod?.id && !log.isDummy
+  );
   state.scores = buildScoreSummary(state);
+  state.periodHistory = buildPeriodHistory(state);
 
   return state;
 }

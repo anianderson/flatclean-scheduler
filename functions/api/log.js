@@ -1,5 +1,6 @@
 import {
   fairPerson,
+  getActivePeriod,
   getDueDateFromLastLog,
   json,
   lastLog,
@@ -9,6 +10,7 @@ import {
 import { bilingualEmail, sendAndLog } from './email.js';
 
 const ADVANCE_THRESHOLD = 0.7;
+const DEEP_WITHOUT_VACUUM_FACTOR = 0.7;
 const MILESTONES = [5, 10, 25, 50, 100, 150, 200];
 
 function todayIso() {
@@ -51,6 +53,8 @@ function getCreditWeight(completionType, taskBaseWeight, completionRatio) {
       return base * ratio * 0.5;
     case 'auto_included_overdue_for_other':
       return base * ratio * 1.5;
+    case 'deep_without_vacuum':
+      return base * ratio * DEEP_WITHOUT_VACUUM_FACTOR;
     default:
       return base * ratio;
   }
@@ -76,18 +80,15 @@ function calculateNextDueDate({
   return addDays(anchorDate, intervalDays);
 }
 
-async function getTaskInfo(state, taskId, scoringPeriodId = null) {
+async function getTaskInfo(state, taskId) {
   const task = state.tasks.find(item => item.id === taskId);
+
   if (!task) return null;
 
   const last = lastLog(state.logs, taskId);
   const dueDate = getDueDateFromLastLog(task, last);
-  const assignedPerson = fairPerson(
-    state.flatmates,
-    state.logs,
-    task,
-    scoringPeriodId || state.activeScoringPeriod?.id || null
-  );
+  const activePeriod = getActivePeriod(state);
+  const assignedPerson = fairPerson(state.flatmates, state.logs, task, activePeriod?.id);
 
   return {
     task,
@@ -118,7 +119,6 @@ function getAggregateCompletedSubtaskIds(logs, taskId, cycleId, newSelectedIds) 
   const completed = new Set(newSelectedIds);
 
   for (const log of logs) {
-    if (log.isDummy) continue;
     if (log.taskId !== taskId) continue;
     if (log.cycleId !== cycleId) continue;
 
@@ -180,8 +180,7 @@ async function insertCompletionLog({
   completionRatio,
   cycleId,
   selectedSubtasks,
-  scoringPeriodId,
-  isDummy
+  scoringPeriodId
 }) {
   const logId = crypto.randomUUID();
 
@@ -204,7 +203,7 @@ async function insertCompletionLog({
       is_dummy,
       note
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
   `)
     .bind(
       logId,
@@ -221,7 +220,6 @@ async function insertCompletionLog({
       completionRatio,
       cycleId,
       scoringPeriodId || null,
-      isDummy ? 1 : 0,
       note || 'Marked done'
     )
     .run();
@@ -252,16 +250,15 @@ async function completeTask({
   note,
   completedSubtaskIds,
   forcedCompletionType,
-  forcedNote,
-  scoringPeriodId = null,
-  isDummy = false
+  forcedNote
 }) {
-  const info = await getTaskInfo(stateBefore, taskId, scoringPeriodId);
+  const info = await getTaskInfo(stateBefore, taskId);
 
   if (!info) {
     return { error: 'Unknown task' };
   }
 
+  const activePeriod = getActivePeriod(stateBefore);
   const selectedSubtasks = getSelectedSubtasks(info.task, completedSubtaskIds);
   const selectedIds = selectedSubtasks.map(subtask => subtask.id);
   const cycleId = getCycleId(taskId, info.dueDate, date);
@@ -292,13 +289,11 @@ async function completeTask({
     shouldAdvance
   });
 
-  const creditWeight = isDummy
-    ? 0
-    : getCreditWeight(
-        completionType,
-        info.task.baseWeight,
-        completion.selectedRatio
-      );
+  const creditWeight = getCreditWeight(
+    completionType,
+    info.task.baseWeight,
+    completion.selectedRatio
+  );
 
   const logId = await insertCompletionLog({
     env,
@@ -310,18 +305,15 @@ async function completeTask({
     nextDueDate,
     completionType,
     creditWeight,
-    note: isDummy
-      ? `[DUMMY TEST] ${forcedNote || note || 'Marked done'}`
-      : forcedNote || note || 'Marked done',
+    note: forcedNote || note || 'Marked done',
     isPartial: completion.isPartial,
     completionRatio: completion.selectedRatio,
     cycleId,
     selectedSubtasks,
-    scoringPeriodId,
-    isDummy
+    scoringPeriodId: activePeriod?.id || null
   });
 
-  if (!isDummy && info.task.type === 'on_demand') {
+  if (info.task.type === 'on_demand') {
     await env.DB.prepare(`
       UPDATE bin_status
       SET is_full = 0,
@@ -338,8 +330,7 @@ async function completeTask({
     info,
     completionType,
     creditWeight,
-    selectedSubtasks,
-    isDummy
+    selectedSubtasks
   };
 }
 
@@ -499,8 +490,7 @@ export async function onRequestPost({ request, env }) {
     note,
     completedSubtaskIds,
     includeAlsoLogs = true,
-    alsoLogSubtaskIds,
-    isDummy = false
+    alsoLogSubtaskIds
   } = body;
 
   if (!taskId || !person || !date) {
@@ -513,10 +503,12 @@ export async function onRequestPost({ request, env }) {
 
   const actualPerson = normalizeName(person);
   const stateBefore = await readState(env);
-  const activePeriod = stateBefore.activeScoringPeriod;
-  const scoringPeriodId = activePeriod?.id || null;
 
   const completionResults = [];
+
+  const deepWithoutVacuum =
+    taskId === 'deep_water' &&
+    includeAlsoLogs === false;
 
   const mainResult = await completeTask({
     env,
@@ -526,8 +518,10 @@ export async function onRequestPost({ request, env }) {
     date,
     note,
     completedSubtaskIds,
-    scoringPeriodId,
-    isDummy
+    forcedCompletionType: deepWithoutVacuum ? 'deep_without_vacuum' : undefined,
+    forcedNote: deepWithoutVacuum
+      ? `${note || 'Marked done'} — vacuum was not included, so deep cleaning credit was reduced.`
+      : undefined
   });
 
   if (mainResult.error) {
@@ -541,7 +535,7 @@ export async function onRequestPost({ request, env }) {
   if (includeAlsoLogs && mainTask.alsoLogs?.length) {
     for (const extraTaskId of mainTask.alsoLogs) {
       const updatedState = await readState(env);
-      const extraInfo = await getTaskInfo(updatedState, extraTaskId, scoringPeriodId);
+      const extraInfo = await getTaskInfo(updatedState, extraTaskId);
 
       if (!extraInfo) continue;
 
@@ -567,9 +561,7 @@ export async function onRequestPost({ request, env }) {
         forcedCompletionType: completionType,
         forcedNote: overdueForSomeoneElse
           ? `Auto-added because ${taskId} includes this task. It was overdue for ${extraInfo.assignedPerson}.`
-          : `Auto-added because ${taskId} includes this task.`,
-        scoringPeriodId,
-        isDummy
+          : `Auto-added because ${taskId} includes this task.`
       });
 
       if (extraResult.ok) {
@@ -580,10 +572,8 @@ export async function onRequestPost({ request, env }) {
 
   const stateAfter = await readState(env);
 
-  if (!isDummy) {
-    await sendCompletionEmails(env, stateAfter, completionResults, actualPerson, date);
-    await sendMilestoneEmails(env, stateAfter);
-  }
+  await sendCompletionEmails(env, stateAfter, completionResults, actualPerson, date);
+  await sendMilestoneEmails(env, stateAfter);
 
   return json(await readState(env));
 }

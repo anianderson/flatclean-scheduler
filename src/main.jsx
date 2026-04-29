@@ -66,6 +66,8 @@ const translations = {
     auto: 'Auto',
     german: 'German',
     english: 'English',
+    language: 'Language',
+    languageHelp: 'Choose the app language. “Auto” uses your device language.',
     dueToday: 'Due today',
     menu: 'Menu',
     close: 'Close',
@@ -142,6 +144,8 @@ const translations = {
     auto: 'Auto',
     german: 'Deutsch',
     english: 'Englisch',
+    language: 'Sprache',
+    languageHelp: 'Wähle die App-Sprache. „Auto“ nutzt die Gerätesprache.',
     dueToday: 'Heute fällig',
     menu: 'Menü',
     close: 'Schließen',
@@ -233,9 +237,7 @@ function lastLog(logs, taskId) {
 function getDueDateFromLastLog(task, last) {
   if (!last) return null;
 
-  if (last.nextDueDate) {
-    return last.nextDueDate;
-  }
+  if (last.nextDueDate) return last.nextDueDate;
 
   if (task.type === 'scheduled' && task.intervalDays) {
     return addDays(last.date, task.intervalDays);
@@ -316,7 +318,6 @@ function fairPersonAvoiding(people, logs, task, avoidPerson) {
   );
 
   const candidates = normalizedPeople.filter(person => person !== avoid);
-
   if (!candidates.length) return avoid;
 
   return candidates.sort((a, b) => {
@@ -335,16 +336,10 @@ function status(row, fullBins, t) {
     return fullBins[row.task.id] ? [t.needsCleaning, 'bad'] : [t.onDemand, 'plain'];
   }
 
-  if (!row.dueDate) {
-    return [t.addFirstRecord, 'plain'];
-  }
+  if (!row.dueDate) return [t.addFirstRecord, 'plain'];
 
   const d = diffDays(TODAY, row.dueDate);
-
-  if (d === null) {
-    return [t.addFirstRecord, 'plain'];
-  }
-
+  if (d === null) return [t.addFirstRecord, 'plain'];
   if (d < 0) return [t.late(Math.abs(d)), 'bad'];
   if (d === 0) return [t.dueToday, 'warn'];
   if (d <= 3) return [t.dueIn(d), 'warn'];
@@ -358,7 +353,6 @@ function shouldBundleVacuumWithDeep(vacuumRow, deepRow) {
   }
 
   const gap = diffDays(vacuumRow.dueDate, deepRow.dueDate);
-
   if (gap === null) return false;
   if (vacuumRow.dueDate === deepRow.dueDate) return true;
 
@@ -521,19 +515,14 @@ function App() {
   }
 
   function closeTaskModal() {
-    if (!saving) {
-      setModalTask(null);
-    }
+    if (!saving) setModalTask(null);
   }
 
   async function load() {
     try {
       setError('');
       const res = await fetch('/api/state');
-
-      if (!res.ok) {
-        throw new Error(t.loadError);
-      }
+      if (!res.ok) throw new Error(t.loadError);
 
       const json = await res.json();
 
@@ -647,9 +636,7 @@ function App() {
         const aMine = normalizeName(a.person) === activeUser;
         const bMine = normalizeName(b.person) === activeUser;
 
-        if (aMine !== bMine) {
-          return aMine ? -1 : 1;
-        }
+        if (aMine !== bMine) return aMine ? -1 : 1;
 
         if (a.task.type !== b.task.type) {
           return a.task.type === 'scheduled' ? -1 : 1;
@@ -769,15 +756,24 @@ function App() {
             ))}
           </div>
 
-          <div className="profile-language">
-            <FancySelect
-              label=""
-              value={languageSetting}
-              onChange={changeLanguage}
-              options={languageOptions}
-              placeholder={t.auto}
-              className="language-fancy"
-            />
+          <div className="profile-language-card">
+            <div className="control-card">
+              <div className="control-header">
+                <div>
+                  <span className="control-label">{t.language}</span>
+                  <p className="control-help">{t.languageHelp}</p>
+                </div>
+              </div>
+
+              <FancySelect
+                label=""
+                value={languageSetting}
+                onChange={changeLanguage}
+                options={languageOptions}
+                placeholder={t.auto}
+                className="language-inline"
+              />
+            </div>
           </div>
         </section>
       </main>
@@ -820,7 +816,6 @@ function App() {
 
         {navItems.map(item => {
           const Icon = item.icon;
-
           return (
             <button
               className="nav-link"
@@ -836,7 +831,7 @@ function App() {
 
       <main className="page" id="top">
         <section className="hero">
-          <div>
+          <div className="hero-main">
             <div className="eyebrow">
               <Sparkles size={16} />
               {t.badge}
@@ -845,27 +840,31 @@ function App() {
             <p className="sub">{t.subtitle}</p>
           </div>
 
-          <div className="hero-actions">
-            <FancySelect
-              label=""
-              value={languageSetting}
-              onChange={changeLanguage}
-              options={languageOptions}
-              placeholder={t.auto}
-              className="language-fancy"
-            />
+          <div className="hero-panel-grid">
+            <div className="control-card">
+              <div className="control-header">
+                <div>
+                  <span className="control-label">{t.language}</span>
+                  <p className="control-help">{t.languageHelp}</p>
+                </div>
+              </div>
 
-            <div className="session-pill">
-              <span>{t.loggedInAs}</span>
-              <b>{normalizeName(currentUser)}</b>
+              <FancySelect
+                label=""
+                value={languageSetting}
+                onChange={changeLanguage}
+                options={languageOptions}
+                placeholder={t.auto}
+                className="language-inline"
+              />
+            </div>
+
+            <div className="control-card session-card">
+              <span className="control-label">{t.loggedInAs}</span>
+              <b className="session-name">{normalizeName(currentUser)}</b>
               <button type="button" onClick={switchCurrentUser}>
                 {t.switchUser}
               </button>
-            </div>
-
-            <div className="today">
-              <span>{t.today}</span>
-              <b>{fmt(TODAY, '', lang)}</b>
             </div>
           </div>
         </section>

@@ -1,0 +1,16 @@
+{
+  "name": "Cleaning Schedule",
+  "short_name": "Cleaning",
+  "description": "Shared apartment cleaning schedule",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

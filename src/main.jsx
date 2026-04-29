@@ -1113,7 +1113,7 @@ function App() {
                           : t.noRecord}
                       </p>
 
-                      {hasPendingSubtasks && (
+                      {hasPendingSubtasks && row.dueDate && row.dueDate <= TODAY && (
                         <div className="pending-subtasks">
                           <b>{t.pendingParts}</b>
                           <span>

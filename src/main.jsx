@@ -673,11 +673,9 @@ function App() {
   const [modalTask, setModalTask] = useState(null);
   const [includeVacuumWithDeep, setIncludeVacuumWithDeep] = useState(true);
   const [selectedSubtasks, setSelectedSubtasks] = useState([]);
-  const [isDummyTask, setIsDummyTask] = useState(false);
   const [openScoreTasks, setOpenScoreTasks] = useState({});
   const [adminForm, setAdminForm] = useState({ name: '', email: '' });
   const [adminSaving, setAdminSaving] = useState(false);
-  const [devSaving, setDevSaving] = useState(false);
 
   const [form, setForm] = useState({
     taskId: 'gas_stove',
@@ -825,7 +823,7 @@ function App() {
     setError('');
     setSuccess('');
 
-    if (['dashboard', 'admin', 'history', 'developer'].includes(sectionId)) {
+    if (['dashboard', 'admin', 'history'].includes(sectionId)) {
       setActivePage(sectionId);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setMenuOpen(false);
@@ -1028,44 +1026,6 @@ function App() {
     }
   }
 
-  async function sendDeveloperTestEmail() {
-    try {
-      setError('');
-      setDevSaving(true);
-
-      const pin = askAdminPin();
-      if (!pin) return;
-
-      const res = await fetch('/api/dev-test-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-pin': pin
-        },
-        body: JSON.stringify({
-          person: currentUser
-        })
-      });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(json.error || t.saveError);
-      }
-
-      if (json.state) {
-        setData(normalizeApiData(json.state));
-      }
-
-      setSuccess(t.saved);
-      clearSuccessSoon();
-    } catch (e) {
-      setError(e.message || t.saveError);
-    } finally {
-      setDevSaving(false);
-    }
-  }
-
   const taskById = useMemo(
     () => Object.fromEntries((data?.tasks || []).map(task => [task.id, task])),
     [data]
@@ -1252,7 +1212,7 @@ function App() {
         completedSubtaskIds: selectedSubtasks,
         alsoLogSubtaskIds: selectedSubtasks,
         includeAlsoLogs: form.taskId === 'deep_water' ? includeVacuumWithDeep : true,
-        isDummy: isDummyTask
+        isDummy: false
       });
 
       setForm(current => ({ ...current, note: '' }));
@@ -1285,8 +1245,7 @@ function App() {
     { id: 'scores', label: t.scores, icon: Trophy },
     { id: 'recent-log', label: t.recentLog, icon: History },
     { id: 'admin', label: t.admin, icon: Pencil },
-    { id: 'history', label: t.history, icon: History },
-    { id: 'developer', label: t.developer, icon: Sparkles }
+    { id: 'history', label: t.history, icon: History }
   ];
 
   const taskOptions = (data?.tasks || []).map(task => ({
@@ -1328,22 +1287,6 @@ function App() {
           ))}
         </div>
       </div>
-    );
-  }
-
-  function renderDummyToggle() {
-    return (
-      <label className="check dummy-check">
-        <input
-          type="checkbox"
-          checked={isDummyTask}
-          onChange={event => setIsDummyTask(event.target.checked)}
-        />
-        <span>
-          <b>{t.dummyTask}</b>
-          <small>{t.dummyTaskHelp}</small>
-        </span>
-      </label>
     );
   }
 
@@ -1595,7 +1538,6 @@ function App() {
                 )}
 
                 {renderSubtaskSelector()}
-                {renderDummyToggle()}
 
                 <div className="marking-as">
                   <span>{t.markingAs}</span>
@@ -1902,77 +1844,6 @@ function App() {
     );
   }
 
-  function renderDeveloperPage() {
-    return (
-      <section className="card developer-card" id="developer">
-        <div className="card-head">
-          <div>
-            <h2>{t.developerTools}</h2>
-            <p>{t.developerHelp}</p>
-          </div>
-        </div>
-
-        <div className="developer-grid">
-          <div className="developer-box">
-            <h3>{t.dummyTask}</h3>
-            <p>{t.dummyTaskHelp}</p>
-            <label className="check dummy-check">
-              <input
-                type="checkbox"
-                checked={isDummyTask}
-                onChange={event => setIsDummyTask(event.target.checked)}
-              />
-              <span>
-                <b>{t.dummyTask}</b>
-                <small>{isDummyTask ? t.enabled : t.disabled}</small>
-              </span>
-            </label>
-          </div>
-
-          <div className="developer-box">
-            <h3>{t.sendTestEmail}</h3>
-            <p>{currentUserProfile?.email || t.noEmail}</p>
-            <button
-              type="button"
-              className="primary"
-              disabled={devSaving || !currentUserProfile?.email}
-              onClick={sendDeveloperTestEmail}
-            >
-              {devSaving ? (
-                <>
-                  <Loader2 size={20} className="spin" />
-                  {t.saving}
-                </>
-              ) : (
-                <>
-                  <Mail size={20} />
-                  {t.sendTestEmail}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        <h3>{t.recentEmails}</h3>
-
-        <div className="email-log-list">
-          {(data.recentEmails || []).map((email, index) => (
-            <div className="email-log-row" key={`${email.sentAt}-${index}`}>
-              <b>{email.emailType}</b>
-              <span>
-                {email.recipientPerson} · {email.recipientEmail}
-              </span>
-              <small>
-                {email.status} · {email.sentAt}
-              </small>
-              {email.error && <em>{email.error}</em>}
-            </div>
-          ))}
-        </div>
-      </section>
-    );
-  }
-
   if (loading) {
     return (
       <main className="page">
@@ -2170,7 +2041,6 @@ function App() {
         {activePage === 'dashboard' && renderDashboardPage()}
         {activePage === 'admin' && renderAdminPage()}
         {activePage === 'history' && renderHistoryPage()}
-        {activePage === 'developer' && renderDeveloperPage()}
       </main>
 
       {modalTask && (
@@ -2225,7 +2095,6 @@ function App() {
             )}
 
             {renderSubtaskSelector()}
-            {renderDummyToggle()}
 
             <div className="modal-grid">
               <label>

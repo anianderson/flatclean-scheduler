@@ -42,6 +42,54 @@ INSERT OR IGNORE INTO tasks (id, name, type, interval_days, task_group, also_log
 INSERT OR IGNORE INTO bin_status (task_id, is_full) VALUES
 ('bio_bin', 0), ('yellow_bin', 0), ('black_bin', 0), ('paper_bin', 0);
 
+INSERT INTO logs (task_id, person, done_date, note)
+SELECT 'vacuum', 'Melanie', '2026-04-09', 'Historical credit: Melanie usually did this before the app started'
+WHERE NOT EXISTS (
+  SELECT 1 FROM logs WHERE task_id = 'vacuum' AND person = 'Melanie' AND done_date = '2026-04-09'
+);
+
+INSERT INTO logs (task_id, person, done_date, note)
+SELECT 'deep_water', 'Melanie', '2026-03-30', 'Historical credit: Melanie usually did this before the app started'
+WHERE NOT EXISTS (
+  SELECT 1 FROM logs WHERE task_id = 'deep_water' AND person = 'Melanie' AND done_date = '2026-03-30'
+);
+
+INSERT INTO logs (task_id, person, done_date, note)
+SELECT 'bath_toilet_basin', 'Melanie', '2026-02-19', 'Historical credit: Melanie usually did this before the app started'
+WHERE NOT EXISTS (
+  SELECT 1 FROM logs WHERE task_id = 'bath_toilet_basin' AND person = 'Melanie' AND done_date = '2026-02-19'
+);
+
+INSERT INTO logs (task_id, person, done_date, note)
+SELECT 'gas_stove', 'Melanie', '2026-04-22', 'Historical credit: Melanie usually did this before the app started'
+WHERE NOT EXISTS (
+  SELECT 1 FROM logs WHERE task_id = 'gas_stove' AND person = 'Melanie' AND done_date = '2026-04-22'
+);
+
+INSERT INTO logs (task_id, person, done_date, note)
+SELECT 'bio_bin', 'Melanie', '2026-04-20', 'Historical credit: Melanie usually did this before the app started'
+WHERE NOT EXISTS (
+  SELECT 1 FROM logs WHERE task_id = 'bio_bin' AND person = 'Melanie' AND done_date = '2026-04-20'
+);
+
+INSERT INTO logs (task_id, person, done_date, note)
+SELECT 'paper_bin', 'Melanie', '2026-04-20', 'Historical credit: Melanie usually did this before the app started'
+WHERE NOT EXISTS (
+  SELECT 1 FROM logs WHERE task_id = 'paper_bin' AND person = 'Melanie' AND done_date = '2026-04-20'
+);
+
+INSERT INTO logs (task_id, person, done_date, note)
+SELECT 'yellow_bin', 'Melanie', '2026-04-20', 'Historical credit: Melanie usually did this before the app started'
+WHERE NOT EXISTS (
+  SELECT 1 FROM logs WHERE task_id = 'yellow_bin' AND person = 'Melanie' AND done_date = '2026-04-20'
+);
+
+INSERT INTO logs (task_id, person, done_date, note)
+SELECT 'black_bin', 'Melanie', '2026-04-20', 'Historical credit: Melanie usually did this before the app started'
+WHERE NOT EXISTS (
+  SELECT 1 FROM logs WHERE task_id = 'black_bin' AND person = 'Melanie' AND done_date = '2026-04-20'
+);
+
 INSERT OR IGNORE INTO logs (id, task_id, person, done_date, note) VALUES
 ('init-1', 'vacuum', 'Animesh', '2026-04-19', 'Initial record'),
 ('init-2', 'deep_water', 'Animesh', '2026-04-19', 'Initial record'),

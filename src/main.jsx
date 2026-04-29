@@ -37,7 +37,8 @@ const translations = {
     recentLog: 'Recent log',
     recentLogHelp: 'Latest completed cleaning entries.',
     scores: 'Scores',
-    scoresHelp: 'Fairness points from completed work. Partial tasks count proportionally.',
+    scoresHelp:
+      'Base score shows task difficulty. Earned score shows points collected in the current scoring period.',
     totalScore: 'Total score',
     positiveScore: 'Work points',
     negativeScore: 'Covered by others',
@@ -86,7 +87,6 @@ const translations = {
     whoAreYou: 'Who are you?',
     chooseProfile: 'Choose your profile once on this device.',
     continueAs: 'Continue as',
-    loggedInAs: 'Logged in as',
     switchUser: 'Switch user',
     yourTask: 'Your task',
     markingAs: 'This will be saved as',
@@ -113,20 +113,38 @@ const translations = {
     invalidEmail: 'Please enter a valid email address.',
     admin: 'Admin',
     adminPanel: 'Admin panel',
-    adminHelp: 'Add, update, or delete flatmates. Changing users starts a new fair scoring period.',
+    adminHelp:
+      'Manage active flatmates. User changes start a new fair scoring period for everyone.',
     adminPin: 'Admin PIN',
     userName: 'User name',
     addUser: 'Add user',
-    updateUser: 'Update user',
-    deleteUser: 'Delete user',
+    updateUser: 'Update email',
+    deleteUser: 'Delete',
+    activeUsers: 'Active users',
+    developer: 'Developer',
+    developerTools: 'Developer tools',
+    developerHelp:
+      'Test UI, scores, and email delivery without changing real scores.',
     dummyTask: 'Developer dummy task',
-    dummyTaskHelp: 'Test saving and UI without affecting real scores, due dates, bin status, emails, or milestones.',
+    dummyTaskHelp:
+      'Test saving and UI without affecting real scores, due dates, bin status, emails, or milestones.',
+    sendTestEmail: 'Send test email',
+    recentEmails: 'Recent email log',
+    history: 'History',
     previousPeriods: 'Previous periods',
+    historyHelp:
+      'Old scoring periods are kept here when flatmates change. This keeps the current period fair for new tenants.',
     showDetails: 'Show details',
     hideDetails: 'Hide details',
-    baseScore: 'Base score',
+    baseScore: 'Base difficulty score',
+    earnedScore: 'Earned score',
     singleTask: 'Single task',
     activePeriod: 'Active scoring period',
+    confirmAdminPin: 'Enter admin PIN',
+    missingAdminPin: 'Admin PIN is required.',
+    noEmail: 'No email yet',
+    enabled: 'Enabled',
+    disabled: 'Disabled',
     late: n => `${n} day${n === 1 ? '' : 's'} late`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -156,7 +174,8 @@ const translations = {
     recentLog: 'Letzte Einträge',
     recentLogHelp: 'Die neuesten erledigten Putzaufgaben.',
     scores: 'Punkte',
-    scoresHelp: 'Fairness-Punkte aus erledigter Arbeit. Teilaufgaben zählen anteilig.',
+    scoresHelp:
+      'Basis-Punkte zeigen die Schwierigkeit. Erarbeitete Punkte zeigen Punkte in der aktuellen Punkteperiode.',
     totalScore: 'Gesamtpunkte',
     positiveScore: 'Arbeitspunkte',
     negativeScore: 'Von anderen übernommen',
@@ -205,7 +224,6 @@ const translations = {
     whoAreYou: 'Wer bist du?',
     chooseProfile: 'Wähle dein Profil einmal auf diesem Gerät.',
     continueAs: 'Weiter als',
-    loggedInAs: 'Angemeldet als',
     switchUser: 'Benutzer wechseln',
     yourTask: 'Deine Aufgabe',
     markingAs: 'Dies wird gespeichert als',
@@ -232,20 +250,38 @@ const translations = {
     invalidEmail: 'Bitte gib eine gültige E-Mail-Adresse ein.',
     admin: 'Admin',
     adminPanel: 'Adminbereich',
-    adminHelp: 'Mitbewohner hinzufügen, ändern oder löschen. Änderungen starten eine neue faire Punkteperiode.',
+    adminHelp:
+      'Aktive Mitbewohner verwalten. Änderungen starten eine neue faire Punkteperiode für alle.',
     adminPin: 'Admin-PIN',
     userName: 'Name',
     addUser: 'Benutzer hinzufügen',
-    updateUser: 'Benutzer ändern',
-    deleteUser: 'Benutzer löschen',
+    updateUser: 'E-Mail ändern',
+    deleteUser: 'Löschen',
+    activeUsers: 'Aktive Benutzer',
+    developer: 'Entwickler',
+    developerTools: 'Entwickler-Tools',
+    developerHelp:
+      'UI, Punkte und E-Mail-Versand testen, ohne echte Punkte zu ändern.',
     dummyTask: 'Entwickler-Testaufgabe',
-    dummyTaskHelp: 'Speichern und UI testen, ohne echte Punkte, Fälligkeiten, Tonnenstatus, E-Mails oder Meilensteine zu beeinflussen.',
+    dummyTaskHelp:
+      'Speichern und UI testen, ohne echte Punkte, Fälligkeiten, Tonnenstatus, E-Mails oder Meilensteine zu beeinflussen.',
+    sendTestEmail: 'Test-E-Mail senden',
+    recentEmails: 'Letzte E-Mail-Logs',
+    history: 'Historie',
     previousPeriods: 'Frühere Perioden',
+    historyHelp:
+      'Alte Punkteperioden bleiben hier erhalten, wenn Mitbewohner wechseln. So bleibt die aktuelle Periode fair für neue Mieter.',
     showDetails: 'Details anzeigen',
     hideDetails: 'Details ausblenden',
-    baseScore: 'Basis-Punkte',
+    baseScore: 'Basis-Schwierigkeitspunkte',
+    earnedScore: 'Erarbeitete Punkte',
     singleTask: 'Einzelaufgabe',
     activePeriod: 'Aktive Punkteperiode',
+    confirmAdminPin: 'Admin-PIN eingeben',
+    missingAdminPin: 'Admin-PIN ist erforderlich.',
+    noEmail: 'Noch keine E-Mail',
+    enabled: 'Aktiv',
+    disabled: 'Inaktiv',
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -287,9 +323,11 @@ function addDays(date, days) {
 
 function diffDays(from, to) {
   if (!from || !to) return null;
+
   const a = new Date(`${from}T00:00:00`);
   const b = new Date(`${to}T00:00:00`);
   const diff = Math.round((b - a) / 86400000);
+
   return Number.isNaN(diff) ? null : diff;
 }
 
@@ -324,6 +362,7 @@ function lastLog(logs, taskId) {
 
 function getDueDateFromLastLog(task, last) {
   if (!last) return null;
+
   if (last.nextDueDate) return last.nextDueDate;
 
   if (task.type === 'scheduled' && task.intervalDays) {
@@ -353,6 +392,7 @@ function calculateScores(people, logs, task, activePeriodId = null) {
 
     if (actualPerson) {
       scores[actualPerson] = (scores[actualPerson] || 0) + weight;
+
       if (log.date > (lastDates[actualPerson] || '1900-01-01')) {
         lastDates[actualPerson] = log.date;
       }
@@ -396,6 +436,7 @@ function fairPerson(people, logs, task, activePeriodId = null) {
 
 function fairPersonAvoiding(people, logs, task, avoidPerson, activePeriodId = null) {
   const avoid = normalizeName(avoidPerson);
+
   const { scores, lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
@@ -404,6 +445,7 @@ function fairPersonAvoiding(people, logs, task, avoidPerson, activePeriodId = nu
   );
 
   const candidates = normalizedPeople.filter(person => person !== avoid);
+
   if (!candidates.length) return avoid;
 
   return candidates.sort((a, b) => {
@@ -425,6 +467,7 @@ function status(row, fullBins, t) {
   if (!row.dueDate) return [t.addFirstRecord, 'plain'];
 
   const d = diffDays(TODAY, row.dueDate);
+
   if (d === null) return [t.addFirstRecord, 'plain'];
   if (d < 0) return [t.late(Math.abs(d)), 'bad'];
   if (d === 0) return [t.dueToday, 'warn'];
@@ -514,9 +557,12 @@ function App() {
   const lang = getLanguageFromSetting(languageSetting);
   const t = translations[lang];
 
+  const [activePage, setActivePage] = useState('dashboard');
+
   const [currentUser, setCurrentUser] = useState(
     localStorage.getItem('flatclean_user') || ''
   );
+
   const [pendingUser, setPendingUser] = useState('');
   const [emailDraft, setEmailDraft] = useState('');
   const [emailMode, setEmailMode] = useState(false);
@@ -533,9 +579,9 @@ function App() {
   const [selectedSubtasks, setSelectedSubtasks] = useState([]);
   const [isDummyTask, setIsDummyTask] = useState(false);
   const [openScoreTasks, setOpenScoreTasks] = useState({});
-  const [adminPin, setAdminPin] = useState('');
   const [adminForm, setAdminForm] = useState({ name: '', email: '' });
   const [adminSaving, setAdminSaving] = useState(false);
+  const [devSaving, setDevSaving] = useState(false);
 
   const [form, setForm] = useState({
     taskId: 'gas_stove',
@@ -609,6 +655,7 @@ function App() {
       (sum, subtask) => sum + Number(subtask.weight || 1),
       0
     );
+
     const completedWeight = completed.reduce(
       (sum, subtask) => sum + Number(subtask.weight || 1),
       0
@@ -673,10 +720,22 @@ function App() {
   }
 
   function jumpTo(sectionId) {
-    document.getElementById(sectionId)?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    });
+    if (['dashboard', 'admin', 'history', 'developer'].includes(sectionId)) {
+      setActivePage(sectionId);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setMenuOpen(false);
+      return;
+    }
+
+    setActivePage('dashboard');
+
+    window.setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }, 50);
+
     setMenuOpen(false);
   }
 
@@ -729,6 +788,9 @@ function App() {
       ...task,
       subtasks: task.subtasks || []
     }));
+
+    json.recentEmails = json.recentEmails || [];
+    json.scoringPeriods = json.scoringPeriods || [];
 
     return json;
   }
@@ -805,22 +867,36 @@ function App() {
     }
   }
 
-  async function adminUserAction(action) {
+  function askAdminPin() {
+    const pin = window.prompt(t.confirmAdminPin);
+
+    if (!pin) {
+      setError(t.missingAdminPin);
+      return null;
+    }
+
+    return pin;
+  }
+
+  async function adminUserAction(action, user = null) {
     try {
       setError('');
       setAdminSaving(true);
+
+      const pin = askAdminPin();
+      if (!pin) return;
+
+      const payload = user
+        ? { action, name: user.name, email: user.email || '' }
+        : { action, name: adminForm.name, email: adminForm.email };
 
       const res = await fetch('/api/admin-users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-pin': adminPin
+          'x-admin-pin': pin
         },
-        body: JSON.stringify({
-          action,
-          name: adminForm.name,
-          email: adminForm.email
-        })
+        body: JSON.stringify(payload)
       });
 
       const json = await res.json().catch(() => ({}));
@@ -854,12 +930,53 @@ function App() {
     }
   }
 
+  async function sendDeveloperTestEmail() {
+    try {
+      setError('');
+      setDevSaving(true);
+
+      const pin = askAdminPin();
+      if (!pin) return;
+
+      const res = await fetch('/api/dev-test-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pin': pin
+        },
+        body: JSON.stringify({
+          person: currentUser
+        })
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json.error || t.saveError);
+      }
+
+      if (json.state) {
+        setData(normalizeApiData(json.state));
+      }
+
+      setSuccess(t.saved);
+      clearSuccessSoon();
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setDevSaving(false);
+    }
+  }
+
   const taskById = useMemo(
     () => Object.fromEntries((data?.tasks || []).map(task => [task.id, task])),
     [data]
   );
 
-  const activePeriodId = data?.activeScoringPeriod?.id || data?.scores?.activePeriod?.id || null;
+  const activePeriodId =
+    data?.activeScoringPeriod?.id ||
+    data?.scores?.activePeriod?.id ||
+    null;
 
   const rows = useMemo(() => {
     if (!data) return [];
@@ -944,6 +1061,7 @@ function App() {
     !!data?.flatmates?.some(person => normalizeName(person) === normalizeName(currentUser));
 
   const currentUserProfile = getProfile(currentUser);
+
   const currentUserScore = data?.scores?.byPerson?.find(
     row => normalizeName(row.person) === normalizeName(currentUser)
   );
@@ -1013,12 +1131,14 @@ function App() {
   }
 
   const navItems = [
-    { id: 'top', label: t.dashboard, icon: Home },
+    { id: 'dashboard', label: t.dashboard, icon: Home },
     { id: 'next-tasks', label: t.nextTasks, icon: ClipboardList },
     { id: 'mark-done', label: t.markDone, icon: CheckCircle2 },
     { id: 'scores', label: t.scores, icon: Trophy },
     { id: 'recent-log', label: t.recentLog, icon: History },
-    { id: 'admin', label: t.admin, icon: Pencil }
+    { id: 'admin', label: t.admin, icon: Pencil },
+    { id: 'history', label: t.history, icon: History },
+    { id: 'developer', label: t.developer, icon: Sparkles }
   ];
 
   const taskOptions = (data?.tasks || []).map(task => ({
@@ -1143,197 +1263,9 @@ function App() {
     );
   }
 
-  if (loading) {
+  function renderDashboardPage() {
     return (
-      <main className="page">
-        <div className="card loading-card">{t.loading}</div>
-      </main>
-    );
-  }
-
-  if (!data) {
-    return (
-      <main className="page">
-        <div className="card bad">{error || t.loadError}</div>
-      </main>
-    );
-  }
-
-  if (emailMode) {
-    return renderEmailGate();
-  }
-
-  if (!hasValidCurrentUser) {
-    return (
-      <main className="page user-picker-page">
-        <section className="user-picker-card">
-          <div className="eyebrow">
-            <Sparkles size={16} />
-            {t.badge}
-          </div>
-
-          <h1>{t.whoAreYou}</h1>
-          <p className="sub">{t.chooseProfile}</p>
-
-          <div className="profile-grid">
-            {data.flatmates.map(person => (
-              <button
-                type="button"
-                key={person}
-                className="profile-card"
-                onClick={() => chooseCurrentUser(person)}
-              >
-                <span className="profile-avatar">
-                  {normalizeName(person).slice(0, 1)}
-                </span>
-                <span>
-                  {t.continueAs}
-                  <b>{normalizeName(person)}</b>
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="profile-language-card">
-            <div className="dashboard-card dashboard-language-card language-card-top">
-              <span className="dashboard-label">{t.language}</span>
-              <p>{t.languageHelp}</p>
-
-              <FancySelect
-                label=""
-                value={languageSetting}
-                onChange={changeLanguage}
-                options={languageOptions}
-                placeholder={t.auto}
-                className="language-inline"
-              />
-            </div>
-          </div>
-        </section>
-      </main>
-    );
-  }
-
-  return (
-    <>
-      <button
-        className="mobile-menu-button"
-        onClick={() => setMenuOpen(true)}
-        aria-label={t.menu}
-      >
-        <Menu size={22} />
-      </button>
-
-      {menuOpen && (
-        <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
-      )}
-
-      <aside className={`nav-panel ${menuOpen ? 'open' : ''}`}>
-        <div className="nav-head">
-          <div>
-            <b>{t.navigation}</b>
-            <span>{t.jumpTo}</span>
-          </div>
-          <button
-            className="icon-button nav-close"
-            onClick={() => setMenuOpen(false)}
-            aria-label={t.close}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {navItems.map(item => {
-          const Icon = item.icon;
-
-          return (
-            <button
-              className="nav-link"
-              key={item.id}
-              onClick={() => jumpTo(item.id)}
-            >
-              <Icon size={18} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </aside>
-
-      <main className="page" id="top">
-        <section className="hero dashboard-hero">
-          <div className="hero-main">
-            <div className="eyebrow">
-              <Sparkles size={16} />
-              {t.badge}
-            </div>
-
-            <h1>{t.title}</h1>
-            <p className="sub">{t.subtitle}</p>
-          </div>
-
-          <div className="dashboard-header">
-            <div className="dashboard-card dashboard-language-card language-card-top">
-              <span className="dashboard-label">{t.language}</span>
-              <p>{t.languageHelp}</p>
-
-              <FancySelect
-                label=""
-                value={languageSetting}
-                onChange={changeLanguage}
-                options={languageOptions}
-                placeholder={t.auto}
-                className="language-inline"
-              />
-            </div>
-
-            <div className="dashboard-card dashboard-user-card">
-              <span className="dashboard-label">{t.profile}</span>
-
-              <div className="dashboard-user-row">
-                <span className="dashboard-avatar">
-                  {normalizeName(currentUser).slice(0, 1)}
-                </span>
-
-                <div>
-                  <b>{normalizeName(currentUser)}</b>
-                  <small>{currentUserProfile?.email}</small>
-                  <div className="profile-actions">
-                    <button type="button" onClick={switchCurrentUser}>
-                      {t.switchUser}
-                    </button>
-                    <button type="button" onClick={startChangeEmail}>
-                      <Pencil size={13} />
-                      {t.changeEmail}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="dashboard-card dashboard-pending-card">
-              <span className="dashboard-label">{t.yourPendingTasks}</span>
-              <strong>{myPendingLabel}</strong>
-              <span className="score-mini">
-                {t.totalScore}: {(currentUserScore?.total || 0).toFixed(2)}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {error && (
-          <div className="notice bad">
-            <AlertTriangle size={20} />
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="notice good success-pop">
-            <CheckCircle2 size={20} />
-            {success}
-          </div>
-        )}
-
+      <>
         <section className="layout">
           <div className="card" id="next-tasks">
             <div className="card-head">
@@ -1348,6 +1280,7 @@ function App() {
                 const [label, tone] = status(row, data.fullBins || {}, t);
                 const isMine = normalizeName(row.person) === normalizeName(currentUser);
                 const completion = getCycleCompletion(row);
+
                 const showPendingSubtasks =
                   completion.pending.length > 0 &&
                   completion.ratio < 1 &&
@@ -1603,25 +1536,26 @@ function App() {
                   <span className="dashboard-avatar">{row.person.slice(0, 1)}</span>
                   <div>
                     <b>{row.person}</b>
-                    <strong>{row.total.toFixed(2)}</strong>
+                    <strong>{Number(row.total || 0).toFixed(2)}</strong>
                   </div>
                 </div>
 
                 <div className="score-split">
                   <span>
                     {t.positiveScore}
-                    <b>{row.positive.toFixed(2)}</b>
+                    <b>{Number(row.positive || 0).toFixed(2)}</b>
                   </span>
                   <span>
                     {t.negativeScore}
-                    <b>{row.negative.toFixed(2)}</b>
+                    <b>{Number(row.negative || 0).toFixed(2)}</b>
                   </span>
                 </div>
 
                 <div className="person-task-score-list">
                   {(data.tasks || []).map(task => {
                     const value = Number(data.scores?.byPersonTask?.[row.person]?.[task.id] || 0);
-                    const subtaskMap = data.scores?.byPersonTaskSubtask?.[row.person]?.[task.id] || {};
+                    const subtaskMap =
+                      data.scores?.byPersonTaskSubtask?.[row.person]?.[task.id] || {};
 
                     if (!value) return null;
 
@@ -1672,29 +1606,35 @@ function App() {
                     }
                   >
                     <span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span>
-                    <b>{row.total.toFixed(2)}</b>
+
+                    <span className="score-pair">
+                      <small>{t.baseScore}</small>
+                      <b>{Number(row.baseWeight || 0).toFixed(2)}</b>
+                    </span>
+
+                    <span className="score-pair">
+                      <small>{t.earnedScore}</small>
+                      <b>{Number(row.earnedTotal || 0).toFixed(2)}</b>
+                    </span>
+
                     <small>{open ? t.hideDetails : t.showDetails}</small>
                   </button>
 
                   {open && (
                     <div className="task-score-detail">
-                      <div className="task-score-base">
-                        {t.baseScore}: <b>{Number(row.baseWeight || 0).toFixed(2)}</b>
-                      </div>
-
                       {(row.subtasks || []).length > 0 ? (
                         row.subtasks.map(subtask => (
                           <div className="subtask-score-row" key={subtask.id}>
                             <span>{getSubtaskName(subtask)}</span>
                             <small>weight {subtask.weight}</small>
-                            <b>{Number(subtask.total || 0).toFixed(2)}</b>
+                            <b>{Number(subtask.earnedTotal || 0).toFixed(2)}</b>
                           </div>
                         ))
                       ) : (
                         <div className="subtask-score-row">
                           <span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span>
                           <small>{t.singleTask}</small>
-                          <b>{row.total.toFixed(2)}</b>
+                          <b>{Number(row.earnedTotal || 0).toFixed(2)}</b>
                         </div>
                       )}
                     </div>
@@ -1704,69 +1644,383 @@ function App() {
             })}
           </div>
         </section>
+      </>
+    );
+  }
 
-        <section className="card admin-card" id="admin">
-          <div className="card-head">
-            <div>
-              <h2>{t.adminPanel}</h2>
-              <p>{t.adminHelp}</p>
-            </div>
+  function renderAdminPage() {
+    return (
+      <section className="card admin-card" id="admin">
+        <div className="card-head">
+          <div>
+            <h2>{t.adminPanel}</h2>
+            <p>{t.adminHelp}</p>
           </div>
+        </div>
 
-          <div className="admin-grid">
-            <label>
-              {t.adminPin}
-              <input
-                type="password"
-                value={adminPin}
-                onChange={event => setAdminPin(event.target.value)}
-              />
-            </label>
+        <h3>{t.activeUsers}</h3>
 
-            <label>
-              {t.userName}
-              <input
-                value={adminForm.name}
-                onChange={event => setAdminForm({ ...adminForm, name: event.target.value })}
-                placeholder="Name"
-              />
-            </label>
-
-            <label>
-              {t.emailAddress}
-              <input
-                type="email"
-                value={adminForm.email}
-                onChange={event => setAdminForm({ ...adminForm, email: event.target.value })}
-                placeholder="name@example.com"
-              />
-            </label>
-          </div>
-
-          <div className="admin-actions">
-            <button disabled={adminSaving} onClick={() => adminUserAction('add')}>
-              {t.addUser}
-            </button>
-            <button disabled={adminSaving} onClick={() => adminUserAction('update')}>
-              {t.updateUser}
-            </button>
-            <button disabled={adminSaving} onClick={() => adminUserAction('delete')}>
-              {t.deleteUser}
-            </button>
-          </div>
-
-          <h3>{t.previousPeriods}</h3>
-
-          <div className="history-list">
-            {(data.scoringPeriods || []).map(period => (
-              <div className="history-row" key={period.id}>
-                <b>{period.name}</b>
-                <span>{period.startedAt} → {period.endedAt || 'active'}</span>
-                <small>{period.reason}</small>
+        <div className="admin-user-table">
+          {(data.flatmateProfiles || []).map(user => (
+            <div className="admin-user-row" key={user.name}>
+              <div>
+                <b>{normalizeName(user.name)}</b>
+                <span>{user.email || t.noEmail}</span>
               </div>
+
+              <button
+                type="button"
+                className="danger-action"
+                disabled={adminSaving}
+                onClick={() => adminUserAction('delete', user)}
+              >
+                {t.deleteUser}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <h3>{t.addUser}</h3>
+
+        <div className="admin-grid two">
+          <label>
+            {t.userName}
+            <input
+              value={adminForm.name}
+              onChange={event => setAdminForm({ ...adminForm, name: event.target.value })}
+              placeholder="Name"
+            />
+          </label>
+        </div>
+
+        <div className="admin-actions">
+          <button disabled={adminSaving} onClick={() => adminUserAction('add')}>
+            {t.addUser}
+          </button>
+        </div>
+
+        <h3>{t.updateUser}</h3>
+
+        <div className="admin-grid two">
+          <label>
+            {t.userName}
+            <input
+              value={adminForm.name}
+              onChange={event => setAdminForm({ ...adminForm, name: event.target.value })}
+              placeholder="Name"
+            />
+          </label>
+
+          <label>
+            {t.emailAddress}
+            <input
+              type="email"
+              value={adminForm.email}
+              onChange={event => setAdminForm({ ...adminForm, email: event.target.value })}
+              placeholder="name@example.com"
+            />
+          </label>
+        </div>
+
+        <div className="admin-actions">
+          <button disabled={adminSaving} onClick={() => adminUserAction('update')}>
+            {t.updateUser}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  function renderHistoryPage() {
+    return (
+      <section className="card history-card" id="history">
+        <div className="card-head">
+          <div>
+            <h2>{t.previousPeriods}</h2>
+            <p>{t.historyHelp}</p>
+          </div>
+        </div>
+
+        <div className="history-list">
+          {(data.scoringPeriods || []).map(period => (
+            <div className="history-row" key={period.id}>
+              <b>{period.name}</b>
+              <span>{period.startedAt} → {period.endedAt || 'active'}</span>
+              <small>{period.reason}</small>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  function renderDeveloperPage() {
+    return (
+      <section className="card developer-card" id="developer">
+        <div className="card-head">
+          <div>
+            <h2>{t.developerTools}</h2>
+            <p>{t.developerHelp}</p>
+          </div>
+        </div>
+
+        <div className="developer-grid">
+          <div className="developer-box">
+            <h3>{t.dummyTask}</h3>
+            <p>{t.dummyTaskHelp}</p>
+            <label className="check dummy-check">
+              <input
+                type="checkbox"
+                checked={isDummyTask}
+                onChange={event => setIsDummyTask(event.target.checked)}
+              />
+              <span>
+                <b>{t.dummyTask}</b>
+                <small>{isDummyTask ? t.enabled : t.disabled}</small>
+              </span>
+            </label>
+          </div>
+
+          <div className="developer-box">
+            <h3>{t.sendTestEmail}</h3>
+            <p>{currentUserProfile?.email || t.noEmail}</p>
+            <button
+              type="button"
+              className="primary"
+              disabled={devSaving || !currentUserProfile?.email}
+              onClick={sendDeveloperTestEmail}
+            >
+              {devSaving ? (
+                <>
+                  <Loader2 size={20} className="spin" />
+                  {t.saving}
+                </>
+              ) : (
+                <>
+                  <Mail size={20} />
+                  {t.sendTestEmail}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <h3>{t.recentEmails}</h3>
+
+        <div className="email-log-list">
+          {(data.recentEmails || []).map((email, index) => (
+            <div className="email-log-row" key={`${email.sentAt}-${index}`}>
+              <b>{email.emailType}</b>
+              <span>
+                {email.recipientPerson} · {email.recipientEmail}
+              </span>
+              <small>
+                {email.status} · {email.sentAt}
+              </small>
+              {email.error && <em>{email.error}</em>}
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (loading) {
+    return (
+      <main className="page">
+        <div className="card loading-card">{t.loading}</div>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="page">
+        <div className="card bad">{error || t.loadError}</div>
+      </main>
+    );
+  }
+
+  if (emailMode) {
+    return renderEmailGate();
+  }
+
+  if (!hasValidCurrentUser) {
+    return (
+      <main className="page user-picker-page">
+        <section className="user-picker-card">
+          <div className="eyebrow">
+            <Sparkles size={16} />
+            {t.badge}
+          </div>
+
+          <h1>{t.whoAreYou}</h1>
+          <p className="sub">{t.chooseProfile}</p>
+
+          <div className="profile-grid">
+            {data.flatmates.map(person => (
+              <button
+                type="button"
+                key={person}
+                className="profile-card"
+                onClick={() => chooseCurrentUser(person)}
+              >
+                <span className="profile-avatar">
+                  {normalizeName(person).slice(0, 1)}
+                </span>
+                <span>
+                  {t.continueAs}
+                  <b>{normalizeName(person)}</b>
+                </span>
+              </button>
             ))}
           </div>
+
+          <div className="profile-language-card">
+            <div className="dashboard-card dashboard-language-card language-card-top">
+              <span className="dashboard-label">{t.language}</span>
+              <p>{t.languageHelp}</p>
+
+              <FancySelect
+                label=""
+                value={languageSetting}
+                onChange={changeLanguage}
+                options={languageOptions}
+                placeholder={t.auto}
+                className="language-inline"
+              />
+            </div>
+          </div>
         </section>
+      </main>
+    );
+  }
+
+  return (
+    <>
+      <button
+        className="mobile-menu-button"
+        onClick={() => setMenuOpen(true)}
+        aria-label={t.menu}
+      >
+        <Menu size={22} />
+      </button>
+
+      {menuOpen && (
+        <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+      )}
+
+      <aside className={`nav-panel ${menuOpen ? 'open' : ''}`}>
+        <div className="nav-head">
+          <div>
+            <b>{t.navigation}</b>
+            <span>{t.jumpTo}</span>
+          </div>
+
+          <button
+            className="icon-button nav-close"
+            onClick={() => setMenuOpen(false)}
+            aria-label={t.close}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {navItems.map(item => {
+          const Icon = item.icon;
+
+          return (
+            <button
+              className="nav-link"
+              key={item.id}
+              onClick={() => jumpTo(item.id)}
+            >
+              <Icon size={18} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </aside>
+
+      <main className="page" id="top">
+        <section className="hero dashboard-hero">
+          <div className="hero-main">
+            <div className="eyebrow">
+              <Sparkles size={16} />
+              {t.badge}
+            </div>
+
+            <h1>{t.title}</h1>
+            <p className="sub">{t.subtitle}</p>
+          </div>
+
+          <div className="dashboard-header">
+            <div className="dashboard-card dashboard-language-card language-card-top">
+              <span className="dashboard-label">{t.language}</span>
+              <p>{t.languageHelp}</p>
+
+              <FancySelect
+                label=""
+                value={languageSetting}
+                onChange={changeLanguage}
+                options={languageOptions}
+                placeholder={t.auto}
+                className="language-inline"
+              />
+            </div>
+
+            <div className="dashboard-card dashboard-user-card">
+              <span className="dashboard-label">{t.profile}</span>
+
+              <div className="dashboard-user-row">
+                <span className="dashboard-avatar">
+                  {normalizeName(currentUser).slice(0, 1)}
+                </span>
+
+                <div>
+                  <b>{normalizeName(currentUser)}</b>
+                  <small>{currentUserProfile?.email}</small>
+                  <div className="profile-actions">
+                    <button type="button" onClick={switchCurrentUser}>
+                      {t.switchUser}
+                    </button>
+                    <button type="button" onClick={startChangeEmail}>
+                      <Pencil size={13} />
+                      {t.changeEmail}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="dashboard-card dashboard-pending-card">
+              <span className="dashboard-label">{t.yourPendingTasks}</span>
+              <strong>{myPendingLabel}</strong>
+              <span className="score-mini">
+                {t.totalScore}: {(currentUserScore?.total || 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {error && (
+          <div className="notice bad">
+            <AlertTriangle size={20} />
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="notice good success-pop">
+            <CheckCircle2 size={20} />
+            {success}
+          </div>
+        )}
+
+        {activePage === 'dashboard' && renderDashboardPage()}
+        {activePage === 'admin' && renderAdminPage()}
+        {activePage === 'history' && renderHistoryPage()}
+        {activePage === 'developer' && renderDeveloperPage()}
       </main>
 
       {modalTask && (

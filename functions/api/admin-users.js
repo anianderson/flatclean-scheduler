@@ -15,7 +15,7 @@ function requireAdmin(request, env) {
   return null;
 }
 
-async function resetScoringPeriod(env, reason) {
+async function getActivePeriodId(env) {
   const active = await env.DB.prepare(`
     SELECT id
     FROM scoring_periods
@@ -24,40 +24,11 @@ async function resetScoringPeriod(env, reason) {
     LIMIT 1
   `).first();
 
-  if (active) {
-    await env.DB.prepare(`
-      UPDATE scoring_periods
-      SET ended_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `)
-      .bind(active.id)
-      .run();
-  }
-
-  const newId = `period_${crypto.randomUUID()}`;
-
-  await env.DB.prepare(`
-    INSERT INTO scoring_periods (
-      id,
-      name,
-      reason
-    )
-    VALUES (?, ?, ?)
-  `)
-    .bind(newId, 'Current period', reason)
-    .run();
-
-  return newId;
+  return active?.id || null;
 }
 
 async function snapshotCurrentUsers(env, action, note) {
-  const active = await env.DB.prepare(`
-    SELECT id
-    FROM scoring_periods
-    WHERE ended_at IS NULL
-    ORDER BY started_at DESC
-    LIMIT 1
-  `).first();
+  const activePeriodId = await getActivePeriodId(env);
 
   const users = await env.DB.prepare(`
     SELECT name, email
@@ -81,11 +52,38 @@ async function snapshotCurrentUsers(env, action, note) {
         normalizeName(user.name),
         user.email || '',
         action,
-        active?.id || null,
+        activePeriodId,
         note || ''
       )
       .run();
   }
+}
+
+async function resetScoringPeriod(env, reason) {
+  await env.DB.prepare(`
+    UPDATE scoring_periods
+    SET ended_at = CURRENT_TIMESTAMP
+    WHERE ended_at IS NULL
+  `).run();
+
+  const newId = `period_${crypto.randomUUID()}`;
+
+  await env.DB.prepare(`
+    INSERT INTO scoring_periods (
+      id,
+      name,
+      reason
+    )
+    VALUES (?, ?, ?)
+  `)
+    .bind(newId, 'Current period', reason)
+    .run();
+
+  await env.DB.prepare(`
+    DELETE FROM score_milestones
+  `).run();
+
+  return newId;
 }
 
 export async function onRequestPost({ request, env }) {
@@ -105,11 +103,11 @@ export async function onRequestPost({ request, env }) {
     return json({ error: 'Missing user name' }, 400);
   }
 
-  if ((action === 'add' || action === 'update') && !isValidEmail(email)) {
-    return json({ error: 'Valid email is required' }, 400);
+  if (action === 'update' && !isValidEmail(email)) {
+    return json({ error: 'Valid email is required for update' }, 400);
   }
 
-  await snapshotCurrentUsers(env, action, `Admin action: ${action} ${name}`);
+  await snapshotCurrentUsers(env, action, `Admin action before ${action}: ${name}`);
 
   if (action === 'add') {
     const existing = await env.DB.prepare(`
@@ -131,11 +129,23 @@ export async function onRequestPost({ request, env }) {
       )
       VALUES (?, ?)
     `)
-      .bind(name, email)
+      .bind(name, email || '')
       .run();
   }
 
   if (action === 'update') {
+    const existing = await env.DB.prepare(`
+      SELECT name
+      FROM flatmates
+      WHERE lower(name) = lower(?)
+    `)
+      .bind(name)
+      .first();
+
+    if (!existing) {
+      return json({ error: 'User not found' }, 404);
+    }
+
     await env.DB.prepare(`
       UPDATE flatmates
       SET email = ?
@@ -146,6 +156,18 @@ export async function onRequestPost({ request, env }) {
   }
 
   if (action === 'delete') {
+    const existing = await env.DB.prepare(`
+      SELECT name
+      FROM flatmates
+      WHERE lower(name) = lower(?)
+    `)
+      .bind(name)
+      .first();
+
+    if (!existing) {
+      return json({ error: 'User not found' }, 404);
+    }
+
     await env.DB.prepare(`
       DELETE FROM flatmates
       WHERE lower(name) = lower(?)
@@ -164,7 +186,11 @@ export async function onRequestPost({ request, env }) {
     )
     VALUES (?, ?, ?)
   `)
-    .bind(crypto.randomUUID(), action, JSON.stringify({ name, email }))
+    .bind(
+      crypto.randomUUID(),
+      action,
+      JSON.stringify({ name, email })
+    )
     .run();
 
   return json(await readState(env));

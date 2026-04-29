@@ -23,9 +23,11 @@ export function addDays(date, days) {
 
 export function diffDays(from, to) {
   if (!from || !to) return null;
+
   const a = new Date(`${from}T00:00:00`);
   const b = new Date(`${to}T00:00:00`);
   const diff = Math.round((b - a) / 86400000);
+
   return Number.isNaN(diff) ? null : diff;
 }
 
@@ -40,6 +42,7 @@ export function lastLog(logs, taskId) {
 
 export function getDueDateFromLastLog(task, last) {
   if (!last) return null;
+
   if (last.nextDueDate) return last.nextDueDate;
 
   if (task.type === 'scheduled' && task.intervalDays) {
@@ -50,7 +53,11 @@ export function getDueDateFromLastLog(task, last) {
 }
 
 export function getActivePeriod(state) {
-  return state.scoringPeriods?.find(period => !period.endedAt) || state.scoringPeriods?.[0];
+  return (
+    state.scoringPeriods?.find(period => !period.endedAt) ||
+    state.scoringPeriods?.[0] ||
+    null
+  );
 }
 
 export function calculateScores(people, logs, task, activePeriodId = null) {
@@ -121,12 +128,16 @@ export function fairPerson(people, logs, task, activePeriodId = null) {
   })[0];
 }
 
+function round(value) {
+  return Number(Number(value || 0).toFixed(2));
+}
+
 export function buildScoreSummary(state) {
   const people = state.flatmates || [];
   const tasks = state.tasks || [];
   const logs = state.logs || [];
   const activePeriod = getActivePeriod(state);
-  const activePeriodId = activePeriod?.id;
+  const activePeriodId = activePeriod?.id || null;
 
   const byPerson = {};
   const byTask = {};
@@ -150,16 +161,17 @@ export function buildScoreSummary(state) {
       taskId: task.id,
       taskName: task.name,
       baseWeight: Number(task.baseWeight || 1),
-      total: 0,
+      earnedTotal: 0,
       subtasks: (task.subtasks || []).map(subtask => ({
         ...subtask,
-        total: 0
+        earnedTotal: 0
       }))
     };
 
     for (const person of people) {
       byPersonTask[person][task.id] = 0;
       byPersonTaskSubtask[person][task.id] = {};
+
       for (const subtask of task.subtasks || []) {
         byPersonTaskSubtask[person][task.id][subtask.id] = 0;
       }
@@ -176,7 +188,12 @@ export function buildScoreSummary(state) {
     const value = Number(log.creditWeight || 0);
 
     if (!byPerson[person]) {
-      byPerson[person] = { person, positive: 0, negative: 0, total: 0 };
+      byPerson[person] = {
+        person,
+        positive: 0,
+        negative: 0,
+        total: 0
+      };
       byPersonTask[person] = {};
       byPersonTaskSubtask[person] = {};
     }
@@ -184,7 +201,10 @@ export function buildScoreSummary(state) {
     byPerson[person].positive += value;
     byPerson[person].total += value;
 
-    if (!byPersonTask[person][log.taskId]) byPersonTask[person][log.taskId] = 0;
+    if (!byPersonTask[person][log.taskId]) {
+      byPersonTask[person][log.taskId] = 0;
+    }
+
     byPersonTask[person][log.taskId] += value;
 
     if (!byTask[log.taskId]) {
@@ -192,12 +212,12 @@ export function buildScoreSummary(state) {
         taskId: log.taskId,
         taskName: log.taskId,
         baseWeight: 1,
-        total: 0,
+        earnedTotal: 0,
         subtasks: []
       };
     }
 
-    byTask[log.taskId].total += value;
+    byTask[log.taskId].earnedTotal += value;
 
     const taskSubtasks = task?.subtasks || [];
     const totalSubtaskWeight = taskSubtasks.reduce(
@@ -224,7 +244,10 @@ export function buildScoreSummary(state) {
 
         const taskScore = byTask[log.taskId];
         const subtaskScore = taskScore.subtasks.find(item => item.id === fullSubtask.id);
-        if (subtaskScore) subtaskScore.total += subtaskPoints;
+
+        if (subtaskScore) {
+          subtaskScore.earnedTotal += subtaskPoints;
+        }
       }
     }
 
@@ -252,8 +275,6 @@ export function buildScoreSummary(state) {
     }
   }
 
-  const round = value => Number(Number(value || 0).toFixed(2));
-
   return {
     activePeriod,
     byPerson: Object.values(byPerson).map(row => ({
@@ -264,10 +285,10 @@ export function buildScoreSummary(state) {
     })),
     byTask: Object.values(byTask).map(row => ({
       ...row,
-      total: round(row.total),
+      earnedTotal: round(row.earnedTotal),
       subtasks: (row.subtasks || []).map(subtask => ({
         ...subtask,
-        total: round(subtask.total)
+        earnedTotal: round(subtask.earnedTotal)
       }))
     })),
     byPersonTask,
@@ -284,7 +305,8 @@ export async function readState(env) {
     logs,
     logSubtasks,
     bins,
-    flatmateHistory
+    flatmateHistory,
+    emailLog
   ] = await Promise.all([
     env.DB.prepare(`
       SELECT
@@ -381,6 +403,19 @@ export async function readState(env) {
         note
       FROM flatmate_history
       ORDER BY created_at DESC
+    `).all(),
+
+    env.DB.prepare(`
+      SELECT
+        email_type AS emailType,
+        recipient_person AS recipientPerson,
+        recipient_email AS recipientEmail,
+        status,
+        error,
+        sent_at AS sentAt
+      FROM email_log
+      ORDER BY sent_at DESC
+      LIMIT 20
     `).all()
   ]);
 
@@ -399,6 +434,7 @@ export async function readState(env) {
   const logSubtasksByLog = {};
   for (const row of logSubtasks.results || []) {
     if (!logSubtasksByLog[row.logId]) logSubtasksByLog[row.logId] = [];
+
     if (row.completed) {
       logSubtasksByLog[row.logId].push({
         id: row.subtaskId,
@@ -427,6 +463,8 @@ export async function readState(env) {
       ...row,
       name: normalizeName(row.name)
     })),
+
+    recentEmails: emailLog.results || [],
 
     tasks: (tasks.results || []).map(task => ({
       ...task,

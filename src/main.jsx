@@ -9,6 +9,7 @@ import {
   ClipboardList,
   History,
   Home,
+  Loader2,
   Menu,
   Sparkles,
   X
@@ -16,6 +17,7 @@ import {
 import './styles.css';
 
 const TODAY = new Date().toISOString().slice(0, 10);
+const FLOOR_MERGE_WINDOW_DAYS = 2;
 
 const translations = {
   en: {
@@ -37,6 +39,8 @@ const translations = {
     note: 'Note',
     optional: 'Optional',
     saveCompleted: 'Save completed task',
+    saving: 'Saving…',
+    saved: 'Task saved successfully.',
     lastDone: 'Last done',
     noRecord: 'No record yet',
     nextDate: 'Next date',
@@ -48,8 +52,9 @@ const translations = {
     needsCleaning: 'Needs cleaning',
     onDemand: 'On demand',
     binFull: 'Bin is full / needs cleaning',
-    linkedDeep: 'Linked with deep water cleaning on the same date.',
-    deepIncludesVacuum: 'Saving this also logs vacuum cleaning.',
+    linkedDeep: 'Bundled with deep water cleaning on this date.',
+    deepIncludesVacuum: 'This task includes vacuum cleaning on the same day.',
+    hiddenBecauseBundled: 'Vacuum is bundled into deep water cleaning for this cycle.',
     by: 'by',
     loading: 'Loading…',
     loadError: 'Could not load app data.',
@@ -96,6 +101,8 @@ const translations = {
     note: 'Notiz',
     optional: 'Optional',
     saveCompleted: 'Erledigte Aufgabe speichern',
+    saving: 'Speichert…',
+    saved: 'Aufgabe erfolgreich gespeichert.',
     lastDone: 'Zuletzt erledigt',
     noRecord: 'Noch kein Eintrag',
     nextDate: 'Nächstes Datum',
@@ -107,8 +114,9 @@ const translations = {
     needsCleaning: 'Muss gereinigt werden',
     onDemand: 'Nach Bedarf',
     binFull: 'Tonne ist voll / muss gereinigt werden',
-    linkedDeep: 'Mit der Nassreinigung am gleichen Datum verknüpft.',
-    deepIncludesVacuum: 'Beim Speichern wird Staubsaugen automatisch mit eingetragen.',
+    linkedDeep: 'In diesem Zyklus mit der Nassreinigung gebündelt.',
+    deepIncludesVacuum: 'Diese Aufgabe enthält Staubsaugen am selben Tag.',
+    hiddenBecauseBundled: 'Staubsaugen ist in diesem Zyklus in der Nassreinigung enthalten.',
     by: 'von',
     loading: 'Lädt…',
     loadError: 'App-Daten konnten nicht geladen werden.',
@@ -283,6 +291,20 @@ function status(row, fullBins, t) {
   return [t.dueIn(d), 'good'];
 }
 
+function shouldBundleVacuumWithDeep(vacuumRow, deepRow) {
+  if (!vacuumRow || !deepRow || !vacuumRow.dueDate || !deepRow.dueDate) {
+    return false;
+  }
+
+  const gap = diffDays(vacuumRow.dueDate, deepRow.dueDate);
+
+  if (gap === null) return false;
+
+  if (vacuumRow.dueDate === deepRow.dueDate) return true;
+
+  return gap >= 0 && gap <= FLOOR_MERGE_WINDOW_DAYS;
+}
+
 function FancySelect({
   label,
   value,
@@ -366,6 +388,8 @@ function App() {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [form, setForm] = useState({
@@ -390,6 +414,12 @@ function App() {
       block: 'start'
     });
     setMenuOpen(false);
+  }
+
+  function clearSuccessSoon() {
+    window.setTimeout(() => {
+      setSuccess('');
+    }, 2800);
   }
 
   async function load() {
@@ -472,43 +502,54 @@ function App() {
         task,
         last,
         dueDate,
-        person: fairPerson(data.flatmates, data.logs, task)
+        person: fairPerson(data.flatmates, data.logs, task),
+        bundledIntoDeep: false,
+        bundledVacuumRow: null
       };
     });
 
     const deep = base.find(row => row.task.id === 'deep_water');
     const vacuum = base.find(row => row.task.id === 'vacuum');
 
-    if (
-      deep &&
-      vacuum &&
-      deep.dueDate &&
-      vacuum.dueDate &&
-      deep.dueDate === vacuum.dueDate
-    ) {
-      vacuum.person = deep.person;
-      vacuum.linked = true;
+    if (deep && vacuum && shouldBundleVacuumWithDeep(vacuum, deep)) {
+      const floorPerson = fairPerson(data.flatmates, data.logs, deep);
+
+      deep.person = floorPerson;
+      deep.bundledVacuumRow = {
+        ...vacuum,
+        dueDate: deep.dueDate,
+        person: floorPerson
+      };
+
+      vacuum.person = floorPerson;
+      vacuum.dueDate = deep.dueDate;
+      vacuum.bundledIntoDeep = true;
     }
 
-    return base.sort((a, b) => {
-      if (a.task.type !== b.task.type) {
-        return a.task.type === 'scheduled' ? -1 : 1;
-      }
+    return base
+      .filter(row => !row.bundledIntoDeep)
+      .sort((a, b) => {
+        if (a.task.type !== b.task.type) {
+          return a.task.type === 'scheduled' ? -1 : 1;
+        }
 
-      return (a.dueDate || '9999-12-31').localeCompare(
-        b.dueDate || '9999-12-31'
-      );
-    });
+        return (a.dueDate || '9999-12-31').localeCompare(
+          b.dueDate || '9999-12-31'
+        );
+      });
   }, [data]);
 
   async function markDone() {
     try {
       setError('');
+      setSuccess('');
 
       if (form.date > TODAY) {
         setError(t.futureDateError);
         return;
       }
+
+      setSaving(true);
 
       await apiPost('/api/log', {
         ...form,
@@ -516,15 +557,22 @@ function App() {
       });
 
       setForm(current => ({ ...current, note: '' }));
+      setSuccess(t.saved);
+      clearSuccessSoon();
     } catch (e) {
       setError(e.message || t.saveError);
+    } finally {
+      setSaving(false);
     }
   }
 
   async function toggleBin(taskId, isFull) {
     try {
       setError('');
+      setSuccess('');
       await apiPost('/api/bin', { taskId, isFull });
+      setSuccess(t.saved);
+      clearSuccessSoon();
     } catch (e) {
       setError(e.message || t.saveError);
     }
@@ -653,6 +701,13 @@ function App() {
           </div>
         )}
 
+        {success && (
+          <div className="notice good success-pop">
+            <CheckCircle2 size={20} />
+            {success}
+          </div>
+        )}
+
         <section className="layout">
           <div className="card" id="next-tasks">
             <div className="card-head">
@@ -667,7 +722,10 @@ function App() {
                 const [label, tone] = status(row, data.fullBins || {}, t);
 
                 return (
-                  <div className="task" key={row.task.id}>
+                  <div
+                    className={`task ${row.bundledVacuumRow ? 'task-bundled' : ''}`}
+                    key={row.task.id}
+                  >
                     <div className="task-main">
                       <h3>{taskLabel(row.task)}</h3>
 
@@ -678,12 +736,11 @@ function App() {
                           : t.noRecord}
                       </p>
 
-                      {row.linked && (
-                        <p className="hint">{t.linkedDeep}</p>
-                      )}
-
-                      {row.task.id === 'deep_water' && (
-                        <p className="hint">{t.deepIncludesVacuum}</p>
+                      {row.bundledVacuumRow && (
+                        <div className="bundle-pill">
+                          <CheckCircle2 size={16} />
+                          {t.deepIncludesVacuum}
+                        </div>
                       )}
 
                       {row.task.type === 'on_demand' && (
@@ -724,6 +781,23 @@ function App() {
                         <b>{label}</b>
                       </div>
                     </div>
+
+                    {row.bundledVacuumRow && (
+                      <div className="bundled-subtask">
+                        <div>
+                          <b>{taskLabel(row.bundledVacuumRow.task)}</b>
+                          <span>{t.linkedDeep}</span>
+                        </div>
+                        <div>
+                          <span>{t.nextDate}</span>
+                          <b>{fmt(row.dueDate, '', lang)}</b>
+                        </div>
+                        <div>
+                          <span>{t.nextPerson}</span>
+                          <b>{normalizeName(row.person)}</b>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -774,9 +848,22 @@ function App() {
                 </label>
               </div>
 
-              <button className="primary" onClick={markDone}>
-                <CheckCircle2 size={20} />
-                {t.saveCompleted}
+              <button
+                className={`primary ${saving ? 'saving' : ''}`}
+                onClick={markDone}
+                disabled={saving}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 size={20} className="spin" />
+                    {t.saving}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={20} />
+                    {t.saveCompleted}
+                  </>
+                )}
               </button>
             </div>
 

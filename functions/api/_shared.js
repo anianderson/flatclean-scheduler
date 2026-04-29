@@ -14,15 +14,43 @@ function normalizeName(name) {
 export async function readState(env) {
   const [flatmates, tasks, logs, bins] = await Promise.all([
     env.DB.prepare('SELECT name FROM flatmates ORDER BY rowid').all(),
-    env.DB.prepare(
-      'SELECT id, name, type, interval_days AS intervalDays, task_group AS taskGroup, also_logs AS alsoLogs FROM tasks ORDER BY rowid'
-    ).all(),
-    env.DB.prepare(
-      'SELECT id, task_id AS taskId, person, done_date AS date, note, created_at AS createdAt FROM logs ORDER BY done_date DESC, created_at DESC'
-    ).all(),
-    env.DB.prepare(
-      'SELECT task_id AS taskId, is_full AS isFull FROM bin_status'
-    ).all()
+
+    env.DB.prepare(`
+      SELECT
+        id,
+        name,
+        type,
+        interval_days AS intervalDays,
+        task_group AS taskGroup,
+        also_logs AS alsoLogs
+      FROM tasks
+      ORDER BY rowid
+    `).all(),
+
+    env.DB.prepare(`
+      SELECT
+        id,
+        task_id AS taskId,
+        person,
+        COALESCE(actual_person, person) AS actualPerson,
+        assigned_person AS assignedPerson,
+        done_date AS date,
+        scheduled_due_date AS scheduledDueDate,
+        next_due_date AS nextDueDate,
+        completion_type AS completionType,
+        COALESCE(credit_weight, 1) AS creditWeight,
+        note,
+        created_at AS createdAt
+      FROM logs
+      ORDER BY done_date DESC, created_at DESC
+    `).all(),
+
+    env.DB.prepare(`
+      SELECT
+        task_id AS taskId,
+        is_full AS isFull
+      FROM bin_status
+    `).all()
   ]);
 
   const fullBins = {};
@@ -33,6 +61,7 @@ export async function readState(env) {
 
   return {
     flatmates: (flatmates.results || []).map(row => normalizeName(row.name)),
+
     tasks: (tasks.results || []).map(task => ({
       ...task,
       alsoLogs: task.alsoLogs
@@ -42,10 +71,14 @@ export async function readState(env) {
             .filter(Boolean)
         : []
     })),
+
     logs: (logs.results || []).map(log => ({
       ...log,
-      person: normalizeName(log.person)
+      person: normalizeName(log.person),
+      actualPerson: normalizeName(log.actualPerson),
+      assignedPerson: normalizeName(log.assignedPerson)
     })),
+
     fullBins
   };
 }

@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronDown,
   ClipboardList,
-  Globe2,
   History,
   Home,
   Menu,
@@ -55,6 +54,7 @@ const translations = {
     loading: 'Loading…',
     loadError: 'Could not load app data.',
     saveError: 'Could not save. Please try again.',
+    futureDateError: 'Future dates are not allowed.',
     auto: 'Auto',
     german: 'German',
     english: 'English',
@@ -113,6 +113,7 @@ const translations = {
     loading: 'Lädt…',
     loadError: 'App-Daten konnten nicht geladen werden.',
     saveError: 'Konnte nicht speichern. Bitte erneut versuchen.',
+    futureDateError: 'Zukünftige Daten sind nicht erlaubt.',
     auto: 'Auto',
     german: 'Deutsch',
     english: 'Englisch',
@@ -180,6 +181,10 @@ function fmt(date, fallback = 'Not scheduled yet', lang = 'de') {
   }).format(new Date(`${date}T00:00:00`));
 }
 
+function normalizeName(name) {
+  return name === 'Neveen' ? 'Naveen' : name;
+}
+
 function lastLog(logs, taskId) {
   return logs
     .filter(log => log.taskId === taskId)
@@ -189,36 +194,65 @@ function lastLog(logs, taskId) {
     })[0];
 }
 
-function fairPerson(people, logs, task) {
-  const normalizedPeople = people.map(person =>
-    person === 'Neveen' ? 'Naveen' : person
-  );
+function getDueDateFromLastLog(task, last) {
+  if (!last) return null;
 
-  const ids =
+  if (last.nextDueDate) {
+    return last.nextDueDate;
+  }
+
+  if (task.type === 'scheduled' && task.intervalDays) {
+    return addDays(last.date, task.intervalDays);
+  }
+
+  return null;
+}
+
+function fairPerson(people, logs, task) {
+  const normalizedPeople = people.map(normalizeName);
+
+  const taskIds =
     task.taskGroup === 'floor'
       ? ['vacuum', 'deep_water']
       : [task.id];
 
-  const counts = Object.fromEntries(normalizedPeople.map(person => [person, 0]));
+  const scores = Object.fromEntries(normalizedPeople.map(person => [person, 0]));
   const lastDates = Object.fromEntries(
     normalizedPeople.map(person => [person, '1900-01-01'])
   );
 
-  logs.forEach(log => {
-    if (!ids.includes(log.taskId)) return;
+  for (const log of logs) {
+    if (!taskIds.includes(log.taskId)) continue;
 
-    const person = log.person === 'Neveen' ? 'Naveen' : log.person;
+    const actualPerson = normalizeName(log.actualPerson || log.person);
+    const assignedPerson = normalizeName(log.assignedPerson);
+    const weight = Number(log.creditWeight ?? 1);
 
-    counts[person] = (counts[person] || 0) + 1;
+    if (actualPerson) {
+      scores[actualPerson] = (scores[actualPerson] || 0) + weight;
 
-    if (log.date > (lastDates[person] || '1900-01-01')) {
-      lastDates[person] = log.date;
+      if (log.date > (lastDates[actualPerson] || '1900-01-01')) {
+        lastDates[actualPerson] = log.date;
+      }
     }
-  });
+
+    const wasOverdueForSomeoneElse =
+      assignedPerson &&
+      actualPerson &&
+      assignedPerson !== actualPerson &&
+      (
+        log.completionType === 'completed_by_other_late' ||
+        log.completionType === 'auto_included_overdue_for_other'
+      );
+
+    if (wasOverdueForSomeoneElse) {
+      scores[assignedPerson] = (scores[assignedPerson] || 0) - 1;
+    }
+  }
 
   return [...normalizedPeople].sort((a, b) => {
-    if ((counts[a] || 0) !== (counts[b] || 0)) {
-      return (counts[a] || 0) - (counts[b] || 0);
+    if ((scores[a] || 0) !== (scores[b] || 0)) {
+      return (scores[a] || 0) - (scores[b] || 0);
     }
 
     return (lastDates[a] || '1900-01-01').localeCompare(
@@ -247,10 +281,6 @@ function status(row, fullBins, t) {
   if (d <= 3) return [t.dueIn(d), 'warn'];
 
   return [t.dueIn(d), 'good'];
-}
-
-function normalizeName(name) {
-  return name === 'Neveen' ? 'Naveen' : name;
 }
 
 function FancySelect({
@@ -288,7 +318,7 @@ function FancySelect({
 
   return (
     <label className={`fancy-field ${className}`}>
-      <span className="field-label">{label}</span>
+      {label && <span className="field-label">{label}</span>}
 
       <div className={`fancy-select ${open ? 'open' : ''}`} ref={ref}>
         <button
@@ -330,6 +360,7 @@ function App() {
   const [languageSetting, setLanguageSetting] = useState(
     localStorage.getItem('flatclean_lang') || 'auto'
   );
+
   const lang = getLanguageFromSetting(languageSetting);
   const t = translations[lang];
 
@@ -375,7 +406,9 @@ function App() {
       json.flatmates = (json.flatmates || []).map(normalizeName);
       json.logs = (json.logs || []).map(log => ({
         ...log,
-        person: normalizeName(log.person)
+        person: normalizeName(log.person),
+        actualPerson: normalizeName(log.actualPerson || log.person),
+        assignedPerson: normalizeName(log.assignedPerson)
       }));
 
       setData(json);
@@ -414,7 +447,9 @@ function App() {
     json.flatmates = (json.flatmates || []).map(normalizeName);
     json.logs = (json.logs || []).map(log => ({
       ...log,
-      person: normalizeName(log.person)
+      person: normalizeName(log.person),
+      actualPerson: normalizeName(log.actualPerson || log.person),
+      assignedPerson: normalizeName(log.assignedPerson)
     }));
 
     setData(json);
@@ -431,10 +466,7 @@ function App() {
 
     const base = data.tasks.map(task => {
       const last = lastLog(data.logs, task.id);
-      const dueDate =
-        task.type === 'scheduled' && last
-          ? addDays(last.date, task.intervalDays)
-          : null;
+      const dueDate = getDueDateFromLastLog(task, last);
 
       return {
         task,
@@ -447,7 +479,13 @@ function App() {
     const deep = base.find(row => row.task.id === 'deep_water');
     const vacuum = base.find(row => row.task.id === 'vacuum');
 
-    if (deep && vacuum && deep.dueDate && vacuum.dueDate && deep.dueDate === vacuum.dueDate) {
+    if (
+      deep &&
+      vacuum &&
+      deep.dueDate &&
+      vacuum.dueDate &&
+      deep.dueDate === vacuum.dueDate
+    ) {
       vacuum.person = deep.person;
       vacuum.linked = true;
     }
@@ -466,10 +504,17 @@ function App() {
   async function markDone() {
     try {
       setError('');
+
+      if (form.date > TODAY) {
+        setError(t.futureDateError);
+        return;
+      }
+
       await apiPost('/api/log', {
         ...form,
         person: normalizeName(form.person)
       });
+
       setForm(current => ({ ...current, note: '' }));
     } catch (e) {
       setError(e.message || t.saveError);
@@ -559,6 +604,7 @@ function App() {
 
         {navItems.map(item => {
           const Icon = item.icon;
+
           return (
             <button
               className="nav-link"
@@ -628,7 +674,7 @@ function App() {
                       <p>
                         {t.lastDone}:{' '}
                         {row.last
-                          ? `${fmt(row.last.date, '', lang)} ${t.by} ${normalizeName(row.last.person)}`
+                          ? `${fmt(row.last.date, '', lang)} ${t.by} ${normalizeName(row.last.actualPerson || row.last.person)}`
                           : t.noRecord}
                       </p>
 
@@ -713,6 +759,7 @@ function App() {
                   <input
                     type="date"
                     value={form.date}
+                    max={TODAY}
                     onChange={e => setForm({ ...form, date: e.target.value })}
                   />
                 </label>
@@ -745,7 +792,8 @@ function App() {
                     <b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b>
                     <span>
                       <CalendarDays size={14} />
-                      {fmt(log.date, '', lang)} {t.by} {normalizeName(log.person)}
+                      {fmt(log.date, '', lang)} {t.by}{' '}
+                      {normalizeName(log.actualPerson || log.person)}
                     </span>
                     {log.note && <small>{log.note}</small>}
                   </div>

@@ -50,16 +50,13 @@ const translations = {
     navigation: 'Navigation',
     dashboard: 'Overview',
     nextTasks: 'Upcoming chores',
-    nextTasksHelp:
-      'All chores, including future, due, overdue, and as-needed chores.',
+    nextTasksHelp: 'All chores, including future, due, overdue, and as-needed chores.',
     markDone: 'Mark as done',
-    markDoneHelp:
-      'Choose the chore and date. It will be saved under your profile.',
+    markDoneHelp: 'Choose the chore and date. It will be saved under your profile.',
     recentLog: 'Recent activity',
     recentLogHelp: 'Recently completed chores in the current period.',
     scores: 'Points',
-    scoresHelp:
-      'Difficulty points show how hard a chore is. Earned points show completed work in this period.',
+    scoresHelp: 'Difficulty points show how hard a chore is. Earned points show completed work in this period.',
     totalScore: 'Total points',
     positiveScore: 'Work points',
     negativeScore: 'Covered by others',
@@ -85,8 +82,7 @@ const translations = {
     linkedDeep: 'Combined with mopping on this date.',
     deepIncludesVacuum: 'This includes vacuuming on the same day.',
     didVacuumQuestion: 'Did you also vacuum?',
-    didVacuumHelp:
-      'Mopping usually needs vacuuming first. If vacuuming was not done, mopping points are reduced.',
+    didVacuumHelp: 'Mopping usually needs vacuuming first. If vacuuming was not done, mopping points are reduced.',
     yesVacuumDone: 'Yes, vacuuming was also done',
     noVacuumDone: 'No, only mopping was done',
     by: 'by',
@@ -124,8 +120,7 @@ const translations = {
     partialTask: 'Untick anything that was not completed.',
     pendingParts: 'Still open',
     emailTitle: 'Email required',
-    emailInfo:
-      'This email is used for reminders, overdue notices, point updates, and milestone messages.',
+    emailInfo: 'This email is used for reminders, overdue notices, point updates, and milestone messages.',
     emailAddress: 'Email address',
     saveAndContinue: 'Save and continue',
     changeEmail: 'Change email',
@@ -133,8 +128,7 @@ const translations = {
     invalidEmail: 'Please enter a valid email address.',
     admin: 'Admin',
     adminPanel: 'Admin area',
-    adminHelp:
-      'Manage active flatmates. Adding or removing flatmates starts a new fair points period.',
+    adminHelp: 'Manage active flatmates. Adding or removing flatmates starts a new fair points period.',
     userName: 'Name',
     addUser: 'Add flatmate',
     updateUser: 'Update email',
@@ -142,8 +136,7 @@ const translations = {
     activeUsers: 'Active flatmates',
     history: 'History',
     previousPeriods: 'Previous periods',
-    historyHelp:
-      'When flatmates change, the current period is closed. Its activity, points, and milestones stay here.',
+    historyHelp: 'When flatmates change, the current period is closed. Its activity, points, and milestones stay here.',
     periodLogs: 'Activity',
     periodScores: 'Points',
     periodMilestones: 'Milestones',
@@ -158,10 +151,10 @@ const translations = {
     noEmail: 'No email added yet',
     adminPin: 'Admin PIN',
     adminPinHelp: 'Enter the admin PIN to confirm this action.',
+    adminPinForVacationHelp: 'Admin PIN is required to save or delete vacation dates for another flatmate.',
     confirm: 'Confirm',
     away: 'Vacation',
-    awayHelp:
-      'Add vacation or unavailable dates. You will not be assigned scheduled chores during this time.',
+    awayHelp: 'Add vacation or unavailable dates. You will not be assigned scheduled chores during this time.',
     awayFrom: 'Away from',
     awayUntil: 'Away until',
     reason: 'Reason',
@@ -169,8 +162,7 @@ const translations = {
     yourAwayDates: 'Your saved vacation dates',
     noAwayDates: 'No vacation dates saved',
     noAwayPlanned: 'No vacation planned',
-    vacationQuickHelp:
-      'Set your vacation dates here so chores stay fair while you are away.',
+    vacationQuickHelp: 'Set your vacation dates here so chores stay fair while you are away.',
     manageVacation: 'Manage vacation',
     currentVacation: 'Currently away',
     nextVacation: 'Next vacation',
@@ -181,11 +173,12 @@ const translations = {
     allVacationDates: 'All vacation dates',
     person: 'Person',
     usefulLinks: 'What else can you do?',
-    usefulLinksHelp:
-      'Use the sidebar to open full pages for marking work done, points, history, and admin settings.',
+    usefulLinksHelp: 'Use the sidebar to open full pages for marking work done, points, history, and admin settings.',
     dueChoresShort: 'Due now',
     pointsShort: 'Your points',
     awayShort: 'Vacation',
+    onVacationUntil: (person, date) => `${person} is on vacation until ${date}.`,
+    nextVacationFromUntil: (from, until) => `Next vacation: ${from} → ${until}`,
     late: n => `${n} day${n === 1 ? '' : 's'} overdue`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -209,16 +202,13 @@ const translations = {
     navigation: 'Navigation',
     dashboard: 'Übersicht',
     nextTasks: 'Anstehende Aufgaben',
-    nextTasksHelp:
-      'Alle Aufgaben, inklusive zukünftiger, fälliger, überfälliger und bedarfsabhängiger Aufgaben.',
+    nextTasksHelp: 'Alle Aufgaben, inklusive zukünftiger, fälliger, überfälliger und bedarfsabhängiger Aufgaben.',
     markDone: 'Als erledigt eintragen',
-    markDoneHelp:
-      'Wähle Aufgabe und Datum. Der Eintrag wird unter deinem Profil gespeichert.',
+    markDoneHelp: 'Wähle Aufgabe und Datum. Der Eintrag wird unter deinem Profil gespeichert.',
     recentLog: 'Letzte Aktivitäten',
     recentLogHelp: 'Zuletzt erledigte Aufgaben in der aktuellen Periode.',
     scores: 'Punkte',
-    scoresHelp:
-      'Schwierigkeitspunkte zeigen den Aufwand. Erarbeitete Punkte zeigen erledigte Arbeit in dieser Periode.',
+    scoresHelp: 'Schwierigkeitspunkte zeigen den Aufwand. Erarbeitete Punkte zeigen erledigte Arbeit in dieser Periode.',
     totalScore: 'Gesamtpunkte',
     positiveScore: 'Arbeitspunkte',
     negativeScore: 'Von anderen übernommen',
@@ -244,8 +234,7 @@ const translations = {
     linkedDeep: 'An diesem Datum mit Nasswischen kombiniert.',
     deepIncludesVacuum: 'Diese Aufgabe enthält Staubsaugen am selben Tag.',
     didVacuumQuestion: 'Hast du auch staubgesaugt?',
-    didVacuumHelp:
-      'Vor dem Nasswischen sollte normalerweise staubgesaugt werden. Ohne Staubsaugen gibt es weniger Punkte.',
+    didVacuumHelp: 'Vor dem Nasswischen sollte normalerweise staubgesaugt werden. Ohne Staubsaugen gibt es weniger Punkte.',
     yesVacuumDone: 'Ja, Staubsaugen wurde auch erledigt',
     noVacuumDone: 'Nein, nur Nasswischen wurde erledigt',
     by: 'von',
@@ -283,8 +272,7 @@ const translations = {
     partialTask: 'Entferne alles, was nicht erledigt wurde.',
     pendingParts: 'Noch offen',
     emailTitle: 'E-Mail erforderlich',
-    emailInfo:
-      'Diese E-Mail wird für Erinnerungen, überfällige Aufgaben, Punkte-Updates und Meilenstein-Nachrichten verwendet.',
+    emailInfo: 'Diese E-Mail wird für Erinnerungen, überfällige Aufgaben, Punkte-Updates und Meilenstein-Nachrichten verwendet.',
     emailAddress: 'E-Mail-Adresse',
     saveAndContinue: 'Speichern und weiter',
     changeEmail: 'E-Mail ändern',
@@ -292,8 +280,7 @@ const translations = {
     invalidEmail: 'Bitte gib eine gültige E-Mail-Adresse ein.',
     admin: 'Admin',
     adminPanel: 'Adminbereich',
-    adminHelp:
-      'Aktive Mitbewohner verwalten. Wenn Mitbewohner hinzukommen oder ausziehen, startet eine neue faire Punkteperiode.',
+    adminHelp: 'Aktive Mitbewohner verwalten. Wenn Mitbewohner hinzukommen oder ausziehen, startet eine neue faire Punkteperiode.',
     userName: 'Name',
     addUser: 'Mitbewohner hinzufügen',
     updateUser: 'E-Mail ändern',
@@ -301,8 +288,7 @@ const translations = {
     activeUsers: 'Aktive Mitbewohner',
     history: 'Historie',
     previousPeriods: 'Frühere Perioden',
-    historyHelp:
-      'Wenn Mitbewohner wechseln, wird die aktuelle Periode geschlossen. Aktivitäten, Punkte und Meilensteine bleiben hier erhalten.',
+    historyHelp: 'Wenn Mitbewohner wechseln, wird die aktuelle Periode geschlossen. Aktivitäten, Punkte und Meilensteine bleiben hier erhalten.',
     periodLogs: 'Aktivitäten',
     periodScores: 'Punkte',
     periodMilestones: 'Meilensteine',
@@ -317,10 +303,10 @@ const translations = {
     noEmail: 'Noch keine E-Mail hinterlegt',
     adminPin: 'Admin-PIN',
     adminPinHelp: 'Gib die Admin-PIN ein, um diese Aktion zu bestätigen.',
+    adminPinForVacationHelp: 'Die Admin-PIN ist erforderlich, um Urlaubszeiten für andere Mitbewohner zu speichern oder zu löschen.',
     confirm: 'Bestätigen',
     away: 'Urlaub',
-    awayHelp:
-      'Trage Urlaub oder Abwesenheit ein. In dieser Zeit bekommst du keine geplanten Aufgaben zugewiesen.',
+    awayHelp: 'Trage Urlaub oder Abwesenheit ein. In dieser Zeit bekommst du keine geplanten Aufgaben zugewiesen.',
     awayFrom: 'Abwesend von',
     awayUntil: 'Abwesend bis',
     reason: 'Grund',
@@ -328,8 +314,7 @@ const translations = {
     yourAwayDates: 'Deine gespeicherten Urlaubszeiten',
     noAwayDates: 'Kein Urlaub gespeichert',
     noAwayPlanned: 'Kein Urlaub geplant',
-    vacationQuickHelp:
-      'Trage hier deine Urlaubszeiten ein, damit Aufgaben während deiner Abwesenheit fair verteilt werden.',
+    vacationQuickHelp: 'Trage hier deine Urlaubszeiten ein, damit Aufgaben während deiner Abwesenheit fair verteilt werden.',
     manageVacation: 'Urlaub verwalten',
     currentVacation: 'Aktuell abwesend',
     nextVacation: 'Nächster Urlaub',
@@ -340,11 +325,12 @@ const translations = {
     allVacationDates: 'Alle Urlaubszeiten',
     person: 'Person',
     usefulLinks: 'Was kannst du noch machen?',
-    usefulLinksHelp:
-      'Über die Seitenleiste findest du Erledigt-Einträge, Punkte, Historie und Admin-Einstellungen.',
+    usefulLinksHelp: 'Über die Seitenleiste findest du Erledigt-Einträge, Punkte, Historie und Admin-Einstellungen.',
     dueChoresShort: 'Jetzt fällig',
     pointsShort: 'Deine Punkte',
     awayShort: 'Urlaub',
+    onVacationUntil: (person, date) => `${person} ist bis ${date} im Urlaub.`,
+    nextVacationFromUntil: (from, until) => `Nächster Urlaub: ${from} → ${until}`,
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -1099,11 +1085,11 @@ function App() {
     }
   }
 
-  function openAdminModal(action, payload) {
+  function openAdminModal(action, payload, endpoint = '/api/admin-users') {
     setError('');
     setSuccess('');
     setAdminPin('');
-    setAdminModal({ action, payload });
+    setAdminModal({ action, payload, endpoint });
   }
 
   function closeAdminModal() {
@@ -1120,13 +1106,18 @@ function App() {
       setError('');
       setAdminSaving(true);
 
-      const res = await fetch('/api/admin-users', {
+      const endpoint = adminModal.endpoint || '/api/admin-users';
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-admin-pin': adminPin
         },
-        body: JSON.stringify(adminModal.payload)
+        body: JSON.stringify({
+          ...adminModal.payload,
+          admin: endpoint === '/api/availability' ? true : adminModal.payload?.admin
+        })
       });
 
       const json = await res.json().catch(() => ({}));
@@ -1137,24 +1128,39 @@ function App() {
 
       const normalized = normalizeApiData(json);
       setData(normalized);
-      setAdminForm({ name: '', email: '' });
+
+      if (endpoint === '/api/admin-users') {
+        setAdminForm({ name: '', email: '' });
+
+        const stillExists = normalized.flatmates.some(
+          person => normalizeName(person) === normalizeName(currentUser)
+        );
+
+        const currentProfile = normalized.flatmateProfiles.find(
+          profile => normalizeName(profile.name) === normalizeName(currentUser)
+        );
+
+        if (!stillExists || !currentProfile?.email) {
+          localStorage.removeItem('flatclean_user');
+          setCurrentUser('');
+        }
+      }
+
+      if (endpoint === '/api/availability' && adminModal.action === 'admin_vacation_add') {
+        const savedPerson = adminModal.payload?.person || normalized.flatmates?.[0] || '';
+
+        setAdminAwayForm({
+          person: savedPerson,
+          startDate: TODAY,
+          endDate: TODAY,
+          reason: ''
+        });
+      }
+
       setAdminModal(null);
       setAdminPin('');
       setSuccess(t.saved);
       clearSuccessSoon();
-
-      const stillExists = normalized.flatmates.some(
-        person => normalizeName(person) === normalizeName(currentUser)
-      );
-
-      const currentProfile = normalized.flatmateProfiles.find(
-        profile => normalizeName(profile.name) === normalizeName(currentUser)
-      );
-
-      if (!stillExists || !currentProfile?.email) {
-        localStorage.removeItem('flatclean_user');
-        setCurrentUser('');
-      }
     } catch (e) {
       setError(e.message || t.saveError);
     } finally {
@@ -1209,60 +1215,38 @@ function App() {
   }
 
   async function saveAdminAwayDates() {
-    try {
-      setError('');
+    const person = adminAwayForm.person || data?.flatmates?.[0] || '';
 
-      const person = adminAwayForm.person || data?.flatmates?.[0] || '';
+    if (!person) {
+      setError(t.selectFlatmate);
+      return;
+    }
 
-      if (!person) {
-        setError(t.selectFlatmate);
-        return;
-      }
-
-      setSaving(true);
-
-      await apiPost('/api/availability', {
+    openAdminModal(
+      'admin_vacation_add',
+      {
         action: 'add',
+        admin: true,
         person,
         startDate: adminAwayForm.startDate,
         endDate: adminAwayForm.endDate,
         reason: adminAwayForm.reason
-      });
-
-      setAdminAwayForm({
-        person,
-        startDate: TODAY,
-        endDate: TODAY,
-        reason: ''
-      });
-
-      setSuccess(t.saved);
-      clearSuccessSoon();
-    } catch (e) {
-      setError(e.message || t.saveError);
-    } finally {
-      setSaving(false);
-    }
+      },
+      '/api/availability'
+    );
   }
 
   async function deleteAdminAwayDate(id, person) {
-    try {
-      setError('');
-      setSaving(true);
-
-      await apiPost('/api/availability', {
+    openAdminModal(
+      'admin_vacation_delete',
+      {
         action: 'delete',
+        admin: true,
         person,
         id
-      });
-
-      setSuccess(t.saved);
-      clearSuccessSoon();
-    } catch (e) {
-      setError(e.message || t.saveError);
-    } finally {
-      setSaving(false);
-    }
+      },
+      '/api/availability'
+    );
   }
 
   const taskById = useMemo(
@@ -1849,14 +1833,26 @@ function App() {
 
           <div className="mini-dashboard-card vacation-summary-card">
             <span>{t.awayShort}</span>
+
             <strong>
               {activeAbsence
-                ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}`
+                ? t.onVacationUntil(
+                    normalizeName(currentUser),
+                    fmt(activeAbsence.endDate, '', lang)
+                  )
                 : upcomingAbsence
-                  ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}`
+                  ? t.nextVacationFromUntil(
+                      fmt(upcomingAbsence.startDate, '', lang),
+                      fmt(upcomingAbsence.endDate, '', lang)
+                    )
                   : t.noAwayPlanned}
             </strong>
-            <small>{activeAbsence?.reason || upcomingAbsence?.reason || t.vacationQuickHelp}</small>
+
+            <small>
+              {activeAbsence?.reason ||
+                upcomingAbsence?.reason ||
+                t.vacationQuickHelp}
+            </small>
 
             <button
               type="button"
@@ -2089,6 +2085,7 @@ function App() {
 
         <div className="admin-section-block">
           <h3>{t.vacationForUser}</h3>
+          <p className="admin-section-help">{t.adminPinForVacationHelp}</p>
 
           <div className="admin-grid vacation-admin-grid">
             <FancySelect
@@ -2159,11 +2156,11 @@ function App() {
           <div className="admin-actions">
             <button
               type="button"
-              disabled={saving}
+              disabled={adminSaving}
               onClick={saveAdminAwayDates}
             >
               <Plane size={16} />
-              {saving ? t.saving : t.saveVacationForUser}
+              {t.saveVacationForUser}
             </button>
           </div>
 
@@ -2185,7 +2182,7 @@ function App() {
                   <button
                     type="button"
                     className="danger-action"
-                    disabled={saving}
+                    disabled={adminSaving}
                     onClick={() =>
                       deleteAdminAwayDate(absence.id, absence.person)
                     }
@@ -2715,7 +2712,11 @@ function App() {
               <div>
                 <span className="modal-kicker">{t.admin}</span>
                 <h2>{t.adminPin}</h2>
-                <p>{t.adminPinHelp}</p>
+                <p>
+                  {adminModal.endpoint === '/api/availability'
+                    ? t.adminPinForVacationHelp
+                    : t.adminPinHelp}
+                </p>
               </div>
 
               <button

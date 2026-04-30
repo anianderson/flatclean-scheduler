@@ -1777,3 +1777,26 @@ button:disabled {
   color: #312e81;
   border-bottom-color: #312e81;
 }
+
+.profile-card .profile-avatar,
+.dashboard-avatar {
+  color: #ffffff !important;
+}
+
+.profile-card .profile-avatar {
+  font-weight: 950;
+}
+
+.vacation-summary-card strong {
+  line-height: 1.15;
+}
+
+.vacation-summary-card small {
+  margin-bottom: 8px;
+}
+
+.admin-section-help {
+  margin: -6px 0 14px;
+  color: #64748b;
+  line-height: 1.35;
+}

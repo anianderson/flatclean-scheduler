@@ -177,6 +177,8 @@ const translations = {
     dueChoresShort: 'Due now',
     pointsShort: 'Your points',
     awayShort: 'Vacation',
+    peopleOnVacationToday: 'On vacation today',
+    noOneOnVacationToday: 'No one is on vacation today',
     onVacationUntil: (person, date) => `${person} is on vacation until ${date}.`,
     nextVacationFromUntil: (from, until) => `Next vacation: ${from} → ${until}`,
     late: n => `${n} day${n === 1 ? '' : 's'} overdue`,
@@ -329,6 +331,8 @@ const translations = {
     dueChoresShort: 'Jetzt fällig',
     pointsShort: 'Deine Punkte',
     awayShort: 'Urlaub',
+    peopleOnVacationToday: 'Heute im Urlaub',
+    noOneOnVacationToday: 'Heute ist niemand im Urlaub',
     onVacationUntil: (person, date) => `${person} ist bis ${date} im Urlaub.`,
     nextVacationFromUntil: (from, until) => `Nächster Urlaub: ${from} → ${until}`,
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
@@ -1425,6 +1429,13 @@ function App() {
     myAbsences.find(absence => absence.startDate > TODAY) ||
     null;
 
+  const activeAbsencesToday = (data?.absences || [])
+    .filter(absence => absence.startDate <= TODAY && absence.endDate >= TODAY)
+    .sort((a, b) => {
+      if (a.endDate !== b.endDate) return a.endDate.localeCompare(b.endDate);
+      return normalizeName(a.person).localeCompare(normalizeName(b.person));
+    });
+
   useEffect(() => {
     if (!data || !currentUser) return;
 
@@ -1834,25 +1845,40 @@ function App() {
           <div className="mini-dashboard-card vacation-summary-card">
             <span>{t.awayShort}</span>
 
-            <strong>
-              {activeAbsence
-                ? t.onVacationUntil(
-                    normalizeName(currentUser),
-                    fmt(activeAbsence.endDate, '', lang)
-                  )
-                : upcomingAbsence
-                  ? t.nextVacationFromUntil(
-                      fmt(upcomingAbsence.startDate, '', lang),
-                      fmt(upcomingAbsence.endDate, '', lang)
-                    )
-                  : t.noAwayPlanned}
-            </strong>
+            {activeAbsencesToday.length ? (
+              <>
+                <strong>{t.peopleOnVacationToday}</strong>
 
-            <small>
-              {activeAbsence?.reason ||
-                upcomingAbsence?.reason ||
-                t.vacationQuickHelp}
-            </small>
+                <div className="today-vacation-list">
+                  {activeAbsencesToday.map(absence => (
+                    <div className="today-vacation-row" key={absence.id}>
+                      <b>
+                        {t.onVacationUntil(
+                          normalizeName(absence.person),
+                          fmt(absence.endDate, '', lang)
+                        )}
+                      </b>
+                      {absence.reason && <small>{absence.reason}</small>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <strong>
+                  {upcomingAbsence
+                    ? t.nextVacationFromUntil(
+                        fmt(upcomingAbsence.startDate, '', lang),
+                        fmt(upcomingAbsence.endDate, '', lang)
+                      )
+                    : t.noAwayPlanned}
+                </strong>
+
+                <small>
+                  {upcomingAbsence?.reason || t.noOneOnVacationToday}
+                </small>
+              </>
+            )}
 
             <button
               type="button"

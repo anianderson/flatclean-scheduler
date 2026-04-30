@@ -1,11 +1,12 @@
 import {
-  fairPerson,
+  fairPersonForDate,
   getActivePeriod,
   getDueDateFromLastLog,
   json,
   lastLog,
   normalizeName,
-  readState
+  readState,
+  wasPersonUnavailableBetween
 } from './_shared.js';
 import { bilingualEmail, sendAndLog } from './email.js';
 
@@ -23,13 +24,16 @@ function addDays(date, days) {
   return d.toISOString().slice(0, 10);
 }
 
-function getCompletionType({ assignedPerson, actualPerson, scheduledDueDate, actualDoneDate }) {
+function getCompletionType({ task, assignedPerson, actualPerson, scheduledDueDate, actualDoneDate, wasAssignedUnavailable }) {
+  if (task?.type === 'on_demand') return 'on_demand';
   if (!scheduledDueDate) return 'normal';
 
   const someoneElseDidIt =
     assignedPerson &&
     actualPerson &&
     normalizeName(assignedPerson) !== normalizeName(actualPerson);
+
+  if (someoneElseDidIt && wasAssignedUnavailable) return 'covered_absence';
 
   if (actualDoneDate < scheduledDueDate) {
     return someoneElseDidIt ? 'completed_by_other_early' : 'early';
@@ -60,53 +64,44 @@ function getCreditWeight(completionType, taskBaseWeight, completionRatio) {
   }
 }
 
-function calculateNextDueDate({
-  scheduledDueDate,
-  actualDoneDate,
-  intervalDays,
-  shouldAdvance
-}) {
+function calculateNextDueDate({ scheduledDueDate, actualDoneDate, intervalDays, shouldAdvance }) {
   if (!intervalDays) return null;
 
-  if (!shouldAdvance) {
-    return scheduledDueDate || actualDoneDate;
-  }
+  if (!shouldAdvance) return scheduledDueDate || actualDoneDate;
 
-  const anchorDate =
-    scheduledDueDate && actualDoneDate <= scheduledDueDate
-      ? scheduledDueDate
-      : actualDoneDate;
+  const anchorDate = scheduledDueDate && actualDoneDate <= scheduledDueDate
+    ? scheduledDueDate
+    : actualDoneDate;
 
   return addDays(anchorDate, intervalDays);
 }
 
 async function getTaskInfo(state, taskId) {
   const task = state.tasks.find(item => item.id === taskId);
-
   if (!task) return null;
 
   const last = lastLog(state.logs, taskId);
   const dueDate = getDueDateFromLastLog(task, last);
   const activePeriod = getActivePeriod(state);
-  const assignedPerson = fairPerson(state.flatmates, state.logs, task, activePeriod?.id);
-
-  return {
+  const assignedPerson = fairPersonForDate({
+    people: state.flatmates,
+    logs: state.logs,
     task,
-    last,
-    dueDate,
-    assignedPerson
-  };
+    activePeriodId: activePeriod?.id,
+    absences: state.absences,
+    date: task.type === 'scheduled' ? dueDate : null
+  });
+
+  return { task, last, dueDate, assignedPerson };
 }
 
 function getSelectedSubtasks(task, completedSubtaskIds) {
   const taskSubtasks = task.subtasks || [];
-
   if (!taskSubtasks.length) return [];
 
-  const selectedIds =
-    Array.isArray(completedSubtaskIds) && completedSubtaskIds.length
-      ? new Set(completedSubtaskIds)
-      : new Set(taskSubtasks.map(subtask => subtask.id));
+  const selectedIds = Array.isArray(completedSubtaskIds) && completedSubtaskIds.length
+    ? new Set(completedSubtaskIds)
+    : new Set(taskSubtasks.map(subtask => subtask.id));
 
   return taskSubtasks.filter(subtask => selectedIds.has(subtask.id));
 }
@@ -121,10 +116,7 @@ function getAggregateCompletedSubtaskIds(logs, taskId, cycleId, newSelectedIds) 
   for (const log of logs) {
     if (log.taskId !== taskId) continue;
     if (log.cycleId !== cycleId) continue;
-
-    for (const subtask of log.completedSubtasks || []) {
-      completed.add(subtask.id);
-    }
+    for (const subtask of log.completedSubtasks || []) completed.add(subtask.id);
   }
 
   return completed;
@@ -132,25 +124,10 @@ function getAggregateCompletedSubtaskIds(logs, taskId, cycleId, newSelectedIds) 
 
 function calculateCompletion(task, selectedSubtasks, aggregateCompletedIds) {
   const taskSubtasks = task.subtasks || [];
+  if (!taskSubtasks.length) return { selectedRatio: 1, aggregateRatio: 1, isPartial: false };
 
-  if (!taskSubtasks.length) {
-    return {
-      selectedRatio: 1,
-      aggregateRatio: 1,
-      isPartial: false
-    };
-  }
-
-  const totalWeight = taskSubtasks.reduce(
-    (sum, subtask) => sum + Number(subtask.weight || 1),
-    0
-  );
-
-  const selectedWeight = selectedSubtasks.reduce(
-    (sum, subtask) => sum + Number(subtask.weight || 1),
-    0
-  );
-
+  const totalWeight = taskSubtasks.reduce((sum, subtask) => sum + Number(subtask.weight || 1), 0);
+  const selectedWeight = selectedSubtasks.reduce((sum, subtask) => sum + Number(subtask.weight || 1), 0);
   const aggregateWeight = taskSubtasks
     .filter(subtask => aggregateCompletedIds.has(subtask.id))
     .reduce((sum, subtask) => sum + Number(subtask.weight || 1), 0);
@@ -226,12 +203,7 @@ async function insertCompletionLog({
 
   for (const subtask of selectedSubtasks || []) {
     await env.DB.prepare(`
-      INSERT INTO log_subtasks (
-        log_id,
-        subtask_id,
-        completed,
-        weight
-      )
+      INSERT INTO log_subtasks (log_id, subtask_id, completed, weight)
       VALUES (?, ?, 1, ?)
     `)
       .bind(logId, subtask.id, Number(subtask.weight || 1))
@@ -253,34 +225,31 @@ async function completeTask({
   forcedNote
 }) {
   const info = await getTaskInfo(stateBefore, taskId);
-
-  if (!info) {
-    return { error: 'Unknown chore' };
-  }
+  if (!info) return { error: 'Unknown chore' };
 
   const activePeriod = getActivePeriod(stateBefore);
   const selectedSubtasks = getSelectedSubtasks(info.task, completedSubtaskIds);
   const selectedIds = selectedSubtasks.map(subtask => subtask.id);
   const cycleId = getCycleId(taskId, info.dueDate, date);
 
-  const aggregateIds = getAggregateCompletedSubtaskIds(
-    stateBefore.logs,
-    taskId,
-    cycleId,
-    selectedIds
-  );
-
+  const aggregateIds = getAggregateCompletedSubtaskIds(stateBefore.logs, taskId, cycleId, selectedIds);
   const completion = calculateCompletion(info.task, selectedSubtasks, aggregateIds);
   const shouldAdvance = completion.aggregateRatio >= ADVANCE_THRESHOLD;
 
-  const completionType =
-    forcedCompletionType ||
-    getCompletionType({
-      assignedPerson: info.assignedPerson,
-      actualPerson,
-      scheduledDueDate: info.dueDate,
-      actualDoneDate: date
-    });
+  const wasAssignedUnavailable =
+    info.task.type !== 'on_demand' &&
+    info.assignedPerson &&
+    info.dueDate &&
+    wasPersonUnavailableBetween(stateBefore.absences, info.assignedPerson, info.dueDate, date);
+
+  const completionType = forcedCompletionType || getCompletionType({
+    task: info.task,
+    assignedPerson: info.assignedPerson,
+    actualPerson,
+    scheduledDueDate: info.dueDate,
+    actualDoneDate: date,
+    wasAssignedUnavailable
+  });
 
   const nextDueDate = calculateNextDueDate({
     scheduledDueDate: info.dueDate,
@@ -289,11 +258,7 @@ async function completeTask({
     shouldAdvance
   });
 
-  const creditWeight = getCreditWeight(
-    completionType,
-    info.task.baseWeight,
-    completion.selectedRatio
-  );
+  const creditWeight = getCreditWeight(completionType, info.task.baseWeight, completion.selectedRatio);
 
   const logId = await insertCompletionLog({
     env,
@@ -316,28 +281,18 @@ async function completeTask({
   if (info.task.type === 'on_demand') {
     await env.DB.prepare(`
       UPDATE bin_status
-      SET is_full = 0,
-          updated_at = CURRENT_TIMESTAMP
+      SET is_full = 0, updated_at = CURRENT_TIMESTAMP
       WHERE task_id = ?
     `)
       .bind(taskId)
       .run();
   }
 
-  return {
-    ok: true,
-    logId,
-    info,
-    completionType,
-    creditWeight,
-    selectedSubtasks
-  };
+  return { ok: true, logId, info, completionType, creditWeight, selectedSubtasks };
 }
 
 function getProfile(state, person) {
-  return (state.flatmateProfiles || []).find(
-    profile => normalizeName(profile.name) === normalizeName(person)
-  );
+  return (state.flatmateProfiles || []).find(profile => normalizeName(profile.name) === normalizeName(person));
 }
 
 function taskName(taskId, state) {
@@ -347,15 +302,8 @@ function taskName(taskId, state) {
 
 async function sendCompletionEmails(env, stateAfter, completionResults, actualPerson, date) {
   const actualProfile = getProfile(stateAfter, actualPerson);
-
-  const totalPoints = completionResults.reduce(
-    (sum, item) => sum + Number(item.creditWeight || 0),
-    0
-  );
-
-  const taskList = completionResults
-    .map(item => taskName(item.info.task.id, stateAfter))
-    .join(', ');
+  const totalPoints = completionResults.reduce((sum, item) => sum + Number(item.creditWeight || 0), 0);
+  const taskList = completionResults.map(item => taskName(item.info.task.id, stateAfter)).join(', ');
 
   if (actualProfile?.email) {
     const email = bilingualEmail({
@@ -367,24 +315,18 @@ async function sendCompletionEmails(env, stateAfter, completionResults, actualPe
       detailsEn: `Chore(s): ${taskList}. Date: ${date}. Points earned from this entry: +${totalPoints.toFixed(2)}.`
     });
 
-    await sendAndLog(
-      env,
-      {
-        to: actualProfile.email,
-        ...email
-      },
-      {
-        emailType: 'score_update',
-        taskId: completionResults[0]?.info?.task?.id || null,
-        recipientPerson: actualPerson,
-        referenceDate: date
-      }
-    );
+    await sendAndLog(env, { to: actualProfile.email, ...email }, {
+      emailType: 'score_update',
+      taskId: completionResults[0]?.info?.task?.id || null,
+      recipientPerson: actualPerson,
+      referenceDate: date
+    });
   }
 
   for (const result of completionResults) {
     const assignedPerson = normalizeName(result.info.assignedPerson);
     const someoneElseCoveredOverdue =
+      result.info.task.type !== 'on_demand' &&
       assignedPerson &&
       actualPerson &&
       assignedPerson !== actualPerson &&
@@ -407,19 +349,12 @@ async function sendCompletionEmails(env, stateAfter, completionResults, actualPe
       detailsEn: `The chore "${taskName(result.info.task.id, stateAfter)}" was assigned to ${assignedPerson} and was completed by ${actualPerson}. The fairness points were adjusted so upcoming chores can be shared more evenly.`
     });
 
-    await sendAndLog(
-      env,
-      {
-        to: assignedProfile.email,
-        ...email
-      },
-      {
-        emailType: 'fairness_adjustment',
-        taskId: result.info.task.id,
-        recipientPerson: assignedPerson,
-        referenceDate: date
-      }
-    );
+    await sendAndLog(env, { to: assignedProfile.email, ...email }, {
+      emailType: 'fairness_adjustment',
+      taskId: result.info.task.id,
+      recipientPerson: assignedPerson,
+      referenceDate: date
+    });
   }
 }
 
@@ -431,23 +366,13 @@ async function sendMilestoneEmails(env, stateAfter) {
     if (!reached.length) continue;
 
     for (const milestone of reached) {
-      const alreadySent = await env.DB.prepare(`
-        SELECT person
-        FROM score_milestones
-        WHERE person = ? AND milestone = ?
-      `)
+      const alreadySent = await env.DB.prepare(`SELECT person FROM score_milestones WHERE person = ? AND milestone = ?`)
         .bind(row.person, milestone)
         .first();
 
       if (alreadySent) continue;
 
-      await env.DB.prepare(`
-        INSERT INTO score_milestones (
-          person,
-          milestone
-        )
-        VALUES (?, ?)
-      `)
+      await env.DB.prepare(`INSERT INTO score_milestones (person, milestone) VALUES (?, ?)`)
         .bind(row.person, milestone)
         .run();
 
@@ -463,19 +388,12 @@ async function sendMilestoneEmails(env, stateAfter) {
           detailsEn: `Current score: ${row.total.toFixed(2)} points. Congratulations, and thank you for helping keep the flat clean!`
         });
 
-        await sendAndLog(
-          env,
-          {
-            to: profile.email,
-            ...email
-          },
-          {
-            emailType: 'milestone',
-            taskId: null,
-            recipientPerson: profile.name,
-            referenceDate: String(milestone)
-          }
-        );
+        await sendAndLog(env, { to: profile.email, ...email }, {
+          emailType: 'milestone',
+          taskId: null,
+          recipientPerson: profile.name,
+          referenceDate: String(milestone)
+        });
       }
     }
   }
@@ -483,32 +401,16 @@ async function sendMilestoneEmails(env, stateAfter) {
 
 export async function onRequestPost({ request, env }) {
   const body = await request.json();
-  const {
-    taskId,
-    person,
-    date,
-    note,
-    completedSubtaskIds,
-    includeAlsoLogs = true,
-    alsoLogSubtaskIds
-  } = body;
+  const { taskId, person, date, note, completedSubtaskIds, includeAlsoLogs = true, alsoLogSubtaskIds } = body;
 
-  if (!taskId || !person || !date) {
-    return json({ error: 'Please choose a chore, profile, and date.' }, 400);
-  }
-
-  if (date > todayIso()) {
-    return json({ error: 'Future dates are not allowed.' }, 400);
-  }
+  if (!taskId || !person || !date) return json({ error: 'Please choose a chore, profile, and date.' }, 400);
+  if (date > todayIso()) return json({ error: 'Future dates are not allowed.' }, 400);
 
   const actualPerson = normalizeName(person);
   const stateBefore = await readState(env);
-
   const completionResults = [];
 
-  const deepWithoutVacuum =
-    taskId === 'deep_water' &&
-    includeAlsoLogs === false;
+  const deepWithoutVacuum = taskId === 'deep_water' && includeAlsoLogs === false;
 
   const mainResult = await completeTask({
     env,
@@ -524,10 +426,7 @@ export async function onRequestPost({ request, env }) {
       : undefined
   });
 
-  if (mainResult.error) {
-    return json({ error: mainResult.error }, 400);
-  }
-
+  if (mainResult.error) return json({ error: mainResult.error }, 400);
   completionResults.push(mainResult);
 
   const mainTask = mainResult.info.task;
@@ -536,18 +435,22 @@ export async function onRequestPost({ request, env }) {
     for (const extraTaskId of mainTask.alsoLogs) {
       const updatedState = await readState(env);
       const extraInfo = await getTaskInfo(updatedState, extraTaskId);
-
       if (!extraInfo) continue;
 
+      const assignedWasUnavailable =
+        extraInfo.assignedPerson &&
+        extraInfo.dueDate &&
+        wasPersonUnavailableBetween(updatedState.absences, extraInfo.assignedPerson, extraInfo.dueDate, date);
+
       const overdueForSomeoneElse =
+        extraInfo.task.type !== 'on_demand' &&
+        !assignedWasUnavailable &&
         extraInfo.dueDate &&
         date > extraInfo.dueDate &&
         extraInfo.assignedPerson &&
         normalizeName(extraInfo.assignedPerson) !== actualPerson;
 
-      const completionType = overdueForSomeoneElse
-        ? 'auto_included_overdue_for_other'
-        : 'auto_included';
+      const completionType = overdueForSomeoneElse ? 'auto_included_overdue_for_other' : 'auto_included';
 
       const extraResult = await completeTask({
         env,
@@ -555,23 +458,18 @@ export async function onRequestPost({ request, env }) {
         taskId: extraTaskId,
         actualPerson,
         date,
-        completedSubtaskIds: Array.isArray(alsoLogSubtaskIds)
-          ? alsoLogSubtaskIds
-          : completedSubtaskIds,
+        completedSubtaskIds: Array.isArray(alsoLogSubtaskIds) ? alsoLogSubtaskIds : completedSubtaskIds,
         forcedCompletionType: completionType,
         forcedNote: overdueForSomeoneElse
           ? `Automatically added because this chore includes ${extraTaskId}. It was overdue for ${extraInfo.assignedPerson}.`
           : `Automatically added because this chore includes ${extraTaskId}.`
       });
 
-      if (extraResult.ok) {
-        completionResults.push(extraResult);
-      }
+      if (extraResult.ok) completionResults.push(extraResult);
     }
   }
 
   const stateAfter = await readState(env);
-
   await sendCompletionEmails(env, stateAfter, completionResults, actualPerson, date);
   await sendMilestoneEmails(env, stateAfter);
 

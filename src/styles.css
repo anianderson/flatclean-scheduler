@@ -1861,3 +1861,62 @@ button:disabled {
     display: none;
   }
 }
+
+/* Equal height Language + Profile cards in header */
+
+.compact-header-grid {
+  align-items: stretch;
+}
+
+.dashboard-top-card {
+  min-height: 136px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-language-card.dashboard-top-card,
+.dashboard-user-card.dashboard-top-card {
+  min-height: 136px;
+}
+
+.dashboard-language-card.dashboard-top-card {
+  justify-content: flex-start;
+}
+
+.dashboard-user-card.dashboard-top-card {
+  justify-content: flex-start;
+}
+
+.dashboard-language-card .fancy-field {
+  margin-top: auto;
+  margin-bottom: 0;
+}
+
+.dashboard-user-card .dashboard-user-row {
+  flex: 1;
+  align-items: center;
+}
+
+.dashboard-user-card .profile-actions {
+  margin-top: 4px;
+}
+
+/* Keep mobile natural */
+@media (max-width: 980px) {
+  .compact-header-grid {
+    align-items: stretch;
+  }
+
+  .dashboard-language-card.dashboard-top-card,
+  .dashboard-user-card.dashboard-top-card,
+  .dashboard-top-card {
+    min-height: auto;
+    height: auto;
+  }
+
+  .dashboard-user-card .dashboard-user-row {
+    flex: initial;
+    align-items: flex-start;
+  }
+}

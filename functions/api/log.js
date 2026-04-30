@@ -2,6 +2,8 @@ import {
   fairPersonForDate,
   getActivePeriod,
   getDueDateFromLastLog,
+  getMinimumNextFloorDate,
+  getRawTaskDueDate,
   json,
   lastLog,
   normalizeName,
@@ -64,16 +66,46 @@ function getCreditWeight(completionType, taskBaseWeight, completionRatio) {
   }
 }
 
-function calculateNextDueDate({ scheduledDueDate, actualDoneDate, intervalDays, shouldAdvance }) {
+function calculateNextDueDate({
+  scheduledDueDate,
+  actualDoneDate,
+  intervalDays,
+  shouldAdvance,
+  forceActualDateAnchor = false
+}) {
   if (!intervalDays) return null;
 
   if (!shouldAdvance) return scheduledDueDate || actualDoneDate;
+
+  if (forceActualDateAnchor) {
+    return addDays(actualDoneDate, intervalDays);
+  }
 
   const anchorDate = scheduledDueDate && actualDoneDate <= scheduledDueDate
     ? scheduledDueDate
     : actualDoneDate;
 
   return addDays(anchorDate, intervalDays);
+}
+
+async function shiftMoppingIfTooCloseAfterVacuum({ env, stateBefore, vacuumDoneDate }) {
+  const currentMoppingDue = getRawTaskDueDate(stateBefore, 'deep_water');
+  if (!currentMoppingDue) return;
+
+  const minimumMoppingDate = getMinimumNextFloorDate(vacuumDoneDate);
+
+  if (currentMoppingDue >= minimumMoppingDate) return;
+
+  const latestDeepLog = lastLog(stateBefore.logs, 'deep_water');
+  if (!latestDeepLog?.id) return;
+
+  await env.DB.prepare(`
+    UPDATE logs
+    SET next_due_date = ?
+    WHERE id = ?
+  `)
+    .bind(minimumMoppingDate, latestDeepLog.id)
+    .run();
 }
 
 async function getTaskInfo(state, taskId) {
@@ -255,7 +287,10 @@ async function completeTask({
     scheduledDueDate: info.dueDate,
     actualDoneDate: date,
     intervalDays: info.task.intervalDays,
-    shouldAdvance
+    shouldAdvance,
+    forceActualDateAnchor:
+      completionType === 'auto_included' ||
+      completionType === 'auto_included_overdue_for_other'
   });
 
   const creditWeight = getCreditWeight(completionType, info.task.baseWeight, completion.selectedRatio);
@@ -430,6 +465,14 @@ export async function onRequestPost({ request, env }) {
   completionResults.push(mainResult);
 
   const mainTask = mainResult.info.task;
+
+  if (taskId === 'vacuum') {
+    await shiftMoppingIfTooCloseAfterVacuum({
+      env,
+      stateBefore,
+      vacuumDoneDate: date
+    });
+  }
 
   if (includeAlsoLogs && mainTask.alsoLogs?.length) {
     for (const extraTaskId of mainTask.alsoLogs) {

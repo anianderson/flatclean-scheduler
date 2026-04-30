@@ -20,7 +20,9 @@ import {
 import './styles.css';
 
 const TODAY = new Date().toISOString().slice(0, 10);
-const FLOOR_MERGE_WINDOW_DAYS = 2;
+
+const FLOOR_MIN_GAP_DAYS = 10;
+const FLOOR_BUNDLE_WINDOW_DAYS = 5;
 
 const HEAVY_TASK_IDS = new Set([
   'driveway_backyard',
@@ -179,6 +181,12 @@ const translations = {
     awayShort: 'Vacation',
     peopleOnVacationToday: 'On vacation today',
     noOneOnVacationToday: 'No one is on vacation today',
+    vacuumMovedToMopping:
+      'Vacuuming was overdue and has been moved to the mopping date.',
+    missedVacuumBy:
+      person => `${person} missed the original vacuum duty.`,
+    moppingComesFirst:
+      'Standalone vacuuming is skipped because mopping already includes vacuuming.',
     onVacationUntil: (person, date) => `${person} is on vacation until ${date}.`,
     nextVacationFromUntil: (from, until) => `Next vacation: ${from} → ${until}`,
     late: n => `${n} day${n === 1 ? '' : 's'} overdue`,
@@ -333,6 +341,12 @@ const translations = {
     awayShort: 'Urlaub',
     peopleOnVacationToday: 'Heute im Urlaub',
     noOneOnVacationToday: 'Heute ist niemand im Urlaub',
+    vacuumMovedToMopping:
+      'Staubsaugen war überfällig und wurde auf den Nasswisch-Termin verschoben.',
+    missedVacuumBy:
+      person => `${person} hat die ursprüngliche Staubsaug-Aufgabe verpasst.`,
+    moppingComesFirst:
+      'Separates Staubsaugen wird übersprungen, weil Nasswischen bereits Staubsaugen enthält.',
     onVacationUntil: (person, date) => `${person} ist bis ${date} im Urlaub.`,
     nextVacationFromUntil: (from, until) => `Nächster Urlaub: ${from} → ${until}`,
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
@@ -473,6 +487,45 @@ function getDueDateFromLastLog(task, last) {
   }
 
   return null;
+}
+
+function getRawTaskDueDate(state, taskId) {
+  const task = (state.tasks || []).find(item => item.id === taskId);
+  if (!task) return null;
+
+  const last = lastLog(state.logs || [], taskId);
+  return getDueDateFromLastLog(task, last);
+}
+
+function shouldBundleFloorTasks(vacuumDueDate, deepDueDate) {
+  if (!vacuumDueDate || !deepDueDate) return false;
+
+  const vacuumToDeepGap = diffDays(vacuumDueDate, deepDueDate);
+  const deepToVacuumGap = diffDays(deepDueDate, vacuumDueDate);
+
+  if (vacuumToDeepGap === 0) return true;
+
+  if (
+    vacuumToDeepGap !== null &&
+    vacuumToDeepGap > 0 &&
+    vacuumToDeepGap <= FLOOR_BUNDLE_WINDOW_DAYS
+  ) {
+    return true;
+  }
+
+  if (
+    deepToVacuumGap !== null &&
+    deepToVacuumGap > 0 &&
+    deepToVacuumGap < FLOOR_MIN_GAP_DAYS
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function getMinimumNextFloorDate(doneDate) {
+  return addDays(doneDate, FLOOR_MIN_GAP_DAYS);
 }
 
 function rotatedRank(person, people, taskId) {
@@ -673,12 +726,32 @@ function shouldBundleVacuumWithDeep(vacuumRow, deepRow) {
     return false;
   }
 
-  const gap = diffDays(vacuumRow.dueDate, deepRow.dueDate);
+  const vacuumToDeepGap = diffDays(vacuumRow.dueDate, deepRow.dueDate);
+  const deepToVacuumGap = diffDays(deepRow.dueDate, vacuumRow.dueDate);
 
-  if (gap === null) return false;
-  if (vacuumRow.dueDate === deepRow.dueDate) return true;
+  if (vacuumToDeepGap === 0) return true;
 
-  return gap >= 0 && gap <= FLOOR_MERGE_WINDOW_DAYS;
+  // Vacuum is due before mopping and mopping is close enough.
+  // Example: vacuum due 29 Apr, mopping due 03 May.
+  if (
+    vacuumToDeepGap !== null &&
+    vacuumToDeepGap > 0 &&
+    vacuumToDeepGap <= FLOOR_BUNDLE_WINDOW_DAYS
+  ) {
+    return true;
+  }
+
+  // Mopping is due before vacuum, and standalone vacuum would be pointless soon after.
+  // Example: mopping due 09 May, vacuum due 13 May.
+  if (
+    deepToVacuumGap !== null &&
+    deepToVacuumGap > 0 &&
+    deepToVacuumGap < FLOOR_MIN_GAP_DAYS
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function FancySelect({ label, value, onChange, options, placeholder, className = '' }) {
@@ -1290,6 +1363,16 @@ function App() {
     const vacuum = base.find(row => row.task.id === 'vacuum');
 
     if (deep && vacuum && shouldBundleVacuumWithDeep(vacuum, deep)) {
+      const originalVacuumPerson = fairPersonForDate(
+        data.flatmates,
+        allLogsForScheduling,
+        vacuum.task,
+        activePeriodId,
+        plannedLoad,
+        data.absences,
+        vacuum.dueDate
+      );
+
       const combinedTask = {
         ...deep.task,
         id: 'deep_water',
@@ -1307,11 +1390,26 @@ function App() {
         deep.dueDate
       );
 
+      const vacuumWasBeforeMopping =
+        vacuum.dueDate &&
+        deep.dueDate &&
+        vacuum.dueDate <= deep.dueDate;
+
+      const vacuumWasOverdueBeforeMopping =
+        vacuumWasBeforeMopping &&
+        vacuum.dueDate < TODAY &&
+        vacuum.dueDate < deep.dueDate;
+
       deep.person = floorPerson;
       deep.bundledVacuumRow = {
         ...vacuum,
+        originalDueDate: vacuum.dueDate,
+        originalPerson: originalVacuumPerson,
         dueDate: deep.dueDate,
-        person: floorPerson
+        person: floorPerson,
+        bundledBecauseOverdue: vacuumWasOverdueBeforeMopping,
+        bundledBecauseMoppingComesFirst:
+          deep.dueDate && vacuum.dueDate && deep.dueDate < vacuum.dueDate
       };
 
       vacuum.person = floorPerson;
@@ -1752,12 +1850,32 @@ function App() {
           <div className="bundled-subtask">
             <div>
               <b>{taskLabel(row.bundledVacuumRow.task)}</b>
-              <span>{t.linkedDeep}</span>
+              <span>
+                {row.bundledVacuumRow.bundledBecauseOverdue
+                  ? t.vacuumMovedToMopping
+                  : row.bundledVacuumRow.bundledBecauseMoppingComesFirst
+                    ? t.moppingComesFirst
+                    : t.linkedDeep}
+              </span>
+
+              {row.bundledVacuumRow.bundledBecauseOverdue && (
+                <small className="missed-duty-note">
+                  {t.missedVacuumBy(normalizeName(row.bundledVacuumRow.originalPerson))}
+                </small>
+              )}
             </div>
+
             <div>
               <span>{t.nextDate}</span>
               <b>{fmt(row.dueDate, '', lang)}</b>
+
+              {row.bundledVacuumRow.originalDueDate && (
+                <small>
+                  {t.lastDone}: {fmt(row.bundledVacuumRow.originalDueDate, '', lang)}
+                </small>
+              )}
             </div>
+
             <div>
               <span>{t.nextPerson}</span>
               <b>{normalizeName(row.person)}</b>

@@ -5,6 +5,9 @@ const HEAVY_TASK_IDS = new Set([
   'vacuum'
 ]);
 
+export const FLOOR_MIN_GAP_DAYS = 10;
+export const FLOOR_BUNDLE_WINDOW_DAYS = 5;
+
 const TASK_TIE_OFFSETS = {
   gas_stove: 0,
   deep_water: 1,
@@ -17,7 +20,7 @@ const TASK_TIE_OFFSETS = {
   paper_bin: 1
 };
 
-const MILESTONE_LEVELS = [5, 10, 25, 50, 100, 150, 200];
+const MILESTONE_LEVELS = [5, 10, 25, 50, 75, 100, 125, 150, 175, 200];
 
 export function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -117,6 +120,45 @@ export function getDueDateFromLastLog(task, last) {
   }
 
   return null;
+}
+
+export function getRawTaskDueDate(state, taskId) {
+  const task = (state.tasks || []).find(item => item.id === taskId);
+  if (!task) return null;
+
+  const last = lastLog(state.logs || [], taskId);
+  return getDueDateFromLastLog(task, last);
+}
+
+export function shouldBundleFloorTasks(vacuumDueDate, deepDueDate) {
+  if (!vacuumDueDate || !deepDueDate) return false;
+
+  const vacuumToDeepGap = diffDays(vacuumDueDate, deepDueDate);
+  const deepToVacuumGap = diffDays(deepDueDate, vacuumDueDate);
+
+  if (vacuumToDeepGap === 0) return true;
+
+  if (
+    vacuumToDeepGap !== null &&
+    vacuumToDeepGap > 0 &&
+    vacuumToDeepGap <= FLOOR_BUNDLE_WINDOW_DAYS
+  ) {
+    return true;
+  }
+
+  if (
+    deepToVacuumGap !== null &&
+    deepToVacuumGap > 0 &&
+    deepToVacuumGap < FLOOR_MIN_GAP_DAYS
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function getMinimumNextFloorDate(doneDate) {
+  return addDays(doneDate, FLOOR_MIN_GAP_DAYS);
 }
 
 export function getActivePeriod(state) {

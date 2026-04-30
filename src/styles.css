@@ -1912,3 +1912,10 @@ button:disabled {
     display: none;
   }
 }
+
+.missed-duty-note {
+  display: block;
+  margin-top: 6px;
+  color: #b45309;
+  font-weight: 850;
+}

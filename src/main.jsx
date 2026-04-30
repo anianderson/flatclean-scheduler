@@ -6,7 +6,6 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
-  ClipboardList,
   History,
   Home,
   Loader2,
@@ -23,7 +22,12 @@ import './styles.css';
 const TODAY = new Date().toISOString().slice(0, 10);
 const FLOOR_MERGE_WINDOW_DAYS = 2;
 
-const HEAVY_TASK_IDS = new Set(['driveway_backyard', 'deep_water', 'bath_toilet_basin', 'vacuum']);
+const HEAVY_TASK_IDS = new Set([
+  'driveway_backyard',
+  'deep_water',
+  'bath_toilet_basin',
+  'vacuum'
+]);
 
 const TASK_TIE_OFFSETS = {
   gas_stove: 0,
@@ -41,17 +45,21 @@ const translations = {
   en: {
     badge: 'Shared flat chore planner',
     title: 'Cleaning schedule',
-    subtitle: 'A fair cleaning rota for the flat, with reminders, points, history, and away dates.',
+    subtitle:
+      'A fair cleaning rota for the flat, with reminders, points, history, and vacation dates.',
     navigation: 'Navigation',
     dashboard: 'Overview',
     nextTasks: 'Upcoming chores',
-    nextTasksHelp: 'All chores, including future, due, overdue, and as-needed chores.',
+    nextTasksHelp:
+      'All chores, including future, due, overdue, and as-needed chores.',
     markDone: 'Mark as done',
-    markDoneHelp: 'Choose the chore and date. It will be saved under your profile.',
+    markDoneHelp:
+      'Choose the chore and date. It will be saved under your profile.',
     recentLog: 'Recent activity',
     recentLogHelp: 'Recently completed chores in the current period.',
     scores: 'Points',
-    scoresHelp: 'Difficulty points show how hard a chore is. Earned points show completed work in this period.',
+    scoresHelp:
+      'Difficulty points show how hard a chore is. Earned points show completed work in this period.',
     totalScore: 'Total points',
     positiveScore: 'Work points',
     negativeScore: 'Covered by others',
@@ -77,7 +85,8 @@ const translations = {
     linkedDeep: 'Combined with mopping on this date.',
     deepIncludesVacuum: 'This includes vacuuming on the same day.',
     didVacuumQuestion: 'Did you also vacuum?',
-    didVacuumHelp: 'Mopping usually needs vacuuming first. If vacuuming was not done, mopping points are reduced.',
+    didVacuumHelp:
+      'Mopping usually needs vacuuming first. If vacuuming was not done, mopping points are reduced.',
     yesVacuumDone: 'Yes, vacuuming was also done',
     noVacuumDone: 'No, only mopping was done',
     by: 'by',
@@ -115,7 +124,8 @@ const translations = {
     partialTask: 'Untick anything that was not completed.',
     pendingParts: 'Still open',
     emailTitle: 'Email required',
-    emailInfo: 'This email is used for reminders, overdue notices, point updates, and milestone messages.',
+    emailInfo:
+      'This email is used for reminders, overdue notices, point updates, and milestone messages.',
     emailAddress: 'Email address',
     saveAndContinue: 'Save and continue',
     changeEmail: 'Change email',
@@ -123,7 +133,8 @@ const translations = {
     invalidEmail: 'Please enter a valid email address.',
     admin: 'Admin',
     adminPanel: 'Admin area',
-    adminHelp: 'Manage active flatmates. Adding or removing flatmates starts a new fair points period.',
+    adminHelp:
+      'Manage active flatmates. Adding or removing flatmates starts a new fair points period.',
     userName: 'Name',
     addUser: 'Add flatmate',
     updateUser: 'Update email',
@@ -131,7 +142,8 @@ const translations = {
     activeUsers: 'Active flatmates',
     history: 'History',
     previousPeriods: 'Previous periods',
-    historyHelp: 'When flatmates change, the current period is closed. Its activity, points, and milestones stay here.',
+    historyHelp:
+      'When flatmates change, the current period is closed. Its activity, points, and milestones stay here.',
     periodLogs: 'Activity',
     periodScores: 'Points',
     periodMilestones: 'Milestones',
@@ -147,25 +159,28 @@ const translations = {
     adminPin: 'Admin PIN',
     adminPinHelp: 'Enter the admin PIN to confirm this action.',
     confirm: 'Confirm',
-    away: 'Away dates',
-    awayHelp: 'Add vacation or unavailable dates. You will not be assigned scheduled chores during this time.',
+    away: 'Vacation',
+    awayHelp:
+      'Add vacation or unavailable dates. You will not be assigned scheduled chores during this time.',
     awayFrom: 'Away from',
     awayUntil: 'Away until',
     reason: 'Reason',
-    addAway: 'Save away dates',
-    yourAwayDates: 'Your saved away dates',
-    noAwayDates: 'No away dates saved',
+    addAway: 'Save vacation dates',
+    yourAwayDates: 'Your saved vacation dates',
+    noAwayDates: 'No vacation dates saved',
     noAwayPlanned: 'No vacation planned',
-    vacationQuickHelp: 'Set your vacation dates here so chores stay fair while you are away.',
+    vacationQuickHelp:
+      'Set your vacation dates here so chores stay fair while you are away.',
     manageVacation: 'Manage vacation',
     currentVacation: 'Currently away',
     nextVacation: 'Next vacation',
-    deleteAway: 'Delete away dates',
+    deleteAway: 'Delete',
     usefulLinks: 'What else can you do?',
-    usefulLinksHelp: 'Use the sidebar to open full pages for chores, marking work done, points, history, away dates, and admin settings.',
+    usefulLinksHelp:
+      'Use the sidebar to mark chores as done, view activity, check points, open history, or manage admin settings. Vacation dates can be managed from the top card.',
     dueChoresShort: 'Due now',
     pointsShort: 'Your points',
-    awayShort: 'Away status',
+    awayShort: 'Vacation',
     late: n => `${n} day${n === 1 ? '' : 's'} overdue`,
     dueIn: n => `Due in ${n} day${n === 1 ? '' : 's'}`,
     taskNames: {
@@ -180,20 +195,25 @@ const translations = {
       driveway_backyard: 'Clean driveway and backyard'
     }
   },
+
   de: {
     badge: 'WG-Putzplan',
     title: 'Putzplan',
-    subtitle: 'Ein fairer Putzplan für die WG, mit Erinnerungen, Punkten, Historie und Abwesenheiten.',
+    subtitle:
+      'Ein fairer Putzplan für die WG, mit Erinnerungen, Punkten, Historie und Urlaubszeiten.',
     navigation: 'Navigation',
     dashboard: 'Übersicht',
     nextTasks: 'Anstehende Aufgaben',
-    nextTasksHelp: 'Alle Aufgaben, inklusive zukünftiger, fälliger, überfälliger und bedarfsabhängiger Aufgaben.',
+    nextTasksHelp:
+      'Alle Aufgaben, inklusive zukünftiger, fälliger, überfälliger und bedarfsabhängiger Aufgaben.',
     markDone: 'Als erledigt eintragen',
-    markDoneHelp: 'Wähle Aufgabe und Datum. Der Eintrag wird unter deinem Profil gespeichert.',
+    markDoneHelp:
+      'Wähle Aufgabe und Datum. Der Eintrag wird unter deinem Profil gespeichert.',
     recentLog: 'Letzte Aktivitäten',
     recentLogHelp: 'Zuletzt erledigte Aufgaben in der aktuellen Periode.',
     scores: 'Punkte',
-    scoresHelp: 'Schwierigkeitspunkte zeigen den Aufwand. Erarbeitete Punkte zeigen erledigte Arbeit in dieser Periode.',
+    scoresHelp:
+      'Schwierigkeitspunkte zeigen den Aufwand. Erarbeitete Punkte zeigen erledigte Arbeit in dieser Periode.',
     totalScore: 'Gesamtpunkte',
     positiveScore: 'Arbeitspunkte',
     negativeScore: 'Von anderen übernommen',
@@ -219,7 +239,8 @@ const translations = {
     linkedDeep: 'An diesem Datum mit Nasswischen kombiniert.',
     deepIncludesVacuum: 'Diese Aufgabe enthält Staubsaugen am selben Tag.',
     didVacuumQuestion: 'Hast du auch staubgesaugt?',
-    didVacuumHelp: 'Vor dem Nasswischen sollte normalerweise staubgesaugt werden. Ohne Staubsaugen gibt es weniger Punkte.',
+    didVacuumHelp:
+      'Vor dem Nasswischen sollte normalerweise staubgesaugt werden. Ohne Staubsaugen gibt es weniger Punkte.',
     yesVacuumDone: 'Ja, Staubsaugen wurde auch erledigt',
     noVacuumDone: 'Nein, nur Nasswischen wurde erledigt',
     by: 'von',
@@ -257,7 +278,8 @@ const translations = {
     partialTask: 'Entferne alles, was nicht erledigt wurde.',
     pendingParts: 'Noch offen',
     emailTitle: 'E-Mail erforderlich',
-    emailInfo: 'Diese E-Mail wird für Erinnerungen, überfällige Aufgaben, Punkte-Updates und Meilenstein-Nachrichten verwendet.',
+    emailInfo:
+      'Diese E-Mail wird für Erinnerungen, überfällige Aufgaben, Punkte-Updates und Meilenstein-Nachrichten verwendet.',
     emailAddress: 'E-Mail-Adresse',
     saveAndContinue: 'Speichern und weiter',
     changeEmail: 'E-Mail ändern',
@@ -265,7 +287,8 @@ const translations = {
     invalidEmail: 'Bitte gib eine gültige E-Mail-Adresse ein.',
     admin: 'Admin',
     adminPanel: 'Adminbereich',
-    adminHelp: 'Aktive Mitbewohner verwalten. Wenn Mitbewohner hinzukommen oder ausziehen, startet eine neue faire Punkteperiode.',
+    adminHelp:
+      'Aktive Mitbewohner verwalten. Wenn Mitbewohner hinzukommen oder ausziehen, startet eine neue faire Punkteperiode.',
     userName: 'Name',
     addUser: 'Mitbewohner hinzufügen',
     updateUser: 'E-Mail ändern',
@@ -273,7 +296,8 @@ const translations = {
     activeUsers: 'Aktive Mitbewohner',
     history: 'Historie',
     previousPeriods: 'Frühere Perioden',
-    historyHelp: 'Wenn Mitbewohner wechseln, wird die aktuelle Periode geschlossen. Aktivitäten, Punkte und Meilensteine bleiben hier erhalten.',
+    historyHelp:
+      'Wenn Mitbewohner wechseln, wird die aktuelle Periode geschlossen. Aktivitäten, Punkte und Meilensteine bleiben hier erhalten.',
     periodLogs: 'Aktivitäten',
     periodScores: 'Punkte',
     periodMilestones: 'Meilensteine',
@@ -289,25 +313,28 @@ const translations = {
     adminPin: 'Admin-PIN',
     adminPinHelp: 'Gib die Admin-PIN ein, um diese Aktion zu bestätigen.',
     confirm: 'Bestätigen',
-    away: 'Abwesenheit',
-    awayHelp: 'Trage Urlaub oder Abwesenheit ein. In dieser Zeit bekommst du keine geplanten Aufgaben zugewiesen.',
+    away: 'Urlaub',
+    awayHelp:
+      'Trage Urlaub oder Abwesenheit ein. In dieser Zeit bekommst du keine geplanten Aufgaben zugewiesen.',
     awayFrom: 'Abwesend von',
     awayUntil: 'Abwesend bis',
     reason: 'Grund',
-    addAway: 'Abwesenheit speichern',
-    yourAwayDates: 'Deine gespeicherten Abwesenheiten',
-    noAwayDates: 'Keine Abwesenheit gespeichert',
+    addAway: 'Urlaub speichern',
+    yourAwayDates: 'Deine gespeicherten Urlaubszeiten',
+    noAwayDates: 'Keine Urlaubszeiten gespeichert',
     noAwayPlanned: 'Kein Urlaub geplant',
-    vacationQuickHelp: 'Trage hier deine Urlaubszeiten ein, damit Aufgaben während deiner Abwesenheit fair verteilt werden.',
+    vacationQuickHelp:
+      'Trage hier deine Urlaubszeiten ein, damit Aufgaben während deiner Abwesenheit fair verteilt werden.',
     manageVacation: 'Urlaub verwalten',
     currentVacation: 'Aktuell abwesend',
     nextVacation: 'Nächster Urlaub',
-    deleteAway: 'Abwesenheit löschen',
+    deleteAway: 'Löschen',
     usefulLinks: 'Was kannst du noch machen?',
-    usefulLinksHelp: 'Über die Seitenleiste findest du Aufgaben, Erledigt-Einträge, Punkte, Historie, Abwesenheit und Admin-Einstellungen.',
+    usefulLinksHelp:
+      'Über die Seitenleiste kannst du Aufgaben als erledigt eintragen, Aktivitäten ansehen, Punkte prüfen, die Historie öffnen oder Admin-Einstellungen verwalten. Urlaub kannst du oben eintragen.',
     dueChoresShort: 'Jetzt fällig',
     pointsShort: 'Deine Punkte',
-    awayShort: 'Abwesenheit',
+    awayShort: 'Urlaub',
     late: n => `${n} Tag${n === 1 ? '' : 'e'} überfällig`,
     dueIn: n => `Fällig in ${n} Tag${n === 1 ? '' : 'en'}`,
     taskNames: {
@@ -326,10 +353,18 @@ const translations = {
 
 function getLanguageFromSetting(setting) {
   if (setting === 'en' || setting === 'de') return setting;
-  const browserLanguages = navigator.languages?.length ? navigator.languages : [navigator.language || ''];
-  const firstKnown = browserLanguages.map(lang => lang.toLowerCase()).find(lang => lang.startsWith('en') || lang.startsWith('de'));
+
+  const browserLanguages = navigator.languages?.length
+    ? navigator.languages
+    : [navigator.language || ''];
+
+  const firstKnown = browserLanguages
+    .map(lang => lang.toLowerCase())
+    .find(lang => lang.startsWith('en') || lang.startsWith('de'));
+
   if (firstKnown?.startsWith('en')) return 'en';
   if (firstKnown?.startsWith('de')) return 'de';
+
   return 'de';
 }
 
@@ -341,16 +376,33 @@ function addDays(date, days) {
 
 function diffDays(from, to) {
   if (!from || !to) return null;
+
   const a = new Date(`${from}T00:00:00`);
   const b = new Date(`${to}T00:00:00`);
   const diff = Math.round((b - a) / 86400000);
+
   return Number.isNaN(diff) ? null : diff;
 }
 
 function fmt(date, fallback = 'Not scheduled yet', lang = 'de') {
   if (!date) return fallback;
+
   const locale = lang === 'de' ? 'de-DE' : 'en-GB';
-  return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${date}T00:00:00`));
+
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(`${date}T00:00:00`));
+}
+
+function formatNumber(value, lang = 'de', fractionDigits = 2) {
+  const locale = lang === 'de' ? 'de-DE' : 'en-GB';
+
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
+  }).format(Number(value || 0));
 }
 
 function normalizeName(name) {
@@ -371,17 +423,23 @@ function isHeavyTask(task) {
 
 function isPersonUnavailable(absences, person, date) {
   if (!person || !date) return false;
-  return (absences || []).some(absence =>
-    normalizeName(absence.person) === normalizeName(person) &&
-    absence.startDate <= date &&
-    absence.endDate >= date
+
+  return (absences || []).some(
+    absence =>
+      normalizeName(absence.person) === normalizeName(person) &&
+      absence.startDate <= date &&
+      absence.endDate >= date
   );
 }
 
 function availablePeopleForDate(people, absences, date) {
   const normalized = (people || []).map(normalizeName);
   if (!date) return normalized;
-  const available = normalized.filter(person => !isPersonUnavailable(absences, person, date));
+
+  const available = normalized.filter(
+    person => !isPersonUnavailable(absences, person, date)
+  );
+
   return available.length ? available : normalized;
 }
 
@@ -396,6 +454,7 @@ function lastLog(logs, taskId) {
 
 function lastGroupLog(logs, task) {
   const ids = task.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task.id];
+
   return (logs || [])
     .filter(log => ids.includes(log.taskId) && !log.isDummy)
     .sort((a, b) => {
@@ -407,14 +466,22 @@ function lastGroupLog(logs, task) {
 function getDueDateFromLastLog(task, last) {
   if (!last) return null;
   if (last.nextDueDate) return last.nextDueDate;
-  if (task.type === 'scheduled' && task.intervalDays) return addDays(last.date, task.intervalDays);
+
+  if (task.type === 'scheduled' && task.intervalDays) {
+    return addDays(last.date, task.intervalDays);
+  }
+
   return null;
 }
 
 function rotatedRank(person, people, taskId) {
   const normalizedPeople = people.map(normalizeName);
   const offset = TASK_TIE_OFFSETS[taskId] ?? 0;
-  const rotated = [...normalizedPeople.slice(offset), ...normalizedPeople.slice(0, offset)];
+  const rotated = [
+    ...normalizedPeople.slice(offset),
+    ...normalizedPeople.slice(0, offset)
+  ];
+
   const index = rotated.indexOf(normalizeName(person));
   return index === -1 ? 999 : index;
 }
@@ -422,8 +489,11 @@ function rotatedRank(person, people, taskId) {
 function calculateScores(people, logs, task, activePeriodId = null) {
   const normalizedPeople = people.map(normalizeName);
   const taskIds = task.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task.id];
+
   const scores = Object.fromEntries(normalizedPeople.map(person => [person, 0]));
-  const lastDates = Object.fromEntries(normalizedPeople.map(person => [person, '1900-01-01']));
+  const lastDates = Object.fromEntries(
+    normalizedPeople.map(person => [person, '1900-01-01'])
+  );
 
   for (const log of logs || []) {
     if (log.isDummy) continue;
@@ -436,7 +506,10 @@ function calculateScores(people, logs, task, activePeriodId = null) {
 
     if (actualPerson) {
       scores[actualPerson] = (scores[actualPerson] || 0) + weight;
-      if (log.date > (lastDates[actualPerson] || '1900-01-01')) lastDates[actualPerson] = log.date;
+
+      if (log.date > (lastDates[actualPerson] || '1900-01-01')) {
+        lastDates[actualPerson] = log.date;
+      }
     }
 
     const wasOverdueForSomeoneElse =
@@ -444,28 +517,51 @@ function calculateScores(people, logs, task, activePeriodId = null) {
       assignedPerson &&
       actualPerson &&
       assignedPerson !== actualPerson &&
-      (log.completionType === 'completed_by_other_late' || log.completionType === 'auto_included_overdue_for_other');
+      (
+        log.completionType === 'completed_by_other_late' ||
+        log.completionType === 'auto_included_overdue_for_other'
+      );
 
-    if (wasOverdueForSomeoneElse) scores[assignedPerson] = (scores[assignedPerson] || 0) - 1;
+    if (wasOverdueForSomeoneElse) {
+      scores[assignedPerson] = (scores[assignedPerson] || 0) - 1;
+    }
   }
 
   return { scores, lastDates, normalizedPeople };
 }
 
-function personFairnessScore({ person, people, logs, task, activePeriodId, plannedLoad = {} }) {
+function personFairnessScore({
+  person,
+  people,
+  logs,
+  task,
+  activePeriodId,
+  plannedLoad = {}
+}) {
   const { scores } = calculateScores(people, logs, task, activePeriodId);
+
   const normalizedPerson = normalizeName(person);
   const baseWeight = getBaseWeight(task);
   const heavy = isHeavyTask(task);
-  let score = Number(scores[normalizedPerson] || 0) + Number(plannedLoad[normalizedPerson] || 0);
+
+  let score = Number(scores[normalizedPerson] || 0);
+  score += Number(plannedLoad[normalizedPerson] || 0);
 
   const exactLast = lastLog(logs || [], task.id);
   const exactLastPerson = normalizeName(exactLast?.actualPerson || exactLast?.person);
-  if (exactLastPerson && exactLastPerson === normalizedPerson) score += heavy ? baseWeight * 4 : baseWeight * 0.75;
+
+  if (exactLastPerson && exactLastPerson === normalizedPerson) {
+    score += heavy ? baseWeight * 4 : baseWeight * 0.75;
+  }
 
   const groupLast = lastGroupLog(logs || [], task);
   const groupLastPerson = normalizeName(groupLast?.actualPerson || groupLast?.person);
-  if (groupLastPerson && groupLastPerson === normalizedPerson && groupLast?.taskId !== task.id) {
+
+  if (
+    groupLastPerson &&
+    groupLastPerson === normalizedPerson &&
+    groupLast?.taskId !== task.id
+  ) {
     score += heavy ? baseWeight * 1.5 : baseWeight * 0.5;
   }
 
@@ -473,45 +569,109 @@ function personFairnessScore({ person, people, logs, task, activePeriodId, plann
 }
 
 function fairPerson(people, logs, task, activePeriodId = null, plannedLoad = {}) {
-  const { lastDates, normalizedPeople } = calculateScores(people, logs, task, activePeriodId);
+  const { lastDates, normalizedPeople } = calculateScores(
+    people,
+    logs,
+    task,
+    activePeriodId
+  );
+
   return [...normalizedPeople].sort((a, b) => {
-    const aScore = personFairnessScore({ person: a, people: normalizedPeople, logs, task, activePeriodId, plannedLoad });
-    const bScore = personFairnessScore({ person: b, people: normalizedPeople, logs, task, activePeriodId, plannedLoad });
+    const aScore = personFairnessScore({
+      person: a,
+      people: normalizedPeople,
+      logs,
+      task,
+      activePeriodId,
+      plannedLoad
+    });
+
+    const bScore = personFairnessScore({
+      person: b,
+      people: normalizedPeople,
+      logs,
+      task,
+      activePeriodId,
+      plannedLoad
+    });
+
     if (aScore !== bScore) return aScore - bScore;
+
     if ((lastDates[a] || '1900-01-01') !== (lastDates[b] || '1900-01-01')) {
-      return (lastDates[a] || '1900-01-01').localeCompare(lastDates[b] || '1900-01-01');
+      return (lastDates[a] || '1900-01-01').localeCompare(
+        lastDates[b] || '1900-01-01'
+      );
     }
-    return rotatedRank(a, normalizedPeople, task.id) - rotatedRank(b, normalizedPeople, task.id);
+
+    return rotatedRank(a, normalizedPeople, task.id) -
+      rotatedRank(b, normalizedPeople, task.id);
   })[0];
 }
 
-function fairPersonForDate(people, logs, task, activePeriodId, plannedLoad, absences, date) {
-  return fairPerson(availablePeopleForDate(people, absences, date), logs, task, activePeriodId, plannedLoad);
+function fairPersonForDate(
+  people,
+  logs,
+  task,
+  activePeriodId,
+  plannedLoad,
+  absences,
+  date
+) {
+  return fairPerson(
+    availablePeopleForDate(people, absences, date),
+    logs,
+    task,
+    activePeriodId,
+    plannedLoad
+  );
 }
 
-function fairPersonAvoiding(people, logs, task, avoidPerson, activePeriodId = null, plannedLoad = {}, absences = [], date = null) {
+function fairPersonAvoiding(
+  people,
+  logs,
+  task,
+  avoidPerson,
+  activePeriodId = null,
+  plannedLoad = {},
+  absences = [],
+  date = null
+) {
   const avoid = normalizeName(avoidPerson);
-  const candidates = availablePeopleForDate(people, absences, date).filter(person => normalizeName(person) !== avoid);
+  const candidates = availablePeopleForDate(people, absences, date)
+    .filter(person => normalizeName(person) !== avoid);
+
   if (!candidates.length) return avoid;
+
   return fairPerson(candidates, logs, task, activePeriodId, plannedLoad);
 }
 
 function status(row, fullBins, t) {
-  if (row.task.type === 'on_demand') return fullBins[row.task.id] ? [t.needsCleaning, 'bad'] : [t.onDemand, 'plain'];
+  if (row.task.type === 'on_demand') {
+    return fullBins[row.task.id] ? [t.needsCleaning, 'bad'] : [t.onDemand, 'plain'];
+  }
+
   if (!row.dueDate) return [t.addFirstRecord, 'plain'];
+
   const d = diffDays(TODAY, row.dueDate);
+
   if (d === null) return [t.addFirstRecord, 'plain'];
   if (d < 0) return [t.late(Math.abs(d)), 'bad'];
   if (d === 0) return [t.dueToday, 'warn'];
   if (d <= 3) return [t.dueIn(d), 'warn'];
+
   return [t.dueIn(d), 'good'];
 }
 
 function shouldBundleVacuumWithDeep(vacuumRow, deepRow) {
-  if (!vacuumRow || !deepRow || !vacuumRow.dueDate || !deepRow.dueDate) return false;
+  if (!vacuumRow || !deepRow || !vacuumRow.dueDate || !deepRow.dueDate) {
+    return false;
+  }
+
   const gap = diffDays(vacuumRow.dueDate, deepRow.dueDate);
+
   if (gap === null) return false;
   if (vacuumRow.dueDate === deepRow.dueDate) return true;
+
   return gap >= 0 && gap <= FLOOR_MERGE_WINDOW_DAYS;
 }
 
@@ -523,11 +683,14 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
     function handleClickOutside(event) {
       if (!ref.current?.contains(event.target)) setOpen(false);
     }
+
     function handleEscape(event) {
       if (event.key === 'Escape') setOpen(false);
     }
+
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
@@ -539,15 +702,30 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
   return (
     <label className={`fancy-field ${className}`}>
       {label && <span className="field-label">{label}</span>}
+
       <div className={`fancy-select ${open ? 'open' : ''}`} ref={ref}>
-        <button type="button" className="fancy-trigger" onClick={() => setOpen(current => !current)} aria-expanded={open}>
+        <button
+          type="button"
+          className="fancy-trigger"
+          onClick={() => setOpen(current => !current)}
+          aria-expanded={open}
+        >
           <span className="fancy-value">{selected?.label || placeholder}</span>
           <ChevronDown size={18} className="fancy-chevron" />
         </button>
+
         {open && (
           <div className="fancy-menu">
             {options.map(option => (
-              <button type="button" key={option.value} className={`fancy-option ${option.value === value ? 'active' : ''}`} onClick={() => { onChange(option.value); setOpen(false); }}>
+              <button
+                type="button"
+                key={option.value}
+                className={`fancy-option ${option.value === value ? 'active' : ''}`}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+              >
                 <span>{option.label}</span>
                 {option.value === value && <Check size={16} />}
               </button>
@@ -560,15 +738,24 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
 }
 
 function App() {
-  const [languageSetting, setLanguageSetting] = useState(localStorage.getItem('flatclean_lang') || 'auto');
+  const [languageSetting, setLanguageSetting] = useState(
+    localStorage.getItem('flatclean_lang') || 'auto'
+  );
+
   const lang = getLanguageFromSetting(languageSetting);
   const t = translations[lang];
+  const formatPoints = value => formatNumber(value, lang, 2);
+
   const [activePage, setActivePage] = useState('dashboard');
-  const [currentUser, setCurrentUser] = useState(localStorage.getItem('flatclean_user') || '');
+  const [currentUser, setCurrentUser] = useState(
+    localStorage.getItem('flatclean_user') || ''
+  );
+
   const [pendingUser, setPendingUser] = useState('');
   const [emailDraft, setEmailDraft] = useState('');
   const [emailMode, setEmailMode] = useState(false);
   const [emailSaving, setEmailSaving] = useState(false);
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -580,14 +767,29 @@ function App() {
   const [selectedSubtasks, setSelectedSubtasks] = useState([]);
   const [openScoreTasks, setOpenScoreTasks] = useState({});
   const [openHistoryPeriods, setOpenHistoryPeriods] = useState({});
+
   const [adminForm, setAdminForm] = useState({ name: '', email: '' });
   const [adminSaving, setAdminSaving] = useState(false);
   const [adminModal, setAdminModal] = useState(null);
   const [adminPin, setAdminPin] = useState('');
-  const [awayForm, setAwayForm] = useState({ startDate: TODAY, endDate: TODAY, reason: '' });
-  const [form, setForm] = useState({ taskId: 'gas_stove', date: TODAY, note: '' });
 
-  useEffect(() => { setError(''); setSuccess(''); }, [activePage]);
+  const [awayForm, setAwayForm] = useState({
+    startDate: TODAY,
+    endDate: TODAY,
+    reason: ''
+  });
+  const [awayModalOpen, setAwayModalOpen] = useState(false);
+
+  const [form, setForm] = useState({
+    taskId: 'gas_stove',
+    date: TODAY,
+    note: ''
+  });
+
+  useEffect(() => {
+    setError('');
+    setSuccess('');
+  }, [activePage]);
 
   const languageOptions = [
     { value: 'auto', label: t.auto },
@@ -595,34 +797,85 @@ function App() {
     { value: 'en', label: t.english }
   ];
 
-  function taskLabel(task) { return t.taskNames[task.id] || task.name || task.id; }
-  function getProfile(person) { return (data?.flatmateProfiles || []).find(profile => normalizeName(profile.name) === normalizeName(person)); }
-  function getSubtaskName(subtask) { return lang === 'de' ? subtask.nameDe : subtask.nameEn; }
-  function getTaskSubtasks(taskId) { return data?.tasks?.find(task => task.id === taskId)?.subtasks || []; }
-  function setAllSubtasksForTask(taskId) { setSelectedSubtasks(getTaskSubtasks(taskId).map(subtask => subtask.id)); }
-  function toggleSubtask(subtaskId) { setSelectedSubtasks(current => current.includes(subtaskId) ? current.filter(id => id !== subtaskId) : [...current, subtaskId]); }
+  function taskLabel(task) {
+    return t.taskNames[task.id] || task.name || task.id;
+  }
+
+  function getProfile(person) {
+    return (data?.flatmateProfiles || []).find(
+      profile => normalizeName(profile.name) === normalizeName(person)
+    );
+  }
+
+  function getSubtaskName(subtask) {
+    return lang === 'de' ? subtask.nameDe : subtask.nameEn;
+  }
+
+  function getTaskSubtasks(taskId) {
+    return data?.tasks?.find(task => task.id === taskId)?.subtasks || [];
+  }
+
+  function setAllSubtasksForTask(taskId) {
+    setSelectedSubtasks(getTaskSubtasks(taskId).map(subtask => subtask.id));
+  }
+
+  function toggleSubtask(subtaskId) {
+    setSelectedSubtasks(current =>
+      current.includes(subtaskId)
+        ? current.filter(id => id !== subtaskId)
+        : [...current, subtaskId]
+    );
+  }
 
   function getCycleCompletion(row) {
     const subtasks = row.task.subtasks || [];
-    if (!subtasks.length || !row.dueDate) return { completed: [], pending: [], ratio: 1 };
+
+    if (!subtasks.length || !row.dueDate) {
+      return { completed: [], pending: [], ratio: 1 };
+    }
+
     const cycleId = `${row.task.id}:${row.dueDate}`;
     const completedIds = new Set();
+
     for (const log of data.logs || []) {
-      if (log.isDummy || log.taskId !== row.task.id || log.cycleId !== cycleId) continue;
-      for (const subtask of log.completedSubtasks || []) completedIds.add(subtask.id);
+      if (log.isDummy) continue;
+      if (log.taskId !== row.task.id) continue;
+      if (log.cycleId !== cycleId) continue;
+
+      for (const subtask of log.completedSubtasks || []) {
+        completedIds.add(subtask.id);
+      }
     }
+
     const completed = subtasks.filter(subtask => completedIds.has(subtask.id));
     const pending = subtasks.filter(subtask => !completedIds.has(subtask.id));
-    const totalWeight = subtasks.reduce((sum, subtask) => sum + Number(subtask.weight || 1), 0);
-    const completedWeight = completed.reduce((sum, subtask) => sum + Number(subtask.weight || 1), 0);
-    return { completed, pending, ratio: totalWeight > 0 ? completedWeight / totalWeight : 1 };
+
+    const totalWeight = subtasks.reduce(
+      (sum, subtask) => sum + Number(subtask.weight || 1),
+      0
+    );
+
+    const completedWeight = completed.reduce(
+      (sum, subtask) => sum + Number(subtask.weight || 1),
+      0
+    );
+
+    return {
+      completed,
+      pending,
+      ratio: totalWeight > 0 ? completedWeight / totalWeight : 1
+    };
   }
 
   function getMyDueRows(allRows) {
     return allRows.filter(row => {
       const isMine = normalizeName(row.person) === normalizeName(currentUser);
       if (!isMine) return false;
-      if (row.task.type === 'on_demand') return !!data?.fullBins?.[row.task.id];
+
+      if (row.task.type === 'on_demand') {
+        return !!data?.fullBins?.[row.task.id];
+      }
+
       return !!row.dueDate && row.dueDate <= TODAY;
     });
   }
@@ -630,20 +883,43 @@ function App() {
   function chooseCurrentUser(person) {
     const normalized = normalizeName(person);
     const profile = getProfile(normalized);
+
     if (!profile?.email) {
       setPendingUser(normalized);
       setEmailDraft('');
       setEmailMode(true);
       return;
     }
+
     localStorage.setItem('flatclean_user', normalized);
     setCurrentUser(normalized);
   }
 
-  function switchCurrentUser() { localStorage.removeItem('flatclean_user'); setCurrentUser(''); setPendingUser(''); setModalTask(null); }
-  function startChangeEmail() { const profile = getProfile(currentUser); setPendingUser(currentUser); setEmailDraft(profile?.email || ''); setEmailMode(true); }
-  function cancelEmail() { setEmailMode(false); setPendingUser(''); setEmailDraft(''); setError(''); }
-  function changeLanguage(value) { localStorage.setItem('flatclean_lang', value); setLanguageSetting(value); }
+  function switchCurrentUser() {
+    localStorage.removeItem('flatclean_user');
+    setCurrentUser('');
+    setPendingUser('');
+    setModalTask(null);
+  }
+
+  function startChangeEmail() {
+    const profile = getProfile(currentUser);
+    setPendingUser(currentUser);
+    setEmailDraft(profile?.email || '');
+    setEmailMode(true);
+  }
+
+  function cancelEmail() {
+    setEmailMode(false);
+    setPendingUser('');
+    setEmailDraft('');
+    setError('');
+  }
+
+  function changeLanguage(value) {
+    localStorage.setItem('flatclean_lang', value);
+    setLanguageSetting(value);
+  }
 
   function jumpTo(page) {
     setError('');
@@ -653,40 +929,91 @@ function App() {
     setMenuOpen(false);
   }
 
-  function clearSuccessSoon() { window.setTimeout(() => setSuccess(''), 2800); }
+  function clearSuccessSoon() {
+    window.setTimeout(() => setSuccess(''), 2800);
+  }
 
   function openTaskModal(row) {
     setError('');
     setSuccess('');
     setModalTask(row);
-    setForm(current => ({ ...current, taskId: row.task.id, date: TODAY, note: '' }));
+
+    setForm(current => ({
+      ...current,
+      taskId: row.task.id,
+      date: TODAY,
+      note: ''
+    }));
+
     setSelectedSubtasks((row.task.subtasks || []).map(subtask => subtask.id));
-    if (row.task.id === 'deep_water') setIncludeVacuumWithDeep(true);
+
+    if (row.task.id === 'deep_water') {
+      setIncludeVacuumWithDeep(true);
+    }
   }
 
-  function closeTaskModal() { if (!saving) setModalTask(null); }
+  function closeTaskModal() {
+    if (!saving) setModalTask(null);
+  }
 
   function normalizeApiData(json) {
     json.flatmates = (json.flatmates || []).map(normalizeName);
-    json.flatmateProfiles = (json.flatmateProfiles || []).map(profile => ({ ...profile, name: normalizeName(profile.name) }));
-    json.logs = (json.logs || []).map(log => ({ ...log, person: normalizeName(log.person), actualPerson: normalizeName(log.actualPerson || log.person), assignedPerson: normalizeName(log.assignedPerson), completedSubtasks: log.completedSubtasks || [], isDummy: !!log.isDummy }));
-    json.currentLogs = (json.currentLogs || []).map(log => ({ ...log, person: normalizeName(log.person), actualPerson: normalizeName(log.actualPerson || log.person), assignedPerson: normalizeName(log.assignedPerson), completedSubtasks: log.completedSubtasks || [], isDummy: !!log.isDummy }));
-    json.tasks = (json.tasks || []).map(task => ({ ...task, subtasks: task.subtasks || [] }));
+
+    json.flatmateProfiles = (json.flatmateProfiles || []).map(profile => ({
+      ...profile,
+      name: normalizeName(profile.name)
+    }));
+
+    json.logs = (json.logs || []).map(log => ({
+      ...log,
+      person: normalizeName(log.person),
+      actualPerson: normalizeName(log.actualPerson || log.person),
+      assignedPerson: normalizeName(log.assignedPerson),
+      completedSubtasks: log.completedSubtasks || [],
+      isDummy: !!log.isDummy
+    }));
+
+    json.currentLogs = (json.currentLogs || []).map(log => ({
+      ...log,
+      person: normalizeName(log.person),
+      actualPerson: normalizeName(log.actualPerson || log.person),
+      assignedPerson: normalizeName(log.assignedPerson),
+      completedSubtasks: log.completedSubtasks || [],
+      isDummy: !!log.isDummy
+    }));
+
+    json.tasks = (json.tasks || []).map(task => ({
+      ...task,
+      subtasks: task.subtasks || []
+    }));
+
     json.scoringPeriods = json.scoringPeriods || [];
     json.periodHistory = json.periodHistory || [];
-    json.absences = (json.absences || []).map(absence => ({ ...absence, person: normalizeName(absence.person) }));
+
+    json.absences = (json.absences || []).map(absence => ({
+      ...absence,
+      person: normalizeName(absence.person)
+    }));
+
     return json;
   }
 
   async function load() {
     try {
       setError('');
+
       const res = await fetch('/api/state');
+
       if (!res.ok) throw new Error(t.loadError);
+
       const json = normalizeApiData(await res.json());
       setData(json);
+
       if (!json.tasks?.some(task => task.id === form.taskId)) {
-        setForm(current => ({ ...current, taskId: json.tasks?.[0]?.id || '' }));
+        setForm(current => ({
+          ...current,
+          taskId: json.tasks?.[0]?.id || ''
+        }));
       }
     } catch (e) {
       setError(e.message || t.loadError);
@@ -695,12 +1022,27 @@ function App() {
     }
   }
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function apiPost(url, body, extraHeaders = {}) {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...extraHeaders }, body: JSON.stringify(body) });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...extraHeaders
+      },
+      body: JSON.stringify(body)
+    });
+
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || t.saveError);
+
+    if (!res.ok) {
+      throw new Error(json.error || t.saveError);
+    }
+
     const state = json.state ? normalizeApiData(json.state) : normalizeApiData(json);
     setData(state);
     return state;
@@ -709,54 +1051,152 @@ function App() {
   async function saveEmail() {
     try {
       setError('');
-      if (!isValidEmail(emailDraft)) { setError(t.invalidEmail); return; }
+
+      if (!isValidEmail(emailDraft)) {
+        setError(t.invalidEmail);
+        return;
+      }
+
       setEmailSaving(true);
-      await apiPost('/api/profile', { person: pendingUser, email: emailDraft.trim() });
+
+      await apiPost('/api/profile', {
+        person: pendingUser,
+        email: emailDraft.trim()
+      });
+
       localStorage.setItem('flatclean_user', normalizeName(pendingUser));
       setCurrentUser(normalizeName(pendingUser));
-      setPendingUser(''); setEmailMode(false); setEmailDraft('');
-      setSuccess(t.emailSaved); clearSuccessSoon();
-    } catch (e) { setError(e.message || t.saveError); } finally { setEmailSaving(false); }
+      setPendingUser('');
+      setEmailMode(false);
+      setEmailDraft('');
+      setSuccess(t.emailSaved);
+      clearSuccessSoon();
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setEmailSaving(false);
+    }
   }
 
-  function openAdminModal(action, payload) { setError(''); setSuccess(''); setAdminPin(''); setAdminModal({ action, payload }); }
-  function closeAdminModal() { if (!adminSaving) { setAdminModal(null); setAdminPin(''); } }
+  function openAdminModal(action, payload) {
+    setError('');
+    setSuccess('');
+    setAdminPin('');
+    setAdminModal({ action, payload });
+  }
+
+  function closeAdminModal() {
+    if (!adminSaving) {
+      setAdminModal(null);
+      setAdminPin('');
+    }
+  }
 
   async function confirmAdminAction() {
     if (!adminModal) return;
+
     try {
-      setError(''); setAdminSaving(true);
-      const res = await fetch('/api/admin-users', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-pin': adminPin }, body: JSON.stringify(adminModal.payload) });
+      setError('');
+      setAdminSaving(true);
+
+      const res = await fetch('/api/admin-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-pin': adminPin
+        },
+        body: JSON.stringify(adminModal.payload)
+      });
+
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || t.saveError);
+
+      if (!res.ok) {
+        throw new Error(json.error || t.saveError);
+      }
+
       const normalized = normalizeApiData(json);
-      setData(normalized); setAdminForm({ name: '', email: '' }); setAdminModal(null); setAdminPin('');
-      setSuccess(t.saved); clearSuccessSoon();
-      const stillExists = normalized.flatmates.some(person => normalizeName(person) === normalizeName(currentUser));
-      const currentProfile = normalized.flatmateProfiles.find(profile => normalizeName(profile.name) === normalizeName(currentUser));
-      if (!stillExists || !currentProfile?.email) { localStorage.removeItem('flatclean_user'); setCurrentUser(''); }
-    } catch (e) { setError(e.message || t.saveError); } finally { setAdminSaving(false); }
+      setData(normalized);
+      setAdminForm({ name: '', email: '' });
+      setAdminModal(null);
+      setAdminPin('');
+      setSuccess(t.saved);
+      clearSuccessSoon();
+
+      const stillExists = normalized.flatmates.some(
+        person => normalizeName(person) === normalizeName(currentUser)
+      );
+
+      const currentProfile = normalized.flatmateProfiles.find(
+        profile => normalizeName(profile.name) === normalizeName(currentUser)
+      );
+
+      if (!stillExists || !currentProfile?.email) {
+        localStorage.removeItem('flatclean_user');
+        setCurrentUser('');
+      }
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setAdminSaving(false);
+    }
   }
 
   async function saveAwayDates() {
     try {
-      setError(''); setSaving(true);
-      await apiPost('/api/availability', { action: 'add', person: currentUser, ...awayForm });
-      setAwayForm({ startDate: TODAY, endDate: TODAY, reason: '' });
-      setSuccess(t.saved); clearSuccessSoon();
-    } catch (e) { setError(e.message || t.saveError); } finally { setSaving(false); }
+      setError('');
+      setSaving(true);
+
+      await apiPost('/api/availability', {
+        action: 'add',
+        person: currentUser,
+        ...awayForm
+      });
+
+      setAwayForm({
+        startDate: TODAY,
+        endDate: TODAY,
+        reason: ''
+      });
+
+      setSuccess(t.saved);
+      clearSuccessSoon();
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function deleteAwayDate(id) {
     try {
-      setError(''); setSaving(true);
-      await apiPost('/api/availability', { action: 'delete', person: currentUser, id });
-      setSuccess(t.saved); clearSuccessSoon();
-    } catch (e) { setError(e.message || t.saveError); } finally { setSaving(false); }
+      setError('');
+      setSaving(true);
+
+      await apiPost('/api/availability', {
+        action: 'delete',
+        person: currentUser,
+        id
+      });
+
+      setSuccess(t.saved);
+      clearSuccessSoon();
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setSaving(false);
+    }
   }
 
-  const taskById = useMemo(() => Object.fromEntries((data?.tasks || []).map(task => [task.id, task])), [data]);
-  const activePeriodId = data?.activeScoringPeriod?.id || data?.scores?.activePeriod?.id || null;
+  const taskById = useMemo(
+    () => Object.fromEntries((data?.tasks || []).map(task => [task.id, task])),
+    [data]
+  );
+
+  const activePeriodId =
+    data?.activeScoringPeriod?.id ||
+    data?.scores?.activePeriod?.id ||
+    null;
+
   const allLogsForScheduling = data?.logs || [];
 
   const rows = useMemo(() => {
@@ -765,79 +1205,225 @@ function App() {
     const base = data.tasks.map(task => {
       const last = lastLog(allLogsForScheduling, task.id);
       const dueDate = getDueDateFromLastLog(task, last);
-      return { task, last, dueDate, person: null, bundledIntoDeep: false, bundledVacuumRow: null };
+
+      return {
+        task,
+        last,
+        dueDate,
+        person: null,
+        bundledIntoDeep: false,
+        bundledVacuumRow: null
+      };
     });
 
-    const plannedLoad = Object.fromEntries((data.flatmates || []).map(person => [normalizeName(person), 0]));
+    const plannedLoad = Object.fromEntries(
+      (data.flatmates || []).map(person => [normalizeName(person), 0])
+    );
+
     const deep = base.find(row => row.task.id === 'deep_water');
     const vacuum = base.find(row => row.task.id === 'vacuum');
 
     if (deep && vacuum && shouldBundleVacuumWithDeep(vacuum, deep)) {
-      const combinedTask = { ...deep.task, id: 'deep_water', baseWeight: getBaseWeight(deep.task) + getBaseWeight(vacuum.task), taskGroup: 'floor' };
-      const floorPerson = fairPersonForDate(data.flatmates, allLogsForScheduling, combinedTask, activePeriodId, plannedLoad, data.absences, deep.dueDate);
+      const combinedTask = {
+        ...deep.task,
+        id: 'deep_water',
+        baseWeight: getBaseWeight(deep.task) + getBaseWeight(vacuum.task),
+        taskGroup: 'floor'
+      };
+
+      const floorPerson = fairPersonForDate(
+        data.flatmates,
+        allLogsForScheduling,
+        combinedTask,
+        activePeriodId,
+        plannedLoad,
+        data.absences,
+        deep.dueDate
+      );
+
       deep.person = floorPerson;
-      deep.bundledVacuumRow = { ...vacuum, dueDate: deep.dueDate, person: floorPerson };
-      vacuum.person = floorPerson; vacuum.dueDate = deep.dueDate; vacuum.bundledIntoDeep = true;
-      plannedLoad[floorPerson] = Number(plannedLoad[floorPerson] || 0) + getBaseWeight(deep.task) + getBaseWeight(vacuum.task);
+      deep.bundledVacuumRow = {
+        ...vacuum,
+        dueDate: deep.dueDate,
+        person: floorPerson
+      };
+
+      vacuum.person = floorPerson;
+      vacuum.dueDate = deep.dueDate;
+      vacuum.bundledIntoDeep = true;
+
+      plannedLoad[floorPerson] =
+        Number(plannedLoad[floorPerson] || 0) +
+        getBaseWeight(deep.task) +
+        getBaseWeight(vacuum.task);
     }
 
-    const assignmentOrder = [...base].filter(row => !row.bundledIntoDeep).sort((a, b) => {
-      if (a.task.type !== b.task.type) return a.task.type === 'scheduled' ? -1 : 1;
-      return (a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31');
-    });
+    const assignmentOrder = [...base]
+      .filter(row => !row.bundledIntoDeep)
+      .sort((a, b) => {
+        if (a.task.type !== b.task.type) {
+          return a.task.type === 'scheduled' ? -1 : 1;
+        }
+
+        return (a.dueDate || '9999-12-31').localeCompare(
+          b.dueDate || '9999-12-31'
+        );
+      });
 
     for (const row of assignmentOrder) {
       if (row.person) continue;
+
       const assignmentDate = row.task.type === 'scheduled' ? row.dueDate : null;
-      row.person = fairPersonForDate(data.flatmates, allLogsForScheduling, row.task, activePeriodId, plannedLoad, data.absences, assignmentDate);
-      plannedLoad[row.person] = Number(plannedLoad[row.person] || 0) + getBaseWeight(row.task);
+
+      row.person = fairPersonForDate(
+        data.flatmates,
+        allLogsForScheduling,
+        row.task,
+        activePeriodId,
+        plannedLoad,
+        data.absences,
+        assignmentDate
+      );
+
+      plannedLoad[row.person] =
+        Number(plannedLoad[row.person] || 0) + getBaseWeight(row.task);
     }
 
-    if (deep && vacuum && !vacuum.bundledIntoDeep && deep.person && vacuum.person === deep.person) {
-      vacuum.person = fairPersonAvoiding(data.flatmates, allLogsForScheduling, vacuum.task, deep.person, activePeriodId, plannedLoad, data.absences, vacuum.dueDate);
+    if (
+      deep &&
+      vacuum &&
+      !vacuum.bundledIntoDeep &&
+      deep.person &&
+      vacuum.person === deep.person
+    ) {
+      vacuum.person = fairPersonAvoiding(
+        data.flatmates,
+        allLogsForScheduling,
+        vacuum.task,
+        deep.person,
+        activePeriodId,
+        plannedLoad,
+        data.absences,
+        vacuum.dueDate
+      );
     }
 
     const activeUser = normalizeName(currentUser);
-    return base.filter(row => !row.bundledIntoDeep).sort((a, b) => {
-      const aMine = normalizeName(a.person) === activeUser;
-      const bMine = normalizeName(b.person) === activeUser;
-      if (aMine !== bMine) return aMine ? -1 : 1;
-      if (a.task.type !== b.task.type) return a.task.type === 'scheduled' ? -1 : 1;
-      return (a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31');
-    });
+
+    return base
+      .filter(row => !row.bundledIntoDeep)
+      .sort((a, b) => {
+        const aMine = normalizeName(a.person) === activeUser;
+        const bMine = normalizeName(b.person) === activeUser;
+
+        if (aMine !== bMine) return aMine ? -1 : 1;
+
+        if (a.task.type !== b.task.type) {
+          return a.task.type === 'scheduled' ? -1 : 1;
+        }
+
+        return (a.dueDate || '9999-12-31').localeCompare(
+          b.dueDate || '9999-12-31'
+        );
+      });
   }, [data, currentUser, activePeriodId, allLogsForScheduling]);
 
   const myRows = useMemo(() => getMyDueRows(rows), [rows, currentUser, data]);
-  const myPendingLabel = useMemo(() => !myRows.length ? t.noPendingTasks : myRows.length === 1 ? t.onePendingTask : t.manyPendingTasks(myRows.length), [myRows, t]);
+
+  const myPendingLabel = useMemo(() => {
+    if (!myRows.length) return t.noPendingTasks;
+    if (myRows.length === 1) return t.onePendingTask;
+    return t.manyPendingTasks(myRows.length);
+  }, [myRows, t]);
+
   const currentTaskSubtasks = getTaskSubtasks(form.taskId);
-  const hasValidCurrentUser = !!currentUser && !!data?.flatmates?.some(person => normalizeName(person) === normalizeName(currentUser));
+
+  const hasValidCurrentUser =
+    !!currentUser &&
+    !!data?.flatmates?.some(
+      person => normalizeName(person) === normalizeName(currentUser)
+    );
+
   const currentUserProfile = getProfile(currentUser);
-  const currentUserScore = data?.scores?.byPerson?.find(row => normalizeName(row.person) === normalizeName(currentUser));
-  const myAbsences = (data?.absences || []).filter(absence => normalizeName(absence.person) === normalizeName(currentUser)).sort((a, b) => a.startDate.localeCompare(b.startDate));
-  const activeAbsence = myAbsences.find(absence => absence.startDate <= TODAY && absence.endDate >= TODAY) || null;
-  const upcomingAbsence = myAbsences.find(absence => absence.startDate > TODAY) || null;
-  const currentlyAway = !!activeAbsence;
+
+  const currentUserScore = data?.scores?.byPerson?.find(
+    row => normalizeName(row.person) === normalizeName(currentUser)
+  );
+
+  const myAbsences = (data?.absences || [])
+    .filter(absence => normalizeName(absence.person) === normalizeName(currentUser))
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+  const activeAbsence =
+    myAbsences.find(absence => absence.startDate <= TODAY && absence.endDate >= TODAY) ||
+    null;
+
+  const upcomingAbsence =
+    myAbsences.find(absence => absence.startDate > TODAY) ||
+    null;
 
   useEffect(() => {
     if (!data || !currentUser) return;
-    const profile = (data.flatmateProfiles || []).find(item => normalizeName(item.name) === normalizeName(currentUser));
-    if (!profile || !profile.email) { localStorage.removeItem('flatclean_user'); setCurrentUser(''); setPendingUser(''); setEmailMode(false); }
+
+    const profile = (data.flatmateProfiles || []).find(
+      item => normalizeName(item.name) === normalizeName(currentUser)
+    );
+
+    if (!profile || !profile.email) {
+      localStorage.removeItem('flatclean_user');
+      setCurrentUser('');
+      setPendingUser('');
+      setEmailMode(false);
+    }
   }, [data, currentUser]);
 
   async function markDone() {
     try {
-      setError(''); setSuccess('');
-      if (!currentUser) { setError(t.noUserSelected); return; }
-      if (form.date > TODAY) { setError(t.futureDateError); return; }
+      setError('');
+      setSuccess('');
+
+      if (!currentUser) {
+        setError(t.noUserSelected);
+        return;
+      }
+
+      if (form.date > TODAY) {
+        setError(t.futureDateError);
+        return;
+      }
+
       setSaving(true);
-      await apiPost('/api/log', { ...form, person: normalizeName(currentUser), completedSubtaskIds: selectedSubtasks, alsoLogSubtaskIds: selectedSubtasks, includeAlsoLogs: form.taskId === 'deep_water' ? includeVacuumWithDeep : true, isDummy: false });
-      setForm(current => ({ ...current, note: '' })); setModalTask(null); setSuccess(t.saved); clearSuccessSoon();
-    } catch (e) { setError(e.message || t.saveError); } finally { setSaving(false); }
+
+      await apiPost('/api/log', {
+        ...form,
+        person: normalizeName(currentUser),
+        completedSubtaskIds: selectedSubtasks,
+        alsoLogSubtaskIds: selectedSubtasks,
+        includeAlsoLogs: form.taskId === 'deep_water' ? includeVacuumWithDeep : true,
+        isDummy: false
+      });
+
+      setForm(current => ({ ...current, note: '' }));
+      setModalTask(null);
+      setSuccess(t.saved);
+      clearSuccessSoon();
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function toggleBin(taskId, isFull) {
-    try { setError(''); setSuccess(''); await apiPost('/api/bin', { taskId, isFull }); setSuccess(t.saved); clearSuccessSoon(); }
-    catch (e) { setError(e.message || t.saveError); }
+    try {
+      setError('');
+      setSuccess('');
+      await apiPost('/api/bin', { taskId, isFull });
+      setSuccess(t.saved);
+      clearSuccessSoon();
+    } catch (e) {
+      setError(e.message || t.saveError);
+    }
   }
 
   const navItems = [
@@ -849,20 +1435,39 @@ function App() {
     { id: 'history', label: t.history, icon: History }
   ];
 
-  const taskOptions = (data?.tasks || []).map(task => ({ value: task.id, label: taskLabel(task) }));
+  const taskOptions = (data?.tasks || []).map(task => ({
+    value: task.id,
+    label: taskLabel(task)
+  }));
 
   function renderSubtaskSelector() {
     if (!currentTaskSubtasks.length) return null;
+
     return (
       <div className="subtask-box">
         <div className="subtask-head">
-          <div><b>{t.subtasks}</b><p>{t.partialTask}</p></div>
-          <button type="button" className="mini-action" onClick={() => setAllSubtasksForTask(form.taskId)}>{t.selectAll}</button>
+          <div>
+            <b>{t.subtasks}</b>
+            <p>{t.partialTask}</p>
+          </div>
+
+          <button
+            type="button"
+            className="mini-action"
+            onClick={() => setAllSubtasksForTask(form.taskId)}
+          >
+            {t.selectAll}
+          </button>
         </div>
+
         <div className="subtask-grid">
           {currentTaskSubtasks.map(subtask => (
             <label className="subtask-item" key={subtask.id}>
-              <input type="checkbox" checked={selectedSubtasks.includes(subtask.id)} onChange={() => toggleSubtask(subtask.id)} />
+              <input
+                type="checkbox"
+                checked={selectedSubtasks.includes(subtask.id)}
+                onChange={() => toggleSubtask(subtask.id)}
+              />
               <span>{getSubtaskName(subtask)}</span>
               <small>{subtask.weight}</small>
             </label>
@@ -875,24 +1480,97 @@ function App() {
   function renderMarkDoneCard() {
     return (
       <div className="card" id="mark-done">
-        <div className="card-title-block"><h2>{t.markDone}</h2><p>{t.markDoneHelp}</p></div>
+        <div className="card-title-block">
+          <h2>{t.markDone}</h2>
+          <p>{t.markDoneHelp}</p>
+        </div>
+
         <div className="form-grid">
-          <FancySelect label={t.task} value={form.taskId} onChange={value => { setForm({ ...form, taskId: value }); setAllSubtasksForTask(value); if (value === 'deep_water') setIncludeVacuumWithDeep(true); }} options={taskOptions} placeholder={t.selectPlaceholder} />
+          <FancySelect
+            label={t.task}
+            value={form.taskId}
+            onChange={value => {
+              setForm({ ...form, taskId: value });
+              setAllSubtasksForTask(value);
+              if (value === 'deep_water') setIncludeVacuumWithDeep(true);
+            }}
+            options={taskOptions}
+            placeholder={t.selectPlaceholder}
+          />
+
           {form.taskId === 'deep_water' && (
             <div className="vacuum-question">
-              <div><b>{t.didVacuumQuestion}</b><p>{t.didVacuumHelp}</p></div>
+              <div>
+                <b>{t.didVacuumQuestion}</b>
+                <p>{t.didVacuumHelp}</p>
+              </div>
+
               <div className="vacuum-choice-row">
-                <button type="button" className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`} onClick={() => setIncludeVacuumWithDeep(true)}><CheckCircle2 size={18} />{t.yesVacuumDone}</button>
-                <button type="button" className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`} onClick={() => setIncludeVacuumWithDeep(false)}><X size={18} />{t.noVacuumDone}</button>
+                <button
+                  type="button"
+                  className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+                  onClick={() => setIncludeVacuumWithDeep(true)}
+                >
+                  <CheckCircle2 size={18} />
+                  {t.yesVacuumDone}
+                </button>
+
+                <button
+                  type="button"
+                  className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+                  onClick={() => setIncludeVacuumWithDeep(false)}
+                >
+                  <X size={18} />
+                  {t.noVacuumDone}
+                </button>
               </div>
             </div>
           )}
+
           {renderSubtaskSelector()}
-          <div className="marking-as"><span>{t.markingAs}</span><b>{normalizeName(currentUser)}</b></div>
-          <label>{t.dateDone}<input type="date" value={form.date} max={TODAY} onChange={event => setForm({ ...form, date: event.target.value })} /></label>
-          <label>{t.note}<input value={form.note} onChange={event => setForm({ ...form, note: event.target.value })} placeholder={t.optional} /></label>
+
+          <div className="marking-as">
+            <span>{t.markingAs}</span>
+            <b>{normalizeName(currentUser)}</b>
+          </div>
+
+          <label>
+            {t.dateDone}
+            <input
+              type="date"
+              value={form.date}
+              max={TODAY}
+              onChange={event => setForm({ ...form, date: event.target.value })}
+            />
+          </label>
+
+          <label>
+            {t.note}
+            <input
+              value={form.note}
+              onChange={event => setForm({ ...form, note: event.target.value })}
+              placeholder={t.optional}
+            />
+          </label>
         </div>
-        <button className={`primary ${saving ? 'saving' : ''}`} onClick={markDone} disabled={saving}>{saving ? <><Loader2 size={20} className="spin" />{t.saving}</> : <><CheckCircle2 size={20} />{t.saveCompleted}</>}</button>
+
+        <button
+          className={`primary ${saving ? 'saving' : ''}`}
+          onClick={markDone}
+          disabled={saving}
+        >
+          {saving ? (
+            <>
+              <Loader2 size={20} className="spin" />
+              {t.saving}
+            </>
+          ) : (
+            <>
+              <CheckCircle2 size={20} />
+              {t.saveCompleted}
+            </>
+          )}
+        </button>
       </div>
     );
   }
@@ -901,27 +1579,108 @@ function App() {
     const [label, tone] = status(row, data.fullBins || {}, t);
     const isMine = normalizeName(row.person) === normalizeName(currentUser);
     const completion = getCycleCompletion(row);
-    const showPendingSubtasks = completion.pending.length > 0 && completion.ratio < 1 && row.dueDate && row.dueDate <= TODAY;
+
+    const showPendingSubtasks =
+      completion.pending.length > 0 &&
+      completion.ratio < 1 &&
+      row.dueDate &&
+      row.dueDate <= TODAY;
 
     return (
-      <div role="button" tabIndex={0} className={`task task-clickable ${row.bundledVacuumRow ? 'task-bundled' : ''} ${isMine ? 'task-mine' : ''}`} key={row.task.id} onClick={() => openTaskModal(row)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openTaskModal(row); } }} aria-label={`${t.openTask}: ${taskLabel(row.task)}`}>
+      <div
+        role="button"
+        tabIndex={0}
+        className={`task task-clickable ${row.bundledVacuumRow ? 'task-bundled' : ''} ${isMine ? 'task-mine' : ''}`}
+        key={row.task.id}
+        onClick={() => openTaskModal(row)}
+        onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openTaskModal(row);
+          }
+        }}
+        aria-label={`${t.openTask}: ${taskLabel(row.task)}`}
+      >
         <div className="task-main">
-          <div className="task-title-row"><h3>{taskLabel(row.task)}</h3>{isMine && <span className="mine-badge">{t.yourTask}</span>}</div>
-          <p>{t.lastDone}: {row.last ? `${fmt(row.last.date, '', lang)} ${t.by} ${normalizeName(row.last.actualPerson || row.last.person)}` : t.noRecord}</p>
-          {showPendingSubtasks && <div className="pending-subtasks"><b>{t.pendingParts}</b><span>{completion.pending.map(subtask => getSubtaskName(subtask)).join(', ')}</span></div>}
-          {row.bundledVacuumRow && <div className="bundle-pill"><CheckCircle2 size={16} />{t.deepIncludesVacuum}</div>}
-          {row.task.type === 'on_demand' && <label className="check" onClick={event => event.stopPropagation()}><input type="checkbox" checked={!!data.fullBins?.[row.task.id]} onChange={event => toggleBin(row.task.id, event.target.checked)} />{t.binFull}</label>}
+          <div className="task-title-row">
+            <h3>{taskLabel(row.task)}</h3>
+            {isMine && <span className="mine-badge">{t.yourTask}</span>}
+          </div>
+
+          <p>
+            {t.lastDone}:{' '}
+            {row.last
+              ? `${fmt(row.last.date, '', lang)} ${t.by} ${normalizeName(row.last.actualPerson || row.last.person)}`
+              : t.noRecord}
+          </p>
+
+          {showPendingSubtasks && (
+            <div className="pending-subtasks">
+              <b>{t.pendingParts}</b>
+              <span>
+                {completion.pending
+                  .map(subtask => getSubtaskName(subtask))
+                  .join(', ')}
+              </span>
+            </div>
+          )}
+
+          {row.bundledVacuumRow && (
+            <div className="bundle-pill">
+              <CheckCircle2 size={16} />
+              {t.deepIncludesVacuum}
+            </div>
+          )}
+
+          {row.task.type === 'on_demand' && (
+            <label className="check" onClick={event => event.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={!!data.fullBins?.[row.task.id]}
+                onChange={event => toggleBin(row.task.id, event.target.checked)}
+              />
+              {t.binFull}
+            </label>
+          )}
         </div>
+
         <div className="task-meta">
-          <div><span>{t.nextDate}</span><b>{fmt(row.dueDate, row.task.type === 'on_demand' ? t.whenFull : t.notScheduled, lang)}</b></div>
-          <div><span>{t.nextPerson}</span><b>{normalizeName(row.person)}</b></div>
-          <div className={tone}><span>{t.status}</span><b>{label}</b></div>
+          <div>
+            <span>{t.nextDate}</span>
+            <b>
+              {fmt(
+                row.dueDate,
+                row.task.type === 'on_demand' ? t.whenFull : t.notScheduled,
+                lang
+              )}
+            </b>
+          </div>
+
+          <div>
+            <span>{t.nextPerson}</span>
+            <b>{normalizeName(row.person)}</b>
+          </div>
+
+          <div className={tone}>
+            <span>{t.status}</span>
+            <b>{label}</b>
+          </div>
         </div>
+
         {row.bundledVacuumRow && (
           <div className="bundled-subtask">
-            <div><b>{taskLabel(row.bundledVacuumRow.task)}</b><span>{t.linkedDeep}</span></div>
-            <div><span>{t.nextDate}</span><b>{fmt(row.dueDate, '', lang)}</b></div>
-            <div><span>{t.nextPerson}</span><b>{normalizeName(row.person)}</b></div>
+            <div>
+              <b>{taskLabel(row.bundledVacuumRow.task)}</b>
+              <span>{t.linkedDeep}</span>
+            </div>
+            <div>
+              <span>{t.nextDate}</span>
+              <b>{fmt(row.dueDate, '', lang)}</b>
+            </div>
+            <div>
+              <span>{t.nextPerson}</span>
+              <b>{normalizeName(row.person)}</b>
+            </div>
           </div>
         )}
       </div>
@@ -930,12 +1689,65 @@ function App() {
 
   function renderEmailGate() {
     return (
-      <main className="page user-picker-page"><section className="user-picker-card email-card">
-        <div className="eyebrow"><Mail size={16} />{t.emailTitle}</div><h1>{pendingUser || currentUser}</h1><p className="sub">{t.emailInfo}</p>
-        {error && <div className="notice bad"><AlertTriangle size={20} />{error}</div>}
-        <label>{t.emailAddress}<input type="email" value={emailDraft} onChange={event => setEmailDraft(event.target.value)} placeholder="name@example.com" autoFocus /></label>
-        <div className="email-actions"><button type="button" className="secondary-action" onClick={cancelEmail} disabled={emailSaving}>{t.cancel}</button><button type="button" className="primary" onClick={saveEmail} disabled={emailSaving}>{emailSaving ? <><Loader2 size={20} className="spin" />{t.saving}</> : <><CheckCircle2 size={20} />{t.saveAndContinue}</>}</button></div>
-      </section></main>
+      <main className="page user-picker-page">
+        <section className="user-picker-card email-card">
+          <div className="eyebrow">
+            <Mail size={16} />
+            {t.emailTitle}
+          </div>
+
+          <h1>{pendingUser || currentUser}</h1>
+          <p className="sub">{t.emailInfo}</p>
+
+          {error && (
+            <div className="notice bad">
+              <AlertTriangle size={20} />
+              {error}
+            </div>
+          )}
+
+          <label>
+            {t.emailAddress}
+            <input
+              type="email"
+              value={emailDraft}
+              onChange={event => setEmailDraft(event.target.value)}
+              placeholder="name@example.com"
+              autoFocus
+            />
+          </label>
+
+          <div className="email-actions">
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={cancelEmail}
+              disabled={emailSaving}
+            >
+              {t.cancel}
+            </button>
+
+            <button
+              type="button"
+              className="primary"
+              onClick={saveEmail}
+              disabled={emailSaving}
+            >
+              {emailSaving ? (
+                <>
+                  <Loader2 size={20} className="spin" />
+                  {t.saving}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={20} />
+                  {t.saveAndContinue}
+                </>
+              )}
+            </button>
+          </div>
+        </section>
+      </main>
     );
   }
 
@@ -943,25 +1755,69 @@ function App() {
     return (
       <>
         <section className="compact-dashboard-grid">
-          <div className="mini-dashboard-card important"><span>{t.dueChoresShort}</span><strong>{myPendingLabel}</strong></div>
-          <div className="mini-dashboard-card"><span>{t.pointsShort}</span><strong>{formatPoints(currentUserScore?.total || 0)}</strong></div>
-          <div className="mini-dashboard-card"><span>{activeAbsence ? t.currentVacation : upcomingAbsence ? t.nextVacation : t.away}</span><strong>{activeAbsence ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}` : upcomingAbsence ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}` : t.noAwayPlanned}</strong><small>{activeAbsence?.reason || upcomingAbsence?.reason || t.vacationQuickHelp}</small></div>
+          <div className="mini-dashboard-card important">
+            <span>{t.dueChoresShort}</span>
+            <strong>{myPendingLabel}</strong>
+          </div>
+
+          <div className="mini-dashboard-card">
+            <span>{t.pointsShort}</span>
+            <strong>{formatPoints(currentUserScore?.total || 0)}</strong>
+          </div>
+
+          <div className="mini-dashboard-card">
+            <span>
+              {activeAbsence
+                ? t.currentVacation
+                : upcomingAbsence
+                  ? t.nextVacation
+                  : t.awayShort}
+            </span>
+            <strong>
+              {activeAbsence
+                ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}`
+                : upcomingAbsence
+                  ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}`
+                  : t.noAwayPlanned}
+            </strong>
+            <small>
+              {activeAbsence?.reason ||
+                upcomingAbsence?.reason ||
+                t.vacationQuickHelp}
+            </small>
+          </div>
         </section>
 
         <section className="card compact-main-card">
-          <div className="card-head"><div><h2>{t.yourPendingTasks}</h2><p>{t.nextTasksHelp}</p></div></div>
-          <div className="task-list compact-task-list">
-            {myRows.length ? myRows.slice(0, 4).map(renderTaskCard) : <div className="empty-state">{t.noPendingTasks}</div>}
+          <div className="card-head">
+            <div>
+              <h2>{t.nextTasks}</h2>
+              <p>{t.nextTasksHelp}</p>
+            </div>
+          </div>
+
+          <div className="task-list">
+            {rows.map(renderTaskCard)}
           </div>
         </section>
 
         <section className="card feature-info-card">
           <h2>{t.usefulLinks}</h2>
           <p>{t.usefulLinksHelp}</p>
+
           <div className="feature-grid">
             {navItems.filter(item => item.id !== 'dashboard').map(item => {
               const Icon = item.icon;
-              return <button key={item.id} type="button" onClick={() => jumpTo(item.id)}><Icon size={18} />{item.label}</button>;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => jumpTo(item.id)}
+                >
+                  <Icon size={18} />
+                  {item.label}
+                </button>
+              );
             })}
           </div>
         </section>
@@ -969,40 +1825,127 @@ function App() {
     );
   }
 
-  function renderChoresPage() {
-    return <section className="card"><div className="card-head"><div><h2>{t.nextTasks}</h2><p>{t.nextTasksHelp}</p></div></div><div className="task-list">{rows.map(renderTaskCard)}</div></section>;
-  }
-
   function renderActivityPage() {
-    return <section className="card"><div className="card-title-block"><h2>{t.recentLog}</h2><p>{t.recentLogHelp}</p></div><div className="log-list full-log-list">{(data.currentLogs || []).slice(0, 80).map(log => <div className="log" key={log.id}><b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b><span><CalendarDays size={14} />{fmt(log.date, '', lang)} {t.by} {normalizeName(log.actualPerson || log.person)}</span>{log.note && <small>{log.note}</small>}</div>)}</div></section>;
+    return (
+      <section className="card">
+        <div className="card-title-block">
+          <h2>{t.recentLog}</h2>
+          <p>{t.recentLogHelp}</p>
+        </div>
+
+        <div className="log-list full-log-list">
+          {(data.currentLogs || []).slice(0, 80).map(log => (
+            <div className="log" key={log.id}>
+              <b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b>
+              <span>
+                <CalendarDays size={14} />
+                {fmt(log.date, '', lang)} {t.by}{' '}
+                {normalizeName(log.actualPerson || log.person)}
+              </span>
+              {log.note && <small>{log.note}</small>}
+            </div>
+          ))}
+        </div>
+      </section>
+    );
   }
 
   function renderScoresPage() {
     return (
       <section className="card score-card">
-        <div className="card-head"><div><h2>{t.scores}</h2><p>{t.scoresHelp}</p>{data.activeScoringPeriod && <p>{t.activePeriod}: <b>{data.activeScoringPeriod.name}</b></p>}</div></div>
-        <div className="score-grid">{(data.scores?.byPerson || []).map(row => <div className="score-person-card" key={row.person}><div className="score-person-head"><span className="dashboard-avatar">{row.person.slice(0, 1)}</span><div><b>{row.person}</b><strong>{formatPoints(row.total || 0)}</strong></div></div><div className="score-split"><span>{t.positiveScore}<b>{formatPoints(row.positive || 0)}</b></span><span>{t.negativeScore}<b>{formatPoints(row.negative || 0)}</b></span></div></div>)}</div>
-        <h3 className="score-subtitle">{t.taskScores}</h3>
-        <div className="task-score-table">{(data.scores?.byTask || []).map(row => {
-          const open = !!openScoreTasks[row.taskId];
-          return <div className="task-score-accordion" key={row.taskId}><button type="button" className="task-score-row" onClick={() => setOpenScoreTasks(current => ({ ...current, [row.taskId]: !current[row.taskId] }))}><span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span><span className="score-pair"><small>{t.baseScore}</small><b>{formatPoints(row.baseWeight || 0)}</b></span><span className="score-pair"><small>{t.earnedScore}</small><b>{formatPoints(row.earnedTotal || 0)}</b></span><small>{open ? t.hideDetails : t.showDetails}</small></button>{open && <div className="task-score-detail">{(row.subtasks || []).length > 0 ? row.subtasks.map(subtask => <div className="subtask-score-row" key={subtask.id}><span>{getSubtaskName(subtask)}</span><small>weight {subtask.weight}</small><b>{formatPoints(subtask.earnedTotal || 0)}</b></div>) : <div className="subtask-score-row"><span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span><small>{t.singleTask}</small><b>{formatPoints(row.earnedTotal || 0)}</b></div>}</div>}</div>;
-        })}</div>
-      </section>
-    );
-  }
-
-  function renderAwayPage() {
-    return (
-      <section className="card away-card">
-        <div className="card-head"><div><h2>{t.away}</h2><p>{t.awayHelp}</p></div></div>
-        <div className="admin-grid two">
-          <label>{t.awayFrom}<input type="date" value={awayForm.startDate} min={TODAY} onChange={event => setAwayForm({ ...awayForm, startDate: event.target.value })} /></label>
-          <label>{t.awayUntil}<input type="date" value={awayForm.endDate} min={awayForm.startDate || TODAY} onChange={event => setAwayForm({ ...awayForm, endDate: event.target.value })} /></label>
-          <label>{t.reason}<input value={awayForm.reason} onChange={event => setAwayForm({ ...awayForm, reason: event.target.value })} placeholder={t.optional} /></label>
+        <div className="card-head">
+          <div>
+            <h2>{t.scores}</h2>
+            <p>{t.scoresHelp}</p>
+            {data.activeScoringPeriod && (
+              <p>
+                {t.activePeriod}: <b>{data.activeScoringPeriod.name}</b>
+              </p>
+            )}
+          </div>
         </div>
-        <div className="admin-actions"><button type="button" onClick={saveAwayDates} disabled={saving}>{saving ? t.saving : t.addAway}</button></div>
-        <h3>{t.yourAwayDates}</h3>
-        <div className="admin-user-table">{myAbsences.length ? myAbsences.map(absence => <div className="admin-user-row" key={absence.id}><div><b>{fmt(absence.startDate, '', lang)} → {fmt(absence.endDate, '', lang)}</b><span>{absence.reason || t.away}</span></div><button type="button" className="danger-action" onClick={() => deleteAwayDate(absence.id)}>{t.deleteAway}</button></div>) : <div className="empty-state">{t.noAwayDates}</div>}</div>
+
+        <div className="score-grid">
+          {(data.scores?.byPerson || []).map(row => (
+            <div className="score-person-card" key={row.person}>
+              <div className="score-person-head">
+                <span className="dashboard-avatar">{row.person.slice(0, 1)}</span>
+                <div>
+                  <b>{row.person}</b>
+                  <strong>{formatPoints(row.total || 0)}</strong>
+                </div>
+              </div>
+
+              <div className="score-split">
+                <span>
+                  {t.positiveScore}
+                  <b>{formatPoints(row.positive || 0)}</b>
+                </span>
+                <span>
+                  {t.negativeScore}
+                  <b>{formatPoints(row.negative || 0)}</b>
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <h3 className="score-subtitle">{t.taskScores}</h3>
+
+        <div className="task-score-table">
+          {(data.scores?.byTask || []).map(row => {
+            const open = !!openScoreTasks[row.taskId];
+
+            return (
+              <div className="task-score-accordion" key={row.taskId}>
+                <button
+                  type="button"
+                  className="task-score-row"
+                  onClick={() =>
+                    setOpenScoreTasks(current => ({
+                      ...current,
+                      [row.taskId]: !current[row.taskId]
+                    }))
+                  }
+                >
+                  <span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span>
+
+                  <span className="score-pair">
+                    <small>{t.baseScore}</small>
+                    <b>{formatPoints(row.baseWeight || 0)}</b>
+                  </span>
+
+                  <span className="score-pair">
+                    <small>{t.earnedScore}</small>
+                    <b>{formatPoints(row.earnedTotal || 0)}</b>
+                  </span>
+
+                  <small>{open ? t.hideDetails : t.showDetails}</small>
+                </button>
+
+                {open && (
+                  <div className="task-score-detail">
+                    {(row.subtasks || []).length > 0 ? (
+                      row.subtasks.map(subtask => (
+                        <div className="subtask-score-row" key={subtask.id}>
+                          <span>{getSubtaskName(subtask)}</span>
+                          <small>{subtask.weight}</small>
+                          <b>{formatPoints(subtask.earnedTotal || 0)}</b>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="subtask-score-row">
+                        <span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span>
+                        <small>{t.singleTask}</small>
+                        <b>{formatPoints(row.earnedTotal || 0)}</b>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
     );
   }
@@ -1010,40 +1953,436 @@ function App() {
   function renderAdminPage() {
     return (
       <section className="card admin-card">
-        <div className="card-head"><div><h2>{t.adminPanel}</h2><p>{t.adminHelp}</p></div></div>
+        <div className="card-head">
+          <div>
+            <h2>{t.adminPanel}</h2>
+            <p>{t.adminHelp}</p>
+          </div>
+        </div>
+
         <h3>{t.activeUsers}</h3>
-        <div className="admin-user-table">{(data.flatmateProfiles || []).map(user => <div className="admin-user-row" key={user.name}><div><b>{normalizeName(user.name)}</b><span>{user.email || t.noEmail}</span></div><button type="button" className="danger-action" disabled={adminSaving} onClick={() => openAdminModal('delete', { action: 'delete', name: user.name, email: user.email || '' })}>{t.deleteUser}</button></div>)}</div>
+
+        <div className="admin-user-table">
+          {(data.flatmateProfiles || []).map(user => (
+            <div className="admin-user-row" key={user.name}>
+              <div>
+                <b>{normalizeName(user.name)}</b>
+                <span>{user.email || t.noEmail}</span>
+              </div>
+
+              <button
+                type="button"
+                className="danger-action"
+                disabled={adminSaving}
+                onClick={() =>
+                  openAdminModal('delete', {
+                    action: 'delete',
+                    name: user.name,
+                    email: user.email || ''
+                  })
+                }
+              >
+                {t.deleteUser}
+              </button>
+            </div>
+          ))}
+        </div>
+
         <h3>{t.addUser}</h3>
-        <div className="admin-grid two"><label>{t.userName}<input value={adminForm.name} onChange={event => setAdminForm({ ...adminForm, name: event.target.value })} placeholder="Name" /></label></div>
-        <div className="admin-actions"><button disabled={adminSaving} onClick={() => openAdminModal('add', { action: 'add', name: adminForm.name, email: '' })}>{t.addUser}</button></div>
+
+        <div className="admin-grid two">
+          <label>
+            {t.userName}
+            <input
+              value={adminForm.name}
+              onChange={event =>
+                setAdminForm({ ...adminForm, name: event.target.value })
+              }
+              placeholder="Name"
+            />
+          </label>
+        </div>
+
+        <div className="admin-actions">
+          <button
+            disabled={adminSaving}
+            onClick={() =>
+              openAdminModal('add', {
+                action: 'add',
+                name: adminForm.name,
+                email: ''
+              })
+            }
+          >
+            {t.addUser}
+          </button>
+        </div>
+
         <h3>{t.updateUser}</h3>
-        <div className="admin-grid two"><label>{t.userName}<input value={adminForm.name} onChange={event => setAdminForm({ ...adminForm, name: event.target.value })} placeholder="Name" /></label><label>{t.emailAddress}<input type="email" value={adminForm.email} onChange={event => setAdminForm({ ...adminForm, email: event.target.value })} placeholder="name@example.com" /></label></div>
-        <div className="admin-actions"><button disabled={adminSaving} onClick={() => openAdminModal('update', { action: 'update', name: adminForm.name, email: adminForm.email })}>{t.updateUser}</button></div>
+
+        <div className="admin-grid two">
+          <label>
+            {t.userName}
+            <input
+              value={adminForm.name}
+              onChange={event =>
+                setAdminForm({ ...adminForm, name: event.target.value })
+              }
+              placeholder="Name"
+            />
+          </label>
+
+          <label>
+            {t.emailAddress}
+            <input
+              type="email"
+              value={adminForm.email}
+              onChange={event =>
+                setAdminForm({ ...adminForm, email: event.target.value })
+              }
+              placeholder="name@example.com"
+            />
+          </label>
+        </div>
+
+        <div className="admin-actions">
+          <button
+            disabled={adminSaving}
+            onClick={() =>
+              openAdminModal('update', {
+                action: 'update',
+                name: adminForm.name,
+                email: adminForm.email
+              })
+            }
+          >
+            {t.updateUser}
+          </button>
+        </div>
       </section>
     );
   }
 
   function renderHistoryPage() {
-    return <section className="card history-card"><div className="card-head"><div><h2>{t.previousPeriods}</h2><p>{t.historyHelp}</p></div></div><div className="history-list">{(data.periodHistory || []).map(period => { const open = !!openHistoryPeriods[period.id]; return <div className="history-row period-history-row" key={period.id}><button type="button" className="history-summary-button" onClick={() => setOpenHistoryPeriods(current => ({ ...current, [period.id]: !current[period.id] }))}><span><b>{period.name}</b><small>{period.startedAt} → {period.endedAt || 'active'}</small><small>{period.reason}</small></span><small>{open ? t.hideDetails : t.showDetails}</small></button>{open && <div className="period-detail"><h3>{t.periodScores}</h3><div className="score-grid compact">{(period.scores?.byPerson || []).map(row => <div className="score-person-card" key={row.person}><div className="score-person-head"><span className="dashboard-avatar">{row.person.slice(0, 1)}</span><div><b>{row.person}</b><strong>{formatPoints(row.total || 0)}</strong></div></div></div>)}</div><h3>{t.periodLogs}</h3><div className="log-list period-log-list">{(period.logs || []).length ? period.logs.map(log => <div className="log" key={log.id}><b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b><span><CalendarDays size={14} />{fmt(log.date, '', lang)} {t.by} {normalizeName(log.actualPerson || log.person)}</span>{log.note && <small>{log.note}</small>}</div>) : <div className="empty-state">{t.noPeriodLogs}</div>}</div><h3>{t.periodMilestones}</h3><div className="milestone-list">{(period.milestones || []).length ? period.milestones.map(milestone => <div className="milestone-row" key={`${milestone.person}-${milestone.milestone}`}><b>{milestone.person}</b><span>{milestone.milestone}</span></div>) : <div className="empty-state">{t.noPeriodMilestones}</div>}</div></div>}</div>; })}</div></section>;
+    return (
+      <section className="card history-card">
+        <div className="card-head">
+          <div>
+            <h2>{t.previousPeriods}</h2>
+            <p>{t.historyHelp}</p>
+          </div>
+        </div>
+
+        <div className="history-list">
+          {(data.periodHistory || []).map(period => {
+            const open = !!openHistoryPeriods[period.id];
+
+            return (
+              <div className="history-row period-history-row" key={period.id}>
+                <button
+                  type="button"
+                  className="history-summary-button"
+                  onClick={() =>
+                    setOpenHistoryPeriods(current => ({
+                      ...current,
+                      [period.id]: !current[period.id]
+                    }))
+                  }
+                >
+                  <span>
+                    <b>{period.name}</b>
+                    <small>{period.startedAt} → {period.endedAt || 'active'}</small>
+                    <small>{period.reason}</small>
+                  </span>
+                  <small>{open ? t.hideDetails : t.showDetails}</small>
+                </button>
+
+                {open && (
+                  <div className="period-detail">
+                    <h3>{t.periodScores}</h3>
+
+                    <div className="score-grid compact">
+                      {(period.scores?.byPerson || []).map(row => (
+                        <div className="score-person-card" key={row.person}>
+                          <div className="score-person-head">
+                            <span className="dashboard-avatar">
+                              {row.person.slice(0, 1)}
+                            </span>
+                            <div>
+                              <b>{row.person}</b>
+                              <strong>{formatPoints(row.total || 0)}</strong>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <h3>{t.periodLogs}</h3>
+
+                    <div className="log-list period-log-list">
+                      {(period.logs || []).length ? (
+                        period.logs.map(log => (
+                          <div className="log" key={log.id}>
+                            <b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b>
+                            <span>
+                              <CalendarDays size={14} />
+                              {fmt(log.date, '', lang)} {t.by}{' '}
+                              {normalizeName(log.actualPerson || log.person)}
+                            </span>
+                            {log.note && <small>{log.note}</small>}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="empty-state">{t.noPeriodLogs}</div>
+                      )}
+                    </div>
+
+                    <h3>{t.periodMilestones}</h3>
+
+                    <div className="milestone-list">
+                      {(period.milestones || []).length ? (
+                        period.milestones.map(milestone => (
+                          <div
+                            className="milestone-row"
+                            key={`${milestone.person}-${milestone.milestone}`}
+                          >
+                            <b>{milestone.person}</b>
+                            <span>{milestone.milestone}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="empty-state">{t.noPeriodMilestones}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
   }
 
-  if (loading) return <main className="page"><div className="card loading-card">{t.loading}</div></main>;
-  if (!data) return <main className="page"><div className="card bad">{error || t.loadError}</div></main>;
-  if (emailMode) return renderEmailGate();
+  if (loading) {
+    return (
+      <main className="page">
+        <div className="card loading-card">{t.loading}</div>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="page">
+        <div className="card bad">{error || t.loadError}</div>
+      </main>
+    );
+  }
+
+  if (emailMode) {
+    return renderEmailGate();
+  }
 
   if (!hasValidCurrentUser) {
-    return <main className="page user-picker-page"><section className="user-picker-card"><div className="eyebrow"><Sparkles size={16} />{t.badge}</div><h1>{t.whoAreYou}</h1><p className="sub">{t.chooseProfile}</p><div className="profile-grid">{data.flatmates.map(person => <button type="button" key={person} className="profile-card" onClick={() => chooseCurrentUser(person)}><span className="profile-avatar">{normalizeName(person).slice(0, 1)}</span><span>{t.continueAs}<b>{normalizeName(person)}</b></span></button>)}</div><div className="profile-language-card"><div className="dashboard-card dashboard-language-card language-card-top"><span className="dashboard-label">{t.language}</span><p>{t.languageHelp}</p><FancySelect label="" value={languageSetting} onChange={changeLanguage} options={languageOptions} placeholder={t.auto} className="language-inline" /></div></div></section></main>;
+    return (
+      <main className="page user-picker-page">
+        <section className="user-picker-card">
+          <div className="eyebrow">
+            <Sparkles size={16} />
+            {t.badge}
+          </div>
+
+          <h1>{t.whoAreYou}</h1>
+          <p className="sub">{t.chooseProfile}</p>
+
+          <div className="profile-grid">
+            {data.flatmates.map(person => (
+              <button
+                type="button"
+                key={person}
+                className="profile-card"
+                onClick={() => chooseCurrentUser(person)}
+              >
+                <span className="profile-avatar">
+                  {normalizeName(person).slice(0, 1)}
+                </span>
+                <span>
+                  {t.continueAs}
+                  <b>{normalizeName(person)}</b>
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="profile-language-card">
+            <div className="dashboard-card dashboard-language-card language-card-top">
+              <span className="dashboard-label">{t.language}</span>
+              <p>{t.languageHelp}</p>
+
+              <FancySelect
+                label=""
+                value={languageSetting}
+                onChange={changeLanguage}
+                options={languageOptions}
+                placeholder={t.auto}
+                className="language-inline"
+              />
+            </div>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
     <>
-      {!menuOpen && <button className="mobile-menu-button" onClick={() => setMenuOpen(true)} aria-label={t.menu}><Menu size={22} /></button>}
-      {menuOpen && <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />}
-      <aside className={`nav-panel ${menuOpen ? 'open' : ''}`}><div className="nav-head"><div><b>{t.navigation}</b><span>{t.jumpTo}</span></div><button className="icon-button nav-close" onClick={() => setMenuOpen(false)} aria-label={t.close}><X size={20} /></button></div>{navItems.map(item => { const Icon = item.icon; return <button className="nav-link" key={item.id} onClick={() => jumpTo(item.id)}><Icon size={18} /><span>{item.label}</span></button>; })}</aside>
+      {!menuOpen && (
+        <button
+          className="mobile-menu-button"
+          onClick={() => setMenuOpen(true)}
+          aria-label={t.menu}
+        >
+          <Menu size={22} />
+        </button>
+      )}
+
+      {menuOpen && (
+        <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+      )}
+
+      <aside className={`nav-panel ${menuOpen ? 'open' : ''}`}>
+        <div className="nav-head">
+          <div>
+            <b>{t.navigation}</b>
+            <span>{t.jumpTo}</span>
+          </div>
+
+          <button
+            className="icon-button nav-close"
+            onClick={() => setMenuOpen(false)}
+            aria-label={t.close}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {navItems.map(item => {
+          const Icon = item.icon;
+
+          return (
+            <button
+              className="nav-link"
+              key={item.id}
+              onClick={() => jumpTo(item.id)}
+            >
+              <Icon size={18} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </aside>
+
       <main className="page" id="top">
-        <section className="hero dashboard-hero compact-hero"><div className="hero-main"><div className="eyebrow"><Sparkles size={16} />{t.badge}</div><h1>{t.title}</h1><p className="sub">{t.subtitle}</p></div><div className="dashboard-header compact-header-grid"><div className="dashboard-card dashboard-top-card dashboard-language-card language-card-top"><span className="dashboard-label">{t.language}</span><p className="dashboard-card-help">{t.languageHelp}</p><FancySelect label="" value={languageSetting} onChange={changeLanguage} options={languageOptions} placeholder={t.auto} className="language-inline" /></div><div className="dashboard-card dashboard-top-card dashboard-user-card"><span className="dashboard-label">{t.profile}</span><div className="dashboard-user-row"><span className="dashboard-avatar">{normalizeName(currentUser).slice(0, 1)}</span><div><b>{normalizeName(currentUser)}</b><small>{currentUserProfile?.email}</small><div className="profile-actions"><button type="button" onClick={switchCurrentUser}>{t.switchUser}</button><button type="button" onClick={startChangeEmail}><Pencil size={13} />{t.changeEmail}</button></div></div></div></div><div className="dashboard-card dashboard-top-card dashboard-vacation-card"><span className="dashboard-label">{t.away}</span><p className="dashboard-card-help">{t.vacationQuickHelp}</p><div className="vacation-status-block"><strong>{activeAbsence ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}` : upcomingAbsence ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}` : t.noAwayPlanned}</strong><small>{activeAbsence ? t.currentVacation : upcomingAbsence ? t.nextVacation : t.noAwayDates}</small></div><button type="button" className="secondary-action header-action-button" onClick={() => setAwayModalOpen(true)}><Plane size={16} />{t.manageVacation}</button></div></div></section>
-        {error && <div className="notice bad"><AlertTriangle size={20} />{error}</div>}
-        {success && <div className="notice good success-pop"><CheckCircle2 size={20} />{success}</div>}
+        <section className="hero dashboard-hero compact-hero">
+          <div className="hero-main">
+            <div className="eyebrow">
+              <Sparkles size={16} />
+              {t.badge}
+            </div>
+
+            <h1>{t.title}</h1>
+            <p className="sub">{t.subtitle}</p>
+          </div>
+
+          <div className="dashboard-header compact-header-grid">
+            <div className="dashboard-card dashboard-top-card dashboard-language-card language-card-top">
+              <span className="dashboard-label">{t.language}</span>
+              <p className="dashboard-card-help">{t.languageHelp}</p>
+
+              <FancySelect
+                label=""
+                value={languageSetting}
+                onChange={changeLanguage}
+                options={languageOptions}
+                placeholder={t.auto}
+                className="language-inline"
+              />
+            </div>
+
+            <div className="dashboard-card dashboard-top-card dashboard-user-card">
+              <span className="dashboard-label">{t.profile}</span>
+
+              <div className="dashboard-user-row">
+                <span className="dashboard-avatar">
+                  {normalizeName(currentUser).slice(0, 1)}
+                </span>
+
+                <div>
+                  <b>{normalizeName(currentUser)}</b>
+                  <small>{currentUserProfile?.email}</small>
+
+                  <div className="profile-actions">
+                    <button type="button" onClick={switchCurrentUser}>
+                      {t.switchUser}
+                    </button>
+                    <button type="button" onClick={startChangeEmail}>
+                      <Pencil size={13} />
+                      {t.changeEmail}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="dashboard-card dashboard-top-card dashboard-vacation-card">
+              <span className="dashboard-label">{t.away}</span>
+              <p className="dashboard-card-help">{t.vacationQuickHelp}</p>
+
+              <div className="vacation-status-block">
+                <strong>
+                  {activeAbsence
+                    ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}`
+                    : upcomingAbsence
+                      ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}`
+                      : t.noAwayPlanned}
+                </strong>
+
+                <small>
+                  {activeAbsence
+                    ? t.currentVacation
+                    : upcomingAbsence
+                      ? t.nextVacation
+                      : t.noAwayDates}
+                </small>
+              </div>
+
+              <button
+                type="button"
+                className="secondary-action header-action-button"
+                onClick={() => setAwayModalOpen(true)}
+              >
+                <Plane size={16} />
+                {t.manageVacation}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {error && (
+          <div className="notice bad">
+            <AlertTriangle size={20} />
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="notice good success-pop">
+            <CheckCircle2 size={20} />
+            {success}
+          </div>
+        )}
+
         {activePage === 'dashboard' && renderDashboardPage()}
         {activePage === 'mark' && renderMarkDoneCard()}
         {activePage === 'activity' && renderActivityPage()}
@@ -1051,9 +2390,296 @@ function App() {
         {activePage === 'admin' && renderAdminPage()}
         {activePage === 'history' && renderHistoryPage()}
       </main>
-      {awayModalOpen && <div className="modal-backdrop" onClick={() => setAwayModalOpen(false)}><section className="task-modal away-modal" onClick={event => event.stopPropagation()}><div className="modal-head"><div><span className="modal-kicker">{t.away}</span><h2>{t.yourAwayDates}</h2><p>{t.vacationQuickHelp}</p></div><button type="button" className="icon-button" onClick={() => setAwayModalOpen(false)} aria-label={t.close}><X size={20} /></button></div><div className="admin-grid one-col"><label>{t.awayFrom}<input type="date" value={awayForm.startDate} min={TODAY} onChange={event => setAwayForm({ ...awayForm, startDate: event.target.value })} /></label><label>{t.awayUntil}<input type="date" value={awayForm.endDate} min={awayForm.startDate || TODAY} onChange={event => setAwayForm({ ...awayForm, endDate: event.target.value })} /></label><label>{t.reason}<input value={awayForm.reason} onChange={event => setAwayForm({ ...awayForm, reason: event.target.value })} placeholder={t.optional} /></label></div><div className="modal-actions away-modal-actions"><button type="button" className="secondary-action" onClick={() => setAwayModalOpen(false)}>{t.cancel}</button><button type="button" className="primary" onClick={saveAwayDates}><Plane size={16} />{t.addAway}</button></div><div className="away-list">{myAbsences.length ? myAbsences.map(item => <div className="away-row" key={item.id}><div><b>{fmt(item.startDate, '', lang)} → {fmt(item.endDate, '', lang)}</b><span>{item.reason || t.optional}</span></div><button type="button" className="danger-action" onClick={() => deleteAwayDate(item.id)}>{t.deleteAway}</button></div>) : <div className="empty-state">{t.noAwayDates}</div>}</div></section></div>}
-      {adminModal && <div className="modal-backdrop" onClick={closeAdminModal}><section className="task-modal admin-pin-modal" onClick={event => event.stopPropagation()}><div className="modal-head"><div><span className="modal-kicker">{t.admin}</span><h2>{t.adminPin}</h2><p>{t.adminPinHelp}</p></div><button type="button" className="icon-button" onClick={closeAdminModal} aria-label={t.close}><X size={20} /></button></div><label>{t.adminPin}<input type="password" value={adminPin} onChange={event => setAdminPin(event.target.value)} autoFocus /></label><div className="modal-actions"><button type="button" className="secondary-action" onClick={closeAdminModal} disabled={adminSaving}>{t.cancel}</button><button type="button" className={`primary ${adminSaving ? 'saving' : ''}`} onClick={confirmAdminAction} disabled={adminSaving}>{adminSaving ? <><Loader2 size={20} className="spin" />{t.saving}</> : <><CheckCircle2 size={20} />{t.confirm}</>}</button></div></section></div>}
-      {modalTask && <div className="modal-backdrop" onClick={closeTaskModal}><section className="task-modal" onClick={event => event.stopPropagation()}><div className="modal-head"><div><span className="modal-kicker">{t.quickMarkDone}</span><h2>{taskLabel(modalTask.task)}</h2><p>{t.markingAs} <b>{normalizeName(currentUser)}</b></p></div><button type="button" className="icon-button" onClick={closeTaskModal} aria-label={t.close}><X size={20} /></button></div>{modalTask.task.id === 'deep_water' && <div className="vacuum-question"><div><b>{t.didVacuumQuestion}</b><p>{t.didVacuumHelp}</p></div><div className="vacuum-choice-row"><button type="button" className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`} onClick={() => setIncludeVacuumWithDeep(true)}><CheckCircle2 size={18} />{t.yesVacuumDone}</button><button type="button" className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`} onClick={() => setIncludeVacuumWithDeep(false)}><X size={18} />{t.noVacuumDone}</button></div></div>}{renderSubtaskSelector()}<div className="modal-grid"><label>{t.dateDone}<input type="date" value={form.date} max={TODAY} onChange={event => setForm({ ...form, date: event.target.value })} /></label><label>{t.note}<input value={form.note} onChange={event => setForm({ ...form, note: event.target.value })} placeholder={t.optional} /></label></div><div className="modal-actions"><button type="button" className="secondary-action" onClick={closeTaskModal} disabled={saving}>{t.cancel}</button><button className={`primary ${saving ? 'saving' : ''}`} onClick={markDone} disabled={saving}>{saving ? <><Loader2 size={20} className="spin" />{t.saving}</> : <><CheckCircle2 size={20} />{t.saveCompleted}</>}</button></div></section></div>}
+
+      {awayModalOpen && (
+        <div className="modal-backdrop" onClick={() => setAwayModalOpen(false)}>
+          <section
+            className="task-modal away-modal"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="modal-head">
+              <div>
+                <span className="modal-kicker">{t.away}</span>
+                <h2>{t.yourAwayDates}</h2>
+                <p>{t.vacationQuickHelp}</p>
+              </div>
+
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setAwayModalOpen(false)}
+                aria-label={t.close}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="admin-grid one-col">
+              <label>
+                {t.awayFrom}
+                <input
+                  type="date"
+                  value={awayForm.startDate}
+                  min={TODAY}
+                  onChange={event =>
+                    setAwayForm({ ...awayForm, startDate: event.target.value })
+                  }
+                />
+              </label>
+
+              <label>
+                {t.awayUntil}
+                <input
+                  type="date"
+                  value={awayForm.endDate}
+                  min={awayForm.startDate || TODAY}
+                  onChange={event =>
+                    setAwayForm({ ...awayForm, endDate: event.target.value })
+                  }
+                />
+              </label>
+
+              <label>
+                {t.reason}
+                <input
+                  value={awayForm.reason}
+                  onChange={event =>
+                    setAwayForm({ ...awayForm, reason: event.target.value })
+                  }
+                  placeholder={t.optional}
+                />
+              </label>
+            </div>
+
+            <div className="modal-actions away-modal-actions">
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => setAwayModalOpen(false)}
+              >
+                {t.cancel}
+              </button>
+
+              <button
+                type="button"
+                className="primary"
+                onClick={saveAwayDates}
+                disabled={saving}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 size={18} className="spin" />
+                    {t.saving}
+                  </>
+                ) : (
+                  <>
+                    <Plane size={16} />
+                    {t.addAway}
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="away-list">
+              {myAbsences.length ? (
+                myAbsences.map(item => (
+                  <div className="away-row" key={item.id}>
+                    <div>
+                      <b>
+                        {fmt(item.startDate, '', lang)} →{' '}
+                        {fmt(item.endDate, '', lang)}
+                      </b>
+                      <span>{item.reason || t.optional}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="danger-action"
+                      onClick={() => deleteAwayDate(item.id)}
+                    >
+                      {t.deleteAway}
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="empty-state">{t.noAwayDates}</div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {adminModal && (
+        <div className="modal-backdrop" onClick={closeAdminModal}>
+          <section
+            className="task-modal admin-pin-modal"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="modal-head">
+              <div>
+                <span className="modal-kicker">{t.admin}</span>
+                <h2>{t.adminPin}</h2>
+                <p>{t.adminPinHelp}</p>
+              </div>
+
+              <button
+                type="button"
+                className="icon-button"
+                onClick={closeAdminModal}
+                aria-label={t.close}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <label>
+              {t.adminPin}
+              <input
+                type="password"
+                value={adminPin}
+                onChange={event => setAdminPin(event.target.value)}
+                autoFocus
+              />
+            </label>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={closeAdminModal}
+                disabled={adminSaving}
+              >
+                {t.cancel}
+              </button>
+
+              <button
+                type="button"
+                className={`primary ${adminSaving ? 'saving' : ''}`}
+                onClick={confirmAdminAction}
+                disabled={adminSaving}
+              >
+                {adminSaving ? (
+                  <>
+                    <Loader2 size={20} className="spin" />
+                    {t.saving}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={20} />
+                    {t.confirm}
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {modalTask && (
+        <div className="modal-backdrop" onClick={closeTaskModal}>
+          <section className="task-modal" onClick={event => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <span className="modal-kicker">{t.quickMarkDone}</span>
+                <h2>{taskLabel(modalTask.task)}</h2>
+                <p>
+                  {t.markingAs} <b>{normalizeName(currentUser)}</b>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="icon-button"
+                onClick={closeTaskModal}
+                aria-label={t.close}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {modalTask.task.id === 'deep_water' && (
+              <div className="vacuum-question">
+                <div>
+                  <b>{t.didVacuumQuestion}</b>
+                  <p>{t.didVacuumHelp}</p>
+                </div>
+
+                <div className="vacuum-choice-row">
+                  <button
+                    type="button"
+                    className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+                    onClick={() => setIncludeVacuumWithDeep(true)}
+                  >
+                    <CheckCircle2 size={18} />
+                    {t.yesVacuumDone}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+                    onClick={() => setIncludeVacuumWithDeep(false)}
+                  >
+                    <X size={18} />
+                    {t.noVacuumDone}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {renderSubtaskSelector()}
+
+            <div className="modal-grid">
+              <label>
+                {t.dateDone}
+                <input
+                  type="date"
+                  value={form.date}
+                  max={TODAY}
+                  onChange={event => setForm({ ...form, date: event.target.value })}
+                />
+              </label>
+
+              <label>
+                {t.note}
+                <input
+                  value={form.note}
+                  onChange={event => setForm({ ...form, note: event.target.value })}
+                  placeholder={t.optional}
+                />
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={closeTaskModal}
+                disabled={saving}
+              >
+                {t.cancel}
+              </button>
+
+              <button
+                className={`primary ${saving ? 'saving' : ''}`}
+                onClick={markDone}
+                disabled={saving}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 size={20} className="spin" />
+                    {t.saving}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={20} />
+                    {t.saveCompleted}
+                  </>
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }

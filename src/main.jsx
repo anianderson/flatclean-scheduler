@@ -46,7 +46,7 @@ const translations = {
     badge: 'Shared flat chore planner',
     title: 'Cleaning schedule',
     subtitle:
-      'A fair cleaning rota for the flat, with reminders, points, history, and vacation dates.',
+      'A fair cleaning rota for the flat, with reminders, points, history, and away dates.',
     navigation: 'Navigation',
     dashboard: 'Overview',
     nextTasks: 'Upcoming chores',
@@ -174,10 +174,15 @@ const translations = {
     manageVacation: 'Manage vacation',
     currentVacation: 'Currently away',
     nextVacation: 'Next vacation',
-    deleteAway: 'Delete',
+    deleteAway: 'Delete vacation dates',
+    vacationForUser: 'Vacation for flatmate',
+    selectFlatmate: 'Select flatmate',
+    saveVacationForUser: 'Save vacation for flatmate',
+    allVacationDates: 'All vacation dates',
+    person: 'Person',
     usefulLinks: 'What else can you do?',
     usefulLinksHelp:
-      'Use the sidebar to mark chores as done, view activity, check points, open history, or manage admin settings. Vacation dates can be managed from the top card.',
+      'Use the sidebar to open full pages for marking work done, points, history, and admin settings.',
     dueChoresShort: 'Due now',
     pointsShort: 'Your points',
     awayShort: 'Vacation',
@@ -200,7 +205,7 @@ const translations = {
     badge: 'WG-Putzplan',
     title: 'Putzplan',
     subtitle:
-      'Ein fairer Putzplan für die WG, mit Erinnerungen, Punkten, Historie und Urlaubszeiten.',
+      'Ein fairer Putzplan für die WG, mit Erinnerungen, Punkten, Historie und Abwesenheiten.',
     navigation: 'Navigation',
     dashboard: 'Übersicht',
     nextTasks: 'Anstehende Aufgaben',
@@ -321,17 +326,22 @@ const translations = {
     reason: 'Grund',
     addAway: 'Urlaub speichern',
     yourAwayDates: 'Deine gespeicherten Urlaubszeiten',
-    noAwayDates: 'Keine Urlaubszeiten gespeichert',
+    noAwayDates: 'Kein Urlaub gespeichert',
     noAwayPlanned: 'Kein Urlaub geplant',
     vacationQuickHelp:
       'Trage hier deine Urlaubszeiten ein, damit Aufgaben während deiner Abwesenheit fair verteilt werden.',
     manageVacation: 'Urlaub verwalten',
     currentVacation: 'Aktuell abwesend',
     nextVacation: 'Nächster Urlaub',
-    deleteAway: 'Löschen',
+    deleteAway: 'Urlaub löschen',
+    vacationForUser: 'Urlaub für Mitbewohner',
+    selectFlatmate: 'Mitbewohner auswählen',
+    saveVacationForUser: 'Urlaub für Mitbewohner speichern',
+    allVacationDates: 'Alle Urlaubszeiten',
+    person: 'Person',
     usefulLinks: 'Was kannst du noch machen?',
     usefulLinksHelp:
-      'Über die Seitenleiste kannst du Aufgaben als erledigt eintragen, Aktivitäten ansehen, Punkte prüfen, die Historie öffnen oder Admin-Einstellungen verwalten. Urlaub kannst du oben eintragen.',
+      'Über die Seitenleiste findest du Erledigt-Einträge, Punkte, Historie und Admin-Einstellungen.',
     dueChoresShort: 'Jetzt fällig',
     pointsShort: 'Deine Punkte',
     awayShort: 'Urlaub',
@@ -424,16 +434,16 @@ function isHeavyTask(task) {
 function isPersonUnavailable(absences, person, date) {
   if (!person || !date) return false;
 
-  return (absences || []).some(
-    absence =>
-      normalizeName(absence.person) === normalizeName(person) &&
-      absence.startDate <= date &&
-      absence.endDate >= date
+  return (absences || []).some(absence =>
+    normalizeName(absence.person) === normalizeName(person) &&
+    absence.startDate <= date &&
+    absence.endDate >= date
   );
 }
 
 function availablePeopleForDate(people, absences, date) {
   const normalized = (people || []).map(normalizeName);
+
   if (!date) return normalized;
 
   const available = normalized.filter(
@@ -465,6 +475,7 @@ function lastGroupLog(logs, task) {
 
 function getDueDateFromLastLog(task, last) {
   if (!last) return null;
+
   if (last.nextDueDate) return last.nextDueDate;
 
   if (task.type === 'scheduled' && task.intervalDays) {
@@ -544,8 +555,9 @@ function personFairnessScore({
   const baseWeight = getBaseWeight(task);
   const heavy = isHeavyTask(task);
 
-  let score = Number(scores[normalizedPerson] || 0);
-  score += Number(plannedLoad[normalizedPerson] || 0);
+  let score =
+    Number(scores[normalizedPerson] || 0) +
+    Number(plannedLoad[normalizedPerson] || 0);
 
   const exactLast = lastLog(logs || [], task.id);
   const exactLastPerson = normalizeName(exactLast?.actualPerson || exactLast?.person);
@@ -603,8 +615,10 @@ function fairPerson(people, logs, task, activePeriodId = null, plannedLoad = {})
       );
     }
 
-    return rotatedRank(a, normalizedPeople, task.id) -
-      rotatedRank(b, normalizedPeople, task.id);
+    return (
+      rotatedRank(a, normalizedPeople, task.id) -
+      rotatedRank(b, normalizedPeople, task.id)
+    );
   })[0];
 }
 
@@ -637,8 +651,10 @@ function fairPersonAvoiding(
   date = null
 ) {
   const avoid = normalizeName(avoidPerson);
-  const candidates = availablePeopleForDate(people, absences, date)
-    .filter(person => normalizeName(person) !== avoid);
+
+  const candidates = availablePeopleForDate(people, absences, date).filter(
+    person => normalizeName(person) !== avoid
+  );
 
   if (!candidates.length) return avoid;
 
@@ -762,9 +778,11 @@ function App() {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+
   const [modalTask, setModalTask] = useState(null);
   const [includeVacuumWithDeep, setIncludeVacuumWithDeep] = useState(true);
   const [selectedSubtasks, setSelectedSubtasks] = useState([]);
+
   const [openScoreTasks, setOpenScoreTasks] = useState({});
   const [openHistoryPeriods, setOpenHistoryPeriods] = useState({});
 
@@ -773,12 +791,20 @@ function App() {
   const [adminModal, setAdminModal] = useState(null);
   const [adminPin, setAdminPin] = useState('');
 
+  const [awayModalOpen, setAwayModalOpen] = useState(false);
+
   const [awayForm, setAwayForm] = useState({
     startDate: TODAY,
     endDate: TODAY,
     reason: ''
   });
-  const [awayModalOpen, setAwayModalOpen] = useState(false);
+
+  const [adminAwayForm, setAdminAwayForm] = useState({
+    person: '',
+    startDate: TODAY,
+    endDate: TODAY,
+    reason: ''
+  });
 
   const [form, setForm] = useState({
     taskId: 'gas_stove',
@@ -816,7 +842,8 @@ function App() {
   }
 
   function setAllSubtasksForTask(taskId) {
-    setSelectedSubtasks(getTaskSubtasks(taskId).map(subtask => subtask.id));
+    const subtasks = getTaskSubtasks(taskId);
+    setSelectedSubtasks(subtasks.map(subtask => subtask.id));
   }
 
   function toggleSubtask(subtaskId) {
@@ -872,9 +899,7 @@ function App() {
       const isMine = normalizeName(row.person) === normalizeName(currentUser);
       if (!isMine) return false;
 
-      if (row.task.type === 'on_demand') {
-        return !!data?.fullBins?.[row.task.id];
-      }
+      if (row.task.type === 'on_demand') return !!data?.fullBins?.[row.task.id];
 
       return !!row.dueDate && row.dueDate <= TODAY;
     });
@@ -930,7 +955,9 @@ function App() {
   }
 
   function clearSuccessSoon() {
-    window.setTimeout(() => setSuccess(''), 2800);
+    window.setTimeout(() => {
+      setSuccess('');
+    }, 2800);
   }
 
   function openTaskModal(row) {
@@ -945,11 +972,10 @@ function App() {
       note: ''
     }));
 
-    setSelectedSubtasks((row.task.subtasks || []).map(subtask => subtask.id));
+    const subtasks = row.task.subtasks || [];
+    setSelectedSubtasks(subtasks.map(subtask => subtask.id));
 
-    if (row.task.id === 'deep_water') {
-      setIncludeVacuumWithDeep(true);
-    }
+    if (row.task.id === 'deep_water') setIncludeVacuumWithDeep(true);
   }
 
   function closeTaskModal() {
@@ -1001,7 +1027,6 @@ function App() {
   async function load() {
     try {
       setError('');
-
       const res = await fetch('/api/state');
 
       if (!res.ok) throw new Error(t.loadError);
@@ -1010,10 +1035,8 @@ function App() {
       setData(json);
 
       if (!json.tasks?.some(task => task.id === form.taskId)) {
-        setForm(current => ({
-          ...current,
-          taskId: json.tasks?.[0]?.id || ''
-        }));
+        const firstTaskId = json.tasks?.[0]?.id || '';
+        setForm(current => ({ ...current, taskId: firstTaskId }));
       }
     } catch (e) {
       setError(e.message || t.loadError);
@@ -1039,9 +1062,7 @@ function App() {
 
     const json = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
-      throw new Error(json.error || t.saveError);
-    }
+    if (!res.ok) throw new Error(json.error || t.saveError);
 
     const state = json.state ? normalizeApiData(json.state) : normalizeApiData(json);
     setData(state);
@@ -1175,6 +1196,63 @@ function App() {
       await apiPost('/api/availability', {
         action: 'delete',
         person: currentUser,
+        id
+      });
+
+      setSuccess(t.saved);
+      clearSuccessSoon();
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveAdminAwayDates() {
+    try {
+      setError('');
+
+      const person = adminAwayForm.person || data?.flatmates?.[0] || '';
+
+      if (!person) {
+        setError(t.selectFlatmate);
+        return;
+      }
+
+      setSaving(true);
+
+      await apiPost('/api/availability', {
+        action: 'add',
+        person,
+        startDate: adminAwayForm.startDate,
+        endDate: adminAwayForm.endDate,
+        reason: adminAwayForm.reason
+      });
+
+      setAdminAwayForm({
+        person,
+        startDate: TODAY,
+        endDate: TODAY,
+        reason: ''
+      });
+
+      setSuccess(t.saved);
+      clearSuccessSoon();
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteAdminAwayDate(id, person) {
+    try {
+      setError('');
+      setSaving(true);
+
+      await apiPost('/api/availability', {
+        action: 'delete',
+        person,
         id
       });
 
@@ -1328,7 +1406,10 @@ function App() {
       });
   }, [data, currentUser, activePeriodId, allLogsForScheduling]);
 
-  const myRows = useMemo(() => getMyDueRows(rows), [rows, currentUser, data]);
+  const myRows = useMemo(() => {
+    return getMyDueRows(rows);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, currentUser, data]);
 
   const myPendingLabel = useMemo(() => {
     if (!myRows.length) return t.noPendingTasks;
@@ -1340,9 +1421,7 @@ function App() {
 
   const hasValidCurrentUser =
     !!currentUser &&
-    !!data?.flatmates?.some(
-      person => normalizeName(person) === normalizeName(currentUser)
-    );
+    !!data?.flatmates?.some(person => normalizeName(person) === normalizeName(currentUser));
 
   const currentUserProfile = getProfile(currentUser);
 
@@ -1492,7 +1571,10 @@ function App() {
             onChange={value => {
               setForm({ ...form, taskId: value });
               setAllSubtasksForTask(value);
-              if (value === 'deep_water') setIncludeVacuumWithDeep(true);
+
+              if (value === 'deep_water') {
+                setIncludeVacuumWithDeep(true);
+              }
             }}
             options={taskOptions}
             placeholder={t.selectPlaceholder}
@@ -1766,13 +1848,7 @@ function App() {
           </div>
 
           <div className="mini-dashboard-card">
-            <span>
-              {activeAbsence
-                ? t.currentVacation
-                : upcomingAbsence
-                  ? t.nextVacation
-                  : t.awayShort}
-            </span>
+            <span>{activeAbsence ? t.currentVacation : upcomingAbsence ? t.nextVacation : t.away}</span>
             <strong>
               {activeAbsence
                 ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}`
@@ -1780,11 +1856,7 @@ function App() {
                   ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}`
                   : t.noAwayPlanned}
             </strong>
-            <small>
-              {activeAbsence?.reason ||
-                upcomingAbsence?.reason ||
-                t.vacationQuickHelp}
-            </small>
+            <small>{activeAbsence?.reason || upcomingAbsence?.reason || t.vacationQuickHelp}</small>
           </div>
         </section>
 
@@ -1806,19 +1878,22 @@ function App() {
           <p>{t.usefulLinksHelp}</p>
 
           <div className="feature-grid">
-            {navItems.filter(item => item.id !== 'dashboard').map(item => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => jumpTo(item.id)}
-                >
-                  <Icon size={18} />
-                  {item.label}
-                </button>
-              );
-            })}
+            {navItems
+              .filter(item => item.id !== 'dashboard')
+              .map(item => {
+                const Icon = item.icon;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => jumpTo(item.id)}
+                  >
+                    <Icon size={18} />
+                    {item.label}
+                  </button>
+                );
+              })}
           </div>
         </section>
       </>
@@ -1929,7 +2004,7 @@ function App() {
                       row.subtasks.map(subtask => (
                         <div className="subtask-score-row" key={subtask.id}>
                           <span>{getSubtaskName(subtask)}</span>
-                          <small>{subtask.weight}</small>
+                          <small>weight {subtask.weight}</small>
                           <b>{formatPoints(subtask.earnedTotal || 0)}</b>
                         </div>
                       ))
@@ -1951,6 +2026,21 @@ function App() {
   }
 
   function renderAdminPage() {
+    const adminAwayPerson =
+      adminAwayForm.person ||
+      data.flatmates?.[0] ||
+      '';
+
+    const allAbsences = (data.absences || [])
+      .slice()
+      .sort((a, b) => {
+        if (a.startDate !== b.startDate) {
+          return a.startDate.localeCompare(b.startDate);
+        }
+
+        return normalizeName(a.person).localeCompare(normalizeName(b.person));
+      });
+
     return (
       <section className="card admin-card">
         <div className="card-head">
@@ -1986,6 +2076,119 @@ function App() {
               </button>
             </div>
           ))}
+        </div>
+
+        <div className="admin-section-block">
+          <h3>{t.vacationForUser}</h3>
+
+          <div className="admin-grid vacation-admin-grid">
+            <FancySelect
+              label={t.person}
+              value={adminAwayPerson}
+              onChange={value =>
+                setAdminAwayForm(current => ({
+                  ...current,
+                  person: value
+                }))
+              }
+              options={(data.flatmates || []).map(person => ({
+                value: normalizeName(person),
+                label: normalizeName(person)
+              }))}
+              placeholder={t.selectFlatmate}
+            />
+
+            <label>
+              {t.awayFrom}
+              <input
+                type="date"
+                value={adminAwayForm.startDate}
+                min={TODAY}
+                onChange={event =>
+                  setAdminAwayForm({
+                    ...adminAwayForm,
+                    startDate: event.target.value,
+                    endDate:
+                      adminAwayForm.endDate < event.target.value
+                        ? event.target.value
+                        : adminAwayForm.endDate
+                  })
+                }
+              />
+            </label>
+
+            <label>
+              {t.awayUntil}
+              <input
+                type="date"
+                value={adminAwayForm.endDate}
+                min={adminAwayForm.startDate || TODAY}
+                onChange={event =>
+                  setAdminAwayForm({
+                    ...adminAwayForm,
+                    endDate: event.target.value
+                  })
+                }
+              />
+            </label>
+
+            <label>
+              {t.reason}
+              <input
+                value={adminAwayForm.reason}
+                onChange={event =>
+                  setAdminAwayForm({
+                    ...adminAwayForm,
+                    reason: event.target.value
+                  })
+                }
+                placeholder={t.optional}
+              />
+            </label>
+          </div>
+
+          <div className="admin-actions">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={saveAdminAwayDates}
+            >
+              <Plane size={16} />
+              {saving ? t.saving : t.saveVacationForUser}
+            </button>
+          </div>
+
+          <h3>{t.allVacationDates}</h3>
+
+          <div className="admin-user-table">
+            {allAbsences.length ? (
+              allAbsences.map(absence => (
+                <div className="admin-user-row" key={absence.id}>
+                  <div>
+                    <b>{normalizeName(absence.person)}</b>
+                    <span>
+                      {fmt(absence.startDate, '', lang)} →{' '}
+                      {fmt(absence.endDate, '', lang)}
+                    </span>
+                    {absence.reason && <span>{absence.reason}</span>}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="danger-action"
+                    disabled={saving}
+                    onClick={() =>
+                      deleteAdminAwayDate(absence.id, absence.person)
+                    }
+                  >
+                    {t.deleteAway}
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="empty-state">{t.noAwayDates}</div>
+            )}
+          </div>
         </div>
 
         <h3>{t.addUser}</h3>
@@ -2091,7 +2294,9 @@ function App() {
                 >
                   <span>
                     <b>{period.name}</b>
-                    <small>{period.startedAt} → {period.endedAt || 'active'}</small>
+                    <small>
+                      {period.startedAt} → {period.endedAt || 'active'}
+                    </small>
                     <small>{period.reason}</small>
                   </span>
                   <small>{open ? t.hideDetails : t.showDetails}</small>
@@ -2284,7 +2489,7 @@ function App() {
       </aside>
 
       <main className="page" id="top">
-        <section className="hero dashboard-hero compact-hero">
+        <section className="hero dashboard-hero compact-hero compact-header">
           <div className="hero-main">
             <div className="eyebrow">
               <Sparkles size={16} />
@@ -2347,7 +2552,6 @@ function App() {
                       ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}`
                       : t.noAwayPlanned}
                 </strong>
-
                 <small>
                   {activeAbsence
                     ? t.currentVacation
@@ -2422,7 +2626,14 @@ function App() {
                   value={awayForm.startDate}
                   min={TODAY}
                   onChange={event =>
-                    setAwayForm({ ...awayForm, startDate: event.target.value })
+                    setAwayForm({
+                      ...awayForm,
+                      startDate: event.target.value,
+                      endDate:
+                        awayForm.endDate < event.target.value
+                          ? event.target.value
+                          : awayForm.endDate
+                    })
                   }
                 />
               </label>
@@ -2434,7 +2645,10 @@ function App() {
                   value={awayForm.endDate}
                   min={awayForm.startDate || TODAY}
                   onChange={event =>
-                    setAwayForm({ ...awayForm, endDate: event.target.value })
+                    setAwayForm({
+                      ...awayForm,
+                      endDate: event.target.value
+                    })
                   }
                 />
               </label>
@@ -2444,7 +2658,10 @@ function App() {
                 <input
                   value={awayForm.reason}
                   onChange={event =>
-                    setAwayForm({ ...awayForm, reason: event.target.value })
+                    setAwayForm({
+                      ...awayForm,
+                      reason: event.target.value
+                    })
                   }
                   placeholder={t.optional}
                 />
@@ -2466,17 +2683,8 @@ function App() {
                 onClick={saveAwayDates}
                 disabled={saving}
               >
-                {saving ? (
-                  <>
-                    <Loader2 size={18} className="spin" />
-                    {t.saving}
-                  </>
-                ) : (
-                  <>
-                    <Plane size={16} />
-                    {t.addAway}
-                  </>
-                )}
+                <Plane size={16} />
+                {saving ? t.saving : t.addAway}
               </button>
             </div>
 
@@ -2486,8 +2694,7 @@ function App() {
                   <div className="away-row" key={item.id}>
                     <div>
                       <b>
-                        {fmt(item.startDate, '', lang)} →{' '}
-                        {fmt(item.endDate, '', lang)}
+                        {fmt(item.startDate, '', lang)} → {fmt(item.endDate, '', lang)}
                       </b>
                       <span>{item.reason || t.optional}</span>
                     </div>
@@ -2496,6 +2703,7 @@ function App() {
                       type="button"
                       className="danger-action"
                       onClick={() => deleteAwayDate(item.id)}
+                      disabled={saving}
                     >
                       {t.deleteAway}
                     </button>
@@ -2577,7 +2785,10 @@ function App() {
 
       {modalTask && (
         <div className="modal-backdrop" onClick={closeTaskModal}>
-          <section className="task-modal" onClick={event => event.stopPropagation()}>
+          <section
+            className="task-modal"
+            onClick={event => event.stopPropagation()}
+          >
             <div className="modal-head">
               <div>
                 <span className="modal-kicker">{t.quickMarkDone}</span>

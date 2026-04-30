@@ -34,13 +34,14 @@ button {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
   gap: 18px;
   align-items: start;
   margin-bottom: 20px;
 }
 
-.compact-hero {
+.compact-hero,
+.compact-header {
   margin-bottom: 16px;
 }
 
@@ -112,6 +113,7 @@ h3 {
 .score-card,
 .admin-card,
 .history-card,
+.away-card,
 .feature-info-card,
 .compact-main-card {
   margin-top: 20px;
@@ -137,28 +139,39 @@ h3 {
 
 .dashboard-header {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .compact-header-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(240px, 1fr));
+  grid-template-columns: minmax(220px, .85fr) minmax(300px, 1.15fr) minmax(280px, 1fr);
   gap: 16px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .dashboard-card {
   position: relative;
   border-radius: 22px;
   padding: 14px;
-  min-height: 108px;
 }
 
 .dashboard-top-card {
-  min-height: 180px;
+  min-height: 132px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
+}
+
+.dashboard-language-card.dashboard-top-card {
+  gap: 12px;
+}
+
+.dashboard-user-card.dashboard-top-card {
+  justify-content: center;
+}
+
+.dashboard-vacation-card.dashboard-top-card {
+  gap: 10px;
 }
 
 .dashboard-label {
@@ -194,6 +207,15 @@ h3 {
   z-index: 20;
 }
 
+.dashboard-language-card .dashboard-card-help {
+  margin: 0;
+}
+
+.dashboard-language-card .fancy-field {
+  margin-top: auto;
+  margin-bottom: 0;
+}
+
 .dashboard-language-card .fancy-trigger {
   min-height: 50px;
 }
@@ -202,6 +224,10 @@ h3 {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.dashboard-user-card .dashboard-user-row {
+  margin-top: 4px;
 }
 
 .dashboard-avatar,
@@ -249,10 +275,14 @@ h3 {
   font-weight: 900;
 }
 
+.dashboard-vacation-card .dashboard-card-help {
+  margin-bottom: 6px;
+}
+
 .vacation-status-block {
   display: grid;
   gap: 5px;
-  margin: 10px 0 12px;
+  margin: 4px 0 10px;
 }
 
 .vacation-status-block strong {
@@ -269,7 +299,11 @@ h3 {
   width: 100%;
 }
 
-/* Dashboard summary */
+.dashboard-vacation-card .header-action-button {
+  margin-top: auto;
+}
+
+/* Compact overview */
 
 .compact-dashboard-grid {
   display: grid;
@@ -305,7 +339,7 @@ h3 {
 .mini-dashboard-card strong {
   display: block;
   font-size: clamp(1.55rem, 3vw, 2.25rem);
-  line-height: 1.08;
+  line-height: 1;
   letter-spacing: -.045em;
   color: #172033;
 }
@@ -319,7 +353,7 @@ h3 {
 
 .feature-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -335,7 +369,20 @@ h3 {
   color: #3730a3;
 }
 
-/* Tasks */
+/* Layout and tasks */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(315px, .88fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.side {
+  display: grid;
+  gap: 20px;
+  align-self: start;
+}
 
 .task-list {
   display: grid;
@@ -626,6 +673,7 @@ button:disabled {
     opacity: 0;
     transform: translateY(-6px) scale(.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -910,6 +958,7 @@ button:disabled {
     opacity: 0;
     transform: translateY(-8px) scale(.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -931,7 +980,7 @@ button:disabled {
   }
 }
 
-/* Deep cleaning / subtasks */
+/* Deep cleaning and subtasks */
 
 .vacuum-question,
 .subtask-box {
@@ -1148,47 +1197,11 @@ button:disabled {
   margin-top: 10px;
 }
 
-.away-modal {
-  width: min(720px, 100%);
-}
-
-.away-modal-actions {
-  margin-bottom: 14px;
-}
-
-.away-list {
-  display: grid;
-  gap: 10px;
-}
-
-.away-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 13px;
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-}
-
-.away-row div {
-  display: grid;
-  gap: 4px;
-}
-
-.away-row span {
-  color: #64748b;
-}
-
-.admin-grid.one-col {
-  grid-template-columns: 1fr;
-}
-
 @keyframes modalFade {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1199,6 +1212,7 @@ button:disabled {
     opacity: 0;
     transform: translateY(10px) scale(.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -1371,7 +1385,7 @@ button:disabled {
   color: #64748b;
 }
 
-/* Admin / history */
+/* Admin, vacation, history */
 
 .admin-user-table,
 .history-list {
@@ -1411,6 +1425,10 @@ button:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.admin-grid.one-col {
+  grid-template-columns: 1fr;
+}
+
 .admin-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1427,6 +1445,62 @@ button:disabled {
   background: #fee2e2;
   color: #b91c1c;
   white-space: nowrap;
+}
+
+.admin-section-block {
+  margin: 24px 0 30px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(203, 213, 225, .95);
+  background:
+    radial-gradient(circle at top right, rgba(14, 165, 233, .10), transparent 36%),
+    rgba(248, 250, 252, .82);
+}
+
+.admin-section-block h3 {
+  margin-bottom: 14px;
+}
+
+.vacation-admin-grid {
+  grid-template-columns: minmax(220px, 1fr) minmax(170px, .8fr) minmax(170px, .8fr) minmax(220px, 1fr);
+  align-items: end;
+}
+
+.vacation-admin-grid .fancy-field {
+  margin-bottom: 14px;
+}
+
+.away-modal {
+  width: min(720px, 100%);
+}
+
+.away-modal-actions {
+  margin-bottom: 14px;
+}
+
+.away-list {
+  display: grid;
+  gap: 10px;
+}
+
+.away-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.away-row div {
+  display: grid;
+  gap: 4px;
+}
+
+.away-row span {
+  color: #64748b;
 }
 
 .history-row {
@@ -1578,7 +1652,9 @@ button:disabled {
 }
 
 @media (max-width: 980px) {
+  .hero,
   .compact-header-grid,
+  .layout,
   .compact-dashboard-grid,
   .score-grid,
   .profile-grid,
@@ -1586,7 +1662,7 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-card {
+  .dashboard-top-card {
     min-height: auto;
   }
 
@@ -1596,6 +1672,10 @@ button:disabled {
 
   .task:not(.task-mine) {
     opacity: 1;
+  }
+
+  .vacation-admin-grid {
+    grid-template-columns: 1fr;
   }
 }
 

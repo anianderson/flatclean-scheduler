@@ -155,6 +155,11 @@ const translations = {
     addAway: 'Save away dates',
     yourAwayDates: 'Your saved away dates',
     noAwayDates: 'No away dates saved',
+    noAwayPlanned: 'No vacation planned',
+    vacationQuickHelp: 'Set your vacation dates here so chores stay fair while you are away.',
+    manageVacation: 'Manage vacation',
+    currentVacation: 'Currently away',
+    nextVacation: 'Next vacation',
     deleteAway: 'Delete away dates',
     usefulLinks: 'What else can you do?',
     usefulLinksHelp: 'Use the sidebar to open full pages for chores, marking work done, points, history, away dates, and admin settings.',
@@ -292,6 +297,11 @@ const translations = {
     addAway: 'Abwesenheit speichern',
     yourAwayDates: 'Deine gespeicherten Abwesenheiten',
     noAwayDates: 'Keine Abwesenheit gespeichert',
+    noAwayPlanned: 'Kein Urlaub geplant',
+    vacationQuickHelp: 'Trage hier deine Urlaubszeiten ein, damit Aufgaben während deiner Abwesenheit fair verteilt werden.',
+    manageVacation: 'Urlaub verwalten',
+    currentVacation: 'Aktuell abwesend',
+    nextVacation: 'Nächster Urlaub',
     deleteAway: 'Abwesenheit löschen',
     usefulLinks: 'Was kannst du noch machen?',
     usefulLinksHelp: 'Über die Seitenleiste findest du Aufgaben, Erledigt-Einträge, Punkte, Historie, Abwesenheit und Admin-Einstellungen.',
@@ -803,8 +813,10 @@ function App() {
   const hasValidCurrentUser = !!currentUser && !!data?.flatmates?.some(person => normalizeName(person) === normalizeName(currentUser));
   const currentUserProfile = getProfile(currentUser);
   const currentUserScore = data?.scores?.byPerson?.find(row => normalizeName(row.person) === normalizeName(currentUser));
-  const myAbsences = (data?.absences || []).filter(absence => normalizeName(absence.person) === normalizeName(currentUser));
-  const currentlyAway = myAbsences.some(absence => absence.startDate <= TODAY && absence.endDate >= TODAY);
+  const myAbsences = (data?.absences || []).filter(absence => normalizeName(absence.person) === normalizeName(currentUser)).sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const activeAbsence = myAbsences.find(absence => absence.startDate <= TODAY && absence.endDate >= TODAY) || null;
+  const upcomingAbsence = myAbsences.find(absence => absence.startDate > TODAY) || null;
+  const currentlyAway = !!activeAbsence;
 
   useEffect(() => {
     if (!data || !currentUser) return;
@@ -830,11 +842,9 @@ function App() {
 
   const navItems = [
     { id: 'dashboard', label: t.dashboard, icon: Home },
-    { id: 'chores', label: t.nextTasks, icon: ClipboardList },
     { id: 'mark', label: t.markDone, icon: CheckCircle2 },
     { id: 'activity', label: t.recentLog, icon: History },
     { id: 'scores', label: t.scores, icon: Trophy },
-    { id: 'away', label: t.away, icon: Plane },
     { id: 'admin', label: t.admin, icon: Pencil },
     { id: 'history', label: t.history, icon: History }
   ];
@@ -934,8 +944,8 @@ function App() {
       <>
         <section className="compact-dashboard-grid">
           <div className="mini-dashboard-card important"><span>{t.dueChoresShort}</span><strong>{myPendingLabel}</strong></div>
-          <div className="mini-dashboard-card"><span>{t.pointsShort}</span><strong>{(currentUserScore?.total || 0).toFixed(2)}</strong></div>
-          <div className="mini-dashboard-card"><span>{t.awayShort}</span><strong>{currentlyAway ? t.away : myAbsences.length}</strong></div>
+          <div className="mini-dashboard-card"><span>{t.pointsShort}</span><strong>{formatPoints(currentUserScore?.total || 0)}</strong></div>
+          <div className="mini-dashboard-card"><span>{activeAbsence ? t.currentVacation : upcomingAbsence ? t.nextVacation : t.away}</span><strong>{activeAbsence ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}` : upcomingAbsence ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}` : t.noAwayPlanned}</strong><small>{activeAbsence?.reason || upcomingAbsence?.reason || t.vacationQuickHelp}</small></div>
         </section>
 
         <section className="card compact-main-card">
@@ -971,11 +981,11 @@ function App() {
     return (
       <section className="card score-card">
         <div className="card-head"><div><h2>{t.scores}</h2><p>{t.scoresHelp}</p>{data.activeScoringPeriod && <p>{t.activePeriod}: <b>{data.activeScoringPeriod.name}</b></p>}</div></div>
-        <div className="score-grid">{(data.scores?.byPerson || []).map(row => <div className="score-person-card" key={row.person}><div className="score-person-head"><span className="dashboard-avatar">{row.person.slice(0, 1)}</span><div><b>{row.person}</b><strong>{Number(row.total || 0).toFixed(2)}</strong></div></div><div className="score-split"><span>{t.positiveScore}<b>{Number(row.positive || 0).toFixed(2)}</b></span><span>{t.negativeScore}<b>{Number(row.negative || 0).toFixed(2)}</b></span></div></div>)}</div>
+        <div className="score-grid">{(data.scores?.byPerson || []).map(row => <div className="score-person-card" key={row.person}><div className="score-person-head"><span className="dashboard-avatar">{row.person.slice(0, 1)}</span><div><b>{row.person}</b><strong>{formatPoints(row.total || 0)}</strong></div></div><div className="score-split"><span>{t.positiveScore}<b>{formatPoints(row.positive || 0)}</b></span><span>{t.negativeScore}<b>{formatPoints(row.negative || 0)}</b></span></div></div>)}</div>
         <h3 className="score-subtitle">{t.taskScores}</h3>
         <div className="task-score-table">{(data.scores?.byTask || []).map(row => {
           const open = !!openScoreTasks[row.taskId];
-          return <div className="task-score-accordion" key={row.taskId}><button type="button" className="task-score-row" onClick={() => setOpenScoreTasks(current => ({ ...current, [row.taskId]: !current[row.taskId] }))}><span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span><span className="score-pair"><small>{t.baseScore}</small><b>{Number(row.baseWeight || 0).toFixed(2)}</b></span><span className="score-pair"><small>{t.earnedScore}</small><b>{Number(row.earnedTotal || 0).toFixed(2)}</b></span><small>{open ? t.hideDetails : t.showDetails}</small></button>{open && <div className="task-score-detail">{(row.subtasks || []).length > 0 ? row.subtasks.map(subtask => <div className="subtask-score-row" key={subtask.id}><span>{getSubtaskName(subtask)}</span><small>weight {subtask.weight}</small><b>{Number(subtask.earnedTotal || 0).toFixed(2)}</b></div>) : <div className="subtask-score-row"><span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span><small>{t.singleTask}</small><b>{Number(row.earnedTotal || 0).toFixed(2)}</b></div>}</div>}</div>;
+          return <div className="task-score-accordion" key={row.taskId}><button type="button" className="task-score-row" onClick={() => setOpenScoreTasks(current => ({ ...current, [row.taskId]: !current[row.taskId] }))}><span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span><span className="score-pair"><small>{t.baseScore}</small><b>{formatPoints(row.baseWeight || 0)}</b></span><span className="score-pair"><small>{t.earnedScore}</small><b>{formatPoints(row.earnedTotal || 0)}</b></span><small>{open ? t.hideDetails : t.showDetails}</small></button>{open && <div className="task-score-detail">{(row.subtasks || []).length > 0 ? row.subtasks.map(subtask => <div className="subtask-score-row" key={subtask.id}><span>{getSubtaskName(subtask)}</span><small>weight {subtask.weight}</small><b>{formatPoints(subtask.earnedTotal || 0)}</b></div>) : <div className="subtask-score-row"><span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span><small>{t.singleTask}</small><b>{formatPoints(row.earnedTotal || 0)}</b></div>}</div>}</div>;
         })}</div>
       </section>
     );
@@ -1014,7 +1024,7 @@ function App() {
   }
 
   function renderHistoryPage() {
-    return <section className="card history-card"><div className="card-head"><div><h2>{t.previousPeriods}</h2><p>{t.historyHelp}</p></div></div><div className="history-list">{(data.periodHistory || []).map(period => { const open = !!openHistoryPeriods[period.id]; return <div className="history-row period-history-row" key={period.id}><button type="button" className="history-summary-button" onClick={() => setOpenHistoryPeriods(current => ({ ...current, [period.id]: !current[period.id] }))}><span><b>{period.name}</b><small>{period.startedAt} → {period.endedAt || 'active'}</small><small>{period.reason}</small></span><small>{open ? t.hideDetails : t.showDetails}</small></button>{open && <div className="period-detail"><h3>{t.periodScores}</h3><div className="score-grid compact">{(period.scores?.byPerson || []).map(row => <div className="score-person-card" key={row.person}><div className="score-person-head"><span className="dashboard-avatar">{row.person.slice(0, 1)}</span><div><b>{row.person}</b><strong>{Number(row.total || 0).toFixed(2)}</strong></div></div></div>)}</div><h3>{t.periodLogs}</h3><div className="log-list period-log-list">{(period.logs || []).length ? period.logs.map(log => <div className="log" key={log.id}><b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b><span><CalendarDays size={14} />{fmt(log.date, '', lang)} {t.by} {normalizeName(log.actualPerson || log.person)}</span>{log.note && <small>{log.note}</small>}</div>) : <div className="empty-state">{t.noPeriodLogs}</div>}</div><h3>{t.periodMilestones}</h3><div className="milestone-list">{(period.milestones || []).length ? period.milestones.map(milestone => <div className="milestone-row" key={`${milestone.person}-${milestone.milestone}`}><b>{milestone.person}</b><span>{milestone.milestone}</span></div>) : <div className="empty-state">{t.noPeriodMilestones}</div>}</div></div>}</div>; })}</div></section>;
+    return <section className="card history-card"><div className="card-head"><div><h2>{t.previousPeriods}</h2><p>{t.historyHelp}</p></div></div><div className="history-list">{(data.periodHistory || []).map(period => { const open = !!openHistoryPeriods[period.id]; return <div className="history-row period-history-row" key={period.id}><button type="button" className="history-summary-button" onClick={() => setOpenHistoryPeriods(current => ({ ...current, [period.id]: !current[period.id] }))}><span><b>{period.name}</b><small>{period.startedAt} → {period.endedAt || 'active'}</small><small>{period.reason}</small></span><small>{open ? t.hideDetails : t.showDetails}</small></button>{open && <div className="period-detail"><h3>{t.periodScores}</h3><div className="score-grid compact">{(period.scores?.byPerson || []).map(row => <div className="score-person-card" key={row.person}><div className="score-person-head"><span className="dashboard-avatar">{row.person.slice(0, 1)}</span><div><b>{row.person}</b><strong>{formatPoints(row.total || 0)}</strong></div></div></div>)}</div><h3>{t.periodLogs}</h3><div className="log-list period-log-list">{(period.logs || []).length ? period.logs.map(log => <div className="log" key={log.id}><b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b><span><CalendarDays size={14} />{fmt(log.date, '', lang)} {t.by} {normalizeName(log.actualPerson || log.person)}</span>{log.note && <small>{log.note}</small>}</div>) : <div className="empty-state">{t.noPeriodLogs}</div>}</div><h3>{t.periodMilestones}</h3><div className="milestone-list">{(period.milestones || []).length ? period.milestones.map(milestone => <div className="milestone-row" key={`${milestone.person}-${milestone.milestone}`}><b>{milestone.person}</b><span>{milestone.milestone}</span></div>) : <div className="empty-state">{t.noPeriodMilestones}</div>}</div></div>}</div>; })}</div></section>;
   }
 
   if (loading) return <main className="page"><div className="card loading-card">{t.loading}</div></main>;
@@ -1031,18 +1041,17 @@ function App() {
       {menuOpen && <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />}
       <aside className={`nav-panel ${menuOpen ? 'open' : ''}`}><div className="nav-head"><div><b>{t.navigation}</b><span>{t.jumpTo}</span></div><button className="icon-button nav-close" onClick={() => setMenuOpen(false)} aria-label={t.close}><X size={20} /></button></div>{navItems.map(item => { const Icon = item.icon; return <button className="nav-link" key={item.id} onClick={() => jumpTo(item.id)}><Icon size={18} /><span>{item.label}</span></button>; })}</aside>
       <main className="page" id="top">
-        <section className="hero dashboard-hero compact-hero"><div className="hero-main"><div className="eyebrow"><Sparkles size={16} />{t.badge}</div><h1>{t.title}</h1><p className="sub">{t.subtitle}</p></div><div className="dashboard-header compact-header"><div className="dashboard-card dashboard-language-card language-card-top"><span className="dashboard-label">{t.language}</span><FancySelect label="" value={languageSetting} onChange={changeLanguage} options={languageOptions} placeholder={t.auto} className="language-inline" /></div><div className="dashboard-card dashboard-user-card"><span className="dashboard-label">{t.profile}</span><div className="dashboard-user-row"><span className="dashboard-avatar">{normalizeName(currentUser).slice(0, 1)}</span><div><b>{normalizeName(currentUser)}</b><small>{currentUserProfile?.email}</small><div className="profile-actions"><button type="button" onClick={switchCurrentUser}>{t.switchUser}</button><button type="button" onClick={startChangeEmail}><Pencil size={13} />{t.changeEmail}</button></div></div></div></div></div></section>
+        <section className="hero dashboard-hero compact-hero"><div className="hero-main"><div className="eyebrow"><Sparkles size={16} />{t.badge}</div><h1>{t.title}</h1><p className="sub">{t.subtitle}</p></div><div className="dashboard-header compact-header-grid"><div className="dashboard-card dashboard-top-card dashboard-language-card language-card-top"><span className="dashboard-label">{t.language}</span><p className="dashboard-card-help">{t.languageHelp}</p><FancySelect label="" value={languageSetting} onChange={changeLanguage} options={languageOptions} placeholder={t.auto} className="language-inline" /></div><div className="dashboard-card dashboard-top-card dashboard-user-card"><span className="dashboard-label">{t.profile}</span><div className="dashboard-user-row"><span className="dashboard-avatar">{normalizeName(currentUser).slice(0, 1)}</span><div><b>{normalizeName(currentUser)}</b><small>{currentUserProfile?.email}</small><div className="profile-actions"><button type="button" onClick={switchCurrentUser}>{t.switchUser}</button><button type="button" onClick={startChangeEmail}><Pencil size={13} />{t.changeEmail}</button></div></div></div></div><div className="dashboard-card dashboard-top-card dashboard-vacation-card"><span className="dashboard-label">{t.away}</span><p className="dashboard-card-help">{t.vacationQuickHelp}</p><div className="vacation-status-block"><strong>{activeAbsence ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}` : upcomingAbsence ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}` : t.noAwayPlanned}</strong><small>{activeAbsence ? t.currentVacation : upcomingAbsence ? t.nextVacation : t.noAwayDates}</small></div><button type="button" className="secondary-action header-action-button" onClick={() => setAwayModalOpen(true)}><Plane size={16} />{t.manageVacation}</button></div></div></section>
         {error && <div className="notice bad"><AlertTriangle size={20} />{error}</div>}
         {success && <div className="notice good success-pop"><CheckCircle2 size={20} />{success}</div>}
         {activePage === 'dashboard' && renderDashboardPage()}
-        {activePage === 'chores' && renderChoresPage()}
         {activePage === 'mark' && renderMarkDoneCard()}
         {activePage === 'activity' && renderActivityPage()}
         {activePage === 'scores' && renderScoresPage()}
-        {activePage === 'away' && renderAwayPage()}
         {activePage === 'admin' && renderAdminPage()}
         {activePage === 'history' && renderHistoryPage()}
       </main>
+      {awayModalOpen && <div className="modal-backdrop" onClick={() => setAwayModalOpen(false)}><section className="task-modal away-modal" onClick={event => event.stopPropagation()}><div className="modal-head"><div><span className="modal-kicker">{t.away}</span><h2>{t.yourAwayDates}</h2><p>{t.vacationQuickHelp}</p></div><button type="button" className="icon-button" onClick={() => setAwayModalOpen(false)} aria-label={t.close}><X size={20} /></button></div><div className="admin-grid one-col"><label>{t.awayFrom}<input type="date" value={awayForm.startDate} min={TODAY} onChange={event => setAwayForm({ ...awayForm, startDate: event.target.value })} /></label><label>{t.awayUntil}<input type="date" value={awayForm.endDate} min={awayForm.startDate || TODAY} onChange={event => setAwayForm({ ...awayForm, endDate: event.target.value })} /></label><label>{t.reason}<input value={awayForm.reason} onChange={event => setAwayForm({ ...awayForm, reason: event.target.value })} placeholder={t.optional} /></label></div><div className="modal-actions away-modal-actions"><button type="button" className="secondary-action" onClick={() => setAwayModalOpen(false)}>{t.cancel}</button><button type="button" className="primary" onClick={saveAwayDates}><Plane size={16} />{t.addAway}</button></div><div className="away-list">{myAbsences.length ? myAbsences.map(item => <div className="away-row" key={item.id}><div><b>{fmt(item.startDate, '', lang)} → {fmt(item.endDate, '', lang)}</b><span>{item.reason || t.optional}</span></div><button type="button" className="danger-action" onClick={() => deleteAwayDate(item.id)}>{t.deleteAway}</button></div>) : <div className="empty-state">{t.noAwayDates}</div>}</div></section></div>}
       {adminModal && <div className="modal-backdrop" onClick={closeAdminModal}><section className="task-modal admin-pin-modal" onClick={event => event.stopPropagation()}><div className="modal-head"><div><span className="modal-kicker">{t.admin}</span><h2>{t.adminPin}</h2><p>{t.adminPinHelp}</p></div><button type="button" className="icon-button" onClick={closeAdminModal} aria-label={t.close}><X size={20} /></button></div><label>{t.adminPin}<input type="password" value={adminPin} onChange={event => setAdminPin(event.target.value)} autoFocus /></label><div className="modal-actions"><button type="button" className="secondary-action" onClick={closeAdminModal} disabled={adminSaving}>{t.cancel}</button><button type="button" className={`primary ${adminSaving ? 'saving' : ''}`} onClick={confirmAdminAction} disabled={adminSaving}>{adminSaving ? <><Loader2 size={20} className="spin" />{t.saving}</> : <><CheckCircle2 size={20} />{t.confirm}</>}</button></div></section></div>}
       {modalTask && <div className="modal-backdrop" onClick={closeTaskModal}><section className="task-modal" onClick={event => event.stopPropagation()}><div className="modal-head"><div><span className="modal-kicker">{t.quickMarkDone}</span><h2>{taskLabel(modalTask.task)}</h2><p>{t.markingAs} <b>{normalizeName(currentUser)}</b></p></div><button type="button" className="icon-button" onClick={closeTaskModal} aria-label={t.close}><X size={20} /></button></div>{modalTask.task.id === 'deep_water' && <div className="vacuum-question"><div><b>{t.didVacuumQuestion}</b><p>{t.didVacuumHelp}</p></div><div className="vacuum-choice-row"><button type="button" className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`} onClick={() => setIncludeVacuumWithDeep(true)}><CheckCircle2 size={18} />{t.yesVacuumDone}</button><button type="button" className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`} onClick={() => setIncludeVacuumWithDeep(false)}><X size={18} />{t.noVacuumDone}</button></div></div>}{renderSubtaskSelector()}<div className="modal-grid"><label>{t.dateDone}<input type="date" value={form.date} max={TODAY} onChange={event => setForm({ ...form, date: event.target.value })} /></label><label>{t.note}<input value={form.note} onChange={event => setForm({ ...form, note: event.target.value })} placeholder={t.optional} /></label></div><div className="modal-actions"><button type="button" className="secondary-action" onClick={closeTaskModal} disabled={saving}>{t.cancel}</button><button className={`primary ${saving ? 'saving' : ''}`} onClick={markDone} disabled={saving}>{saving ? <><Loader2 size={20} className="spin" />{t.saving}</> : <><CheckCircle2 size={20} />{t.saveCompleted}</>}</button></div></section></div>}
     </>

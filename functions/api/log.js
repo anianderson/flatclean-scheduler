@@ -8,23 +8,15 @@ import {
   lastLog,
   normalizeName,
   readState,
-  wasPersonUnavailableBetween
+  wasPersonUnavailableBetween,
+  addDays,
+  todayIso
 } from './_shared.js';
 import { bilingualEmail, sendAndLog } from './email.js';
 
 const ADVANCE_THRESHOLD = 0.7;
 const DEEP_WITHOUT_VACUUM_FACTOR = 0.7;
 const MILESTONES = [5, 10, 25, 50, 100, 150, 200];
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function addDays(date, days) {
-  const d = new Date(`${date}T00:00:00`);
-  d.setDate(d.getDate() + Number(days || 0));
-  return d.toISOString().slice(0, 10);
-}
 
 function getCompletionType({ task, assignedPerson, actualPerson, scheduledDueDate, actualDoneDate, wasAssignedUnavailable }) {
   if (task?.type === 'on_demand') return 'on_demand';

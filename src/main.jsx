@@ -19,7 +19,29 @@ import {
 } from 'lucide-react';
 import './styles.css';
 
-const TODAY = new Date().toISOString().slice(0, 10);
+const APP_TIME_ZONE = 'Europe/Berlin';
+
+function todayIso() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+}
+
+function parseIsoDateParts(date) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+  if (!match) return null;
+
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3])
+  };
+}
+
+const TODAY = todayIso();
 
 const FLOOR_MIN_GAP_DAYS = 10;
 const FLOOR_BUNDLE_WINDOW_DAYS = 5;
@@ -383,16 +405,20 @@ function getLanguageFromSetting(setting) {
 }
 
 function addDays(date, days) {
-  const d = new Date(`${date}T00:00:00`);
-  d.setDate(d.getDate() + Number(days || 0));
+  const parts = parseIsoDateParts(date);
+  if (!parts) return null;
+
+  const d = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + Number(days || 0)));
   return d.toISOString().slice(0, 10);
 }
 
 function diffDays(from, to) {
-  if (!from || !to) return null;
+  const aParts = parseIsoDateParts(from);
+  const bParts = parseIsoDateParts(to);
+  if (!aParts || !bParts) return null;
 
-  const a = new Date(`${from}T00:00:00`);
-  const b = new Date(`${to}T00:00:00`);
+  const a = Date.UTC(aParts.year, aParts.month - 1, aParts.day);
+  const b = Date.UTC(bParts.year, bParts.month - 1, bParts.day);
   const diff = Math.round((b - a) / 86400000);
 
   return Number.isNaN(diff) ? null : diff;
@@ -401,13 +427,18 @@ function diffDays(from, to) {
 function fmt(date, fallback = 'Not scheduled yet', lang = 'de') {
   if (!date) return fallback;
 
+  const parts = parseIsoDateParts(date);
+  if (!parts) return fallback;
+
   const locale = lang === 'de' ? 'de-DE' : 'en-GB';
+  const displayDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12));
 
   return new Intl.DateTimeFormat(locale, {
+    timeZone: APP_TIME_ZONE,
     day: '2-digit',
     month: 'short',
     year: 'numeric'
-  }).format(new Date(`${date}T00:00:00`));
+  }).format(displayDate);
 }
 
 function formatNumber(value, lang = 'de', fractionDigits = 2) {

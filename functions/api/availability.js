@@ -1,8 +1,4 @@
-import { isValidDate, json, normalizeName, readState } from './_shared.js';
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
+import { isValidDate, json, normalizeName, readState, todayIso } from './_shared.js';
 
 export async function onRequestPost({ request, env }) {
   const body = await request.json();

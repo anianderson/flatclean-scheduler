@@ -22,6 +22,8 @@ const TASK_TIE_OFFSETS = {
 
 const MILESTONE_LEVELS = [5, 10, 25, 50, 75, 100, 125, 150, 175, 200];
 
+export const APP_TIME_ZONE = 'Europe/Berlin';
+
 export function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -41,17 +43,43 @@ export function isValidDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''));
 }
 
+function parseIsoDateParts(date) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+  if (!match) return null;
+
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3])
+  };
+}
+
+export function todayIso() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+}
+
 export function addDays(date, days) {
-  const d = new Date(`${date}T00:00:00`);
-  d.setDate(d.getDate() + Number(days || 0));
+  const parts = parseIsoDateParts(date);
+  if (!parts) return null;
+
+  const d = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + Number(days || 0)));
   return d.toISOString().slice(0, 10);
 }
 
 export function diffDays(from, to) {
-  if (!from || !to) return null;
-  const a = new Date(`${from}T00:00:00`);
-  const b = new Date(`${to}T00:00:00`);
+  const aParts = parseIsoDateParts(from);
+  const bParts = parseIsoDateParts(to);
+  if (!aParts || !bParts) return null;
+
+  const a = Date.UTC(aParts.year, aParts.month - 1, aParts.day);
+  const b = Date.UTC(bParts.year, bParts.month - 1, bParts.day);
   const diff = Math.round((b - a) / 86400000);
+
   return Number.isNaN(diff) ? null : diff;
 }
 

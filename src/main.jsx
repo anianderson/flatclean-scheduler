@@ -1847,8 +1847,8 @@ function App() {
             <strong>{formatPoints(currentUserScore?.total || 0)}</strong>
           </div>
 
-          <div className="mini-dashboard-card">
-            <span>{activeAbsence ? t.currentVacation : upcomingAbsence ? t.nextVacation : t.away}</span>
+          <div className="mini-dashboard-card vacation-summary-card">
+            <span>{t.awayShort}</span>
             <strong>
               {activeAbsence
                 ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}`
@@ -1857,6 +1857,15 @@ function App() {
                   : t.noAwayPlanned}
             </strong>
             <small>{activeAbsence?.reason || upcomingAbsence?.reason || t.vacationQuickHelp}</small>
+
+            <button
+              type="button"
+              className="secondary-action compact-card-action"
+              onClick={() => setAwayModalOpen(true)}
+            >
+              <Plane size={16} />
+              {t.manageVacation}
+            </button>
           </div>
         </section>
 
@@ -2538,37 +2547,6 @@ function App() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="dashboard-card dashboard-top-card dashboard-vacation-card">
-              <span className="dashboard-label">{t.away}</span>
-              <p className="dashboard-card-help">{t.vacationQuickHelp}</p>
-
-              <div className="vacation-status-block">
-                <strong>
-                  {activeAbsence
-                    ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}`
-                    : upcomingAbsence
-                      ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}`
-                      : t.noAwayPlanned}
-                </strong>
-                <small>
-                  {activeAbsence
-                    ? t.currentVacation
-                    : upcomingAbsence
-                      ? t.nextVacation
-                      : t.noAwayDates}
-                </small>
-              </div>
-
-              <button
-                type="button"
-                className="secondary-action header-action-button"
-                onClick={() => setAwayModalOpen(true)}
-              >
-                <Plane size={16} />
-                {t.manageVacation}
-              </button>
             </div>
           </div>
         </section>

@@ -34,7 +34,7 @@ button {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 620px);
   gap: 18px;
   align-items: start;
   margin-bottom: 20px;
@@ -140,38 +140,36 @@ h3 {
 .dashboard-header {
   display: grid;
   gap: 12px;
+  align-content: start;
 }
 
 .compact-header-grid {
   display: grid;
-  grid-template-columns: minmax(220px, .85fr) minmax(300px, 1.15fr) minmax(280px, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(220px, 250px) minmax(300px, 1fr);
+  gap: 14px;
   align-items: start;
+  justify-content: start;
 }
 
 .dashboard-card {
   position: relative;
   border-radius: 22px;
-  padding: 14px;
+  padding: 14px 16px;
 }
 
 .dashboard-top-card {
-  min-height: 132px;
+  min-height: auto;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
 }
 
 .dashboard-language-card.dashboard-top-card {
-  gap: 12px;
+  gap: 10px;
 }
 
 .dashboard-user-card.dashboard-top-card {
-  justify-content: center;
-}
-
-.dashboard-vacation-card.dashboard-top-card {
-  gap: 10px;
+  justify-content: flex-start;
 }
 
 .dashboard-label {
@@ -185,7 +183,7 @@ h3 {
 }
 
 .dashboard-card-help {
-  margin: -2px 0 12px;
+  margin: -2px 0 10px;
   color: #64748b;
   font-size: .92rem;
   line-height: 1.4;
@@ -227,7 +225,8 @@ h3 {
 }
 
 .dashboard-user-card .dashboard-user-row {
-  margin-top: 4px;
+  margin-top: 2px;
+  align-items: flex-start;
 }
 
 .dashboard-avatar,
@@ -275,34 +274,6 @@ h3 {
   font-weight: 900;
 }
 
-.dashboard-vacation-card .dashboard-card-help {
-  margin-bottom: 6px;
-}
-
-.vacation-status-block {
-  display: grid;
-  gap: 5px;
-  margin: 4px 0 10px;
-}
-
-.vacation-status-block strong {
-  color: #0f172a;
-  font-size: 1rem;
-  line-height: 1.3;
-}
-
-.vacation-status-block small {
-  color: #64748b;
-}
-
-.header-action-button {
-  width: 100%;
-}
-
-.dashboard-vacation-card .header-action-button {
-  margin-top: auto;
-}
-
 /* Compact overview */
 
 .compact-dashboard-grid {
@@ -313,6 +284,10 @@ h3 {
 }
 
 .mini-dashboard-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 150px;
   border-radius: 24px;
   padding: 18px;
   background: rgba(255,255,255,.9);
@@ -339,7 +314,7 @@ h3 {
 .mini-dashboard-card strong {
   display: block;
   font-size: clamp(1.55rem, 3vw, 2.25rem);
-  line-height: 1;
+  line-height: 1.05;
   letter-spacing: -.045em;
   color: #172033;
 }
@@ -347,8 +322,13 @@ h3 {
 .mini-dashboard-card small {
   display: block;
   color: #64748b;
-  margin-top: 6px;
+  margin-top: 0;
   line-height: 1.35;
+}
+
+.compact-card-action {
+  width: 100%;
+  margin-top: auto;
 }
 
 .feature-grid {

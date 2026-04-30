@@ -45,8 +45,8 @@ const translations = {
   en: {
     badge: 'Shared flat chore planner',
     title: 'Cleaning schedule',
-    subtitle:
-      'A fair cleaning rota for the flat, with reminders, points, history, and away dates.',
+    subtitle: 'A fair cleaning rota for the flat, with reminders, points, history, and away dates.',
+    fairnessPolicyLink: 'Read the fairness policy',
     navigation: 'Navigation',
     dashboard: 'Overview',
     nextTasks: 'Upcoming chores',
@@ -204,8 +204,8 @@ const translations = {
   de: {
     badge: 'WG-Putzplan',
     title: 'Putzplan',
-    subtitle:
-      'Ein fairer Putzplan für die WG, mit Erinnerungen, Punkten, Historie und Abwesenheiten.',
+    subtitle: 'Ein fairer Putzplan für die WG, mit Erinnerungen, Punkten, Historie und Abwesenheiten.',
+    fairnessPolicyLink: 'Fairness-Regeln lesen',
     navigation: 'Navigation',
     dashboard: 'Übersicht',
     nextTasks: 'Anstehende Aufgaben',
@@ -2506,7 +2506,17 @@ function App() {
             </div>
 
             <h1>{t.title}</h1>
-            <p className="sub">{t.subtitle}</p>
+            <p className="sub hero-subtitle">
+              {t.subtitle}{' '}
+              <a
+                href="/docs/flatclean_fairness_policy_detailed.pdf"
+                target="_blank"
+                rel="noreferrer"
+                className="fairness-policy-link"
+              >
+                {t.fairnessPolicyLink}
+              </a>
+            </p>
           </div>
 
           <div className="dashboard-header compact-header-grid">

@@ -1430,11 +1430,15 @@ function App() {
     null;
 
   const activeAbsencesToday = (data?.absences || [])
-    .filter(absence => absence.startDate <= TODAY && absence.endDate >= TODAY)
-    .sort((a, b) => {
-      if (a.endDate !== b.endDate) return a.endDate.localeCompare(b.endDate);
-      return normalizeName(a.person).localeCompare(normalizeName(b.person));
-    });
+  .filter(absence => absence.startDate <= TODAY && absence.endDate >= TODAY)
+  .sort((a, b) => {
+    if (a.endDate !== b.endDate) return a.endDate.localeCompare(b.endDate);
+    return normalizeName(a.person).localeCompare(normalizeName(b.person));
+  });
+
+  const otherActiveAbsencesToday = activeAbsencesToday.filter(
+    absence => normalizeName(absence.person) !== normalizeName(currentUser)
+  );
 
   useEffect(() => {
     if (!data || !currentUser) return;
@@ -1845,12 +1849,24 @@ function App() {
           <div className="mini-dashboard-card vacation-summary-card">
             <span>{t.awayShort}</span>
 
-            {activeAbsencesToday.length ? (
-              <>
-                <strong>{t.peopleOnVacationToday}</strong>
+            <strong>
+              {activeAbsence
+                ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}`
+                : upcomingAbsence
+                  ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}`
+                  : t.noAwayPlanned}
+            </strong>
+
+            <small>
+              {activeAbsence?.reason || upcomingAbsence?.reason || t.vacationQuickHelp}
+            </small>
+
+            {otherActiveAbsencesToday.length > 0 && (
+              <div className="today-vacation-box">
+                <span>{t.peopleOnVacationToday}</span>
 
                 <div className="today-vacation-list">
-                  {activeAbsencesToday.map(absence => (
+                  {otherActiveAbsencesToday.map(absence => (
                     <div className="today-vacation-row" key={absence.id}>
                       <b>
                         {t.onVacationUntil(
@@ -1862,22 +1878,7 @@ function App() {
                     </div>
                   ))}
                 </div>
-              </>
-            ) : (
-              <>
-                <strong>
-                  {upcomingAbsence
-                    ? t.nextVacationFromUntil(
-                        fmt(upcomingAbsence.startDate, '', lang),
-                        fmt(upcomingAbsence.endDate, '', lang)
-                      )
-                    : t.noAwayPlanned}
-                </strong>
-
-                <small>
-                  {upcomingAbsence?.reason || t.noOneOnVacationToday}
-                </small>
-              </>
+              </div>
             )}
 
             <button

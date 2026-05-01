@@ -150,6 +150,97 @@ export function getDueDateFromLastLog(task, last) {
   return null;
 }
 
+export function getCycleId(taskId, scheduledDueDate, actualDoneDate) {
+  return `${taskId}:${scheduledDueDate || actualDoneDate}`;
+}
+
+export function getCycleCompletionFromLogs(logs, task, dueDate) {
+  const subtasks = task?.subtasks || [];
+
+  if (!subtasks.length || !dueDate) {
+    return {
+      completed: [],
+      pending: [],
+      ratio: 1,
+      isOpen: false
+    };
+  }
+
+  const cycleId = getCycleId(task.id, dueDate, dueDate);
+  const completedIds = new Set();
+
+  for (const log of logs || []) {
+    if (log.isDummy) continue;
+    if (log.taskId !== task.id) continue;
+    if (log.cycleId !== cycleId) continue;
+
+    for (const subtask of log.completedSubtasks || []) {
+      completedIds.add(subtask.id);
+    }
+  }
+
+  const completed = subtasks.filter(subtask => completedIds.has(subtask.id));
+  const pending = subtasks.filter(subtask => !completedIds.has(subtask.id));
+
+  const totalWeight = subtasks.reduce(
+    (sum, subtask) => sum + Number(subtask.weight || 1),
+    0
+  );
+
+  const completedWeight = completed.reduce(
+    (sum, subtask) => sum + Number(subtask.weight || 1),
+    0
+  );
+
+  const ratio = totalWeight > 0 ? completedWeight / totalWeight : 1;
+
+  return {
+    completed,
+    pending,
+    ratio,
+    isOpen: pending.length > 0 && ratio < 1
+  };
+}
+
+export function getOpenCycleAssignedPerson({
+  logs,
+  task,
+  dueDate,
+  absences = [],
+  date = null
+}) {
+  if (!task || task.type !== 'scheduled' || !dueDate) return '';
+
+  const completion = getCycleCompletionFromLogs(logs, task, dueDate);
+  if (!completion.isOpen) return '';
+
+  const cycleId = getCycleId(task.id, dueDate, dueDate);
+
+  const cycleLogs = (logs || [])
+    .filter(log => !log.isDummy && log.taskId === task.id && log.cycleId === cycleId)
+    .sort((a, b) => {
+      if ((a.createdAt || '') !== (b.createdAt || '')) {
+        return (a.createdAt || '').localeCompare(b.createdAt || '');
+      }
+
+      return (a.date || '').localeCompare(b.date || '');
+    });
+
+  const assignedPerson = normalizeName(
+    cycleLogs.find(log => normalizeName(log.assignedPerson))?.assignedPerson
+  );
+
+  if (!assignedPerson) return '';
+
+  const checkDate = date || todayIso();
+
+  if (isPersonUnavailable(absences, assignedPerson, checkDate)) {
+    return '';
+  }
+
+  return assignedPerson;
+}
+
 export function getRawTaskDueDate(state, taskId) {
   const task = (state.tasks || []).find(item => item.id === taskId);
   if (!task) return null;

@@ -182,6 +182,8 @@ const translations = {
     awayFrom: 'Away from',
     awayUntil: 'Away until',
     reason: 'Reason',
+    partiallyCompleted: 'Partially completed',
+    completedParts: 'Completed',
     addAway: 'Save vacation dates',
     yourAwayDates: 'Your saved vacation dates',
     noAwayDates: 'No vacation dates saved',
@@ -342,6 +344,8 @@ const translations = {
     awayFrom: 'Abwesend von',
     awayUntil: 'Abwesend bis',
     reason: 'Grund',
+    partiallyCompleted: 'Teilweise erledigt',
+    completedParts: 'Erledigt',
     addAway: 'Urlaub speichern',
     yourAwayDates: 'Deine gespeicherten Urlaubszeiten',
     noAwayDates: 'Kein Urlaub gespeichert',
@@ -518,6 +522,91 @@ function getDueDateFromLastLog(task, last) {
   }
 
   return null;
+}
+
+function getCycleCompletionFromLogs(logs, task, dueDate) {
+  const subtasks = task?.subtasks || [];
+
+  if (!subtasks.length || !dueDate) {
+    return {
+      completed: [],
+      pending: [],
+      ratio: 1,
+      isOpen: false
+    };
+  }
+
+  const cycleId = `${task.id}:${dueDate}`;
+  const completedIds = new Set();
+
+  for (const log of logs || []) {
+    if (log.isDummy) continue;
+    if (log.taskId !== task.id) continue;
+    if (log.cycleId !== cycleId) continue;
+
+    for (const subtask of log.completedSubtasks || []) {
+      completedIds.add(subtask.id);
+    }
+  }
+
+  const completed = subtasks.filter(subtask => completedIds.has(subtask.id));
+  const pending = subtasks.filter(subtask => !completedIds.has(subtask.id));
+
+  const totalWeight = subtasks.reduce(
+    (sum, subtask) => sum + Number(subtask.weight || 1),
+    0
+  );
+
+  const completedWeight = completed.reduce(
+    (sum, subtask) => sum + Number(subtask.weight || 1),
+    0
+  );
+
+  const ratio = totalWeight > 0 ? completedWeight / totalWeight : 1;
+
+  return {
+    completed,
+    pending,
+    ratio,
+    isOpen: pending.length > 0 && ratio < 1
+  };
+}
+
+function getOpenCycleAssignedPerson({
+  logs,
+  task,
+  dueDate,
+  absences = [],
+  date = TODAY
+}) {
+  if (!task || task.type !== 'scheduled' || !dueDate) return '';
+
+  const completion = getCycleCompletionFromLogs(logs, task, dueDate);
+  if (!completion.isOpen) return '';
+
+  const cycleId = `${task.id}:${dueDate}`;
+
+  const cycleLogs = (logs || [])
+    .filter(log => !log.isDummy && log.taskId === task.id && log.cycleId === cycleId)
+    .sort((a, b) => {
+      if ((a.createdAt || '') !== (b.createdAt || '')) {
+        return (a.createdAt || '').localeCompare(b.createdAt || '');
+      }
+
+      return (a.date || '').localeCompare(b.date || '');
+    });
+
+  const assignedPerson = normalizeName(
+    cycleLogs.find(log => normalizeName(log.assignedPerson))?.assignedPerson
+  );
+
+  if (!assignedPerson) return '';
+
+  if (isPersonUnavailable(absences, assignedPerson, date)) {
+    return '';
+  }
+
+  return assignedPerson;
 }
 
 function getRawTaskDueDate(state, taskId) {
@@ -949,43 +1038,7 @@ function App() {
   }
 
   function getCycleCompletion(row) {
-    const subtasks = row.task.subtasks || [];
-
-    if (!subtasks.length || !row.dueDate) {
-      return { completed: [], pending: [], ratio: 1 };
-    }
-
-    const cycleId = `${row.task.id}:${row.dueDate}`;
-    const completedIds = new Set();
-
-    for (const log of data.logs || []) {
-      if (log.isDummy) continue;
-      if (log.taskId !== row.task.id) continue;
-      if (log.cycleId !== cycleId) continue;
-
-      for (const subtask of log.completedSubtasks || []) {
-        completedIds.add(subtask.id);
-      }
-    }
-
-    const completed = subtasks.filter(subtask => completedIds.has(subtask.id));
-    const pending = subtasks.filter(subtask => !completedIds.has(subtask.id));
-
-    const totalWeight = subtasks.reduce(
-      (sum, subtask) => sum + Number(subtask.weight || 1),
-      0
-    );
-
-    const completedWeight = completed.reduce(
-      (sum, subtask) => sum + Number(subtask.weight || 1),
-      0
-    );
-
-    return {
-      completed,
-      pending,
-      ratio: totalWeight > 0 ? completedWeight / totalWeight : 1
-    };
+    return getCycleCompletionFromLogs(data?.logs || [], row.task, row.dueDate);
   }
 
   function getMyDueRows(allRows) {
@@ -1394,15 +1447,23 @@ function App() {
     const vacuum = base.find(row => row.task.id === 'vacuum');
 
     if (deep && vacuum && shouldBundleVacuumWithDeep(vacuum, deep)) {
-      const originalVacuumPerson = fairPersonForDate(
-        data.flatmates,
-        allLogsForScheduling,
-        vacuum.task,
-        activePeriodId,
-        plannedLoad,
-        data.absences,
-        vacuum.dueDate
-      );
+      const originalVacuumPerson =
+        getOpenCycleAssignedPerson({
+          logs: allLogsForScheduling,
+          task: vacuum.task,
+          dueDate: vacuum.dueDate,
+          absences: data.absences,
+          date: TODAY
+        }) ||
+        fairPersonForDate(
+          data.flatmates,
+          allLogsForScheduling,
+          vacuum.task,
+          activePeriodId,
+          plannedLoad,
+          data.absences,
+          vacuum.dueDate
+        );
 
       const combinedTask = {
         ...deep.task,
@@ -1470,7 +1531,15 @@ function App() {
 
       const assignmentDate = row.task.type === 'scheduled' ? row.dueDate : null;
 
-      row.person = fairPersonForDate(
+      const openCycleAssignedPerson = getOpenCycleAssignedPerson({
+        logs: allLogsForScheduling,
+        task: row.task,
+        dueDate: row.dueDate,
+        absences: data.absences,
+        date: TODAY
+      });
+
+      row.person = openCycleAssignedPerson || fairPersonForDate(
         data.flatmates,
         allLogsForScheduling,
         row.task,
@@ -2098,7 +2167,19 @@ function App() {
                 {fmt(log.date, '', lang)} {t.by}{' '}
                 {normalizeName(log.actualPerson || log.person)}
               </span>
-              {log.note && <small>{log.note}</small>}
+              {log.isPartial && log.completedSubtasks?.length > 0 ? (
+              <small>
+                {t.partiallyCompleted}: {log.completedSubtasks
+                  .map(subtask => {
+                    const task = taskById[log.taskId];
+                    const fullSubtask = task?.subtasks?.find(item => item.id === subtask.id);
+                    return fullSubtask ? getSubtaskName(fullSubtask) : subtask.id;
+                  })
+                  .join(', ')}
+              </small>
+            ) : (
+              log.note && <small>{log.note}</small>
+            )}
             </div>
           ))}
         </div>

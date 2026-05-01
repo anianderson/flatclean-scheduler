@@ -3,6 +3,7 @@ import {
   getActivePeriod,
   getDueDateFromLastLog,
   getMinimumNextFloorDate,
+  getOpenCycleAssignedPerson,
   getRawTaskDueDate,
   json,
   lastLog,
@@ -107,7 +108,16 @@ async function getTaskInfo(state, taskId) {
   const last = lastLog(state.logs, taskId);
   const dueDate = getDueDateFromLastLog(task, last);
   const activePeriod = getActivePeriod(state);
-  const assignedPerson = fairPersonForDate({
+
+  const openCycleAssignedPerson = getOpenCycleAssignedPerson({
+    logs: state.logs,
+    task,
+    dueDate,
+    absences: state.absences,
+    date: todayIso()
+  });
+
+  const assignedPerson = openCycleAssignedPerson || fairPersonForDate({
     people: state.flatmates,
     logs: state.logs,
     task,

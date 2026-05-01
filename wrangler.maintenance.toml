@@ -1,0 +1,19 @@
+name = "flatclean-maintenance"
+main = "maintenance-worker.js"
+compatibility_date = "2026-04-30"
+
+# Runs every 2 hours. Cron trigger times are UTC.
+[triggers]
+crons = ["0 */2 * * *"]
+
+# Put non-secret values here, or set them in the Cloudflare dashboard.
+[vars]
+GMAIL_FROM_NAME = "Flat Cleaning Schedule"
+
+# Bind this Worker to the SAME D1 database used by your Pages app.
+# Fill these two values from Cloudflare Dashboard > Workers & Pages > D1 SQL Database > your DB > Settings,
+# or run: npx wrangler d1 list
+[[d1_databases]]
+binding = "DB"
+database_name = "flatclean_db"
+database_id = "047b8f83-65f5-49e4-be72-65972a0347e9"

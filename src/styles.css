@@ -1919,3 +1919,33 @@ button:disabled {
   color: #b45309;
   font-weight: 850;
 }
+
+.hero-home-link {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hero-home-link h1 {
+  margin: 0;
+}
+
+.hero-home-link:hover h1,
+.hero-home-link:focus-visible h1 {
+  text-decoration: underline;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.08em;
+}
+
+.hero-home-link:focus-visible {
+  outline: 3px solid rgba(99, 102, 241, 0.45);
+  outline-offset: 6px;
+  border-radius: 18px;
+}

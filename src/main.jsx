@@ -2769,12 +2769,20 @@ function App() {
       <main className="page" id="top">
         <section className="hero dashboard-hero compact-hero compact-header">
           <div className="hero-main">
-            <div className="eyebrow">
-              <Sparkles size={16} />
-              {t.badge}
-            </div>
+            <button
+              type="button"
+              className="hero-home-link"
+              onClick={() => jumpTo('dashboard')}
+              aria-label={t.dashboard}
+            >
+              <div className="eyebrow">
+                <Sparkles size={16} />
+                {t.badge}
+              </div>
 
-            <h1>{t.title}</h1>
+              <h1>{t.title}</h1>
+            </button>
+
             <p className="sub hero-subtitle">
               {t.subtitle}{' '}
               <a

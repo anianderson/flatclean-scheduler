@@ -327,7 +327,11 @@ export function calculateScores(people, logs, task, activePeriodId = null) {
       );
 
     if (wasOverdueForSomeoneElse) {
-      scores[assignedPerson] = (scores[assignedPerson] || 0) - 1;
+      const penalty =
+        Number(task?.baseWeight || 1) *
+        Number(log.completionRatio || 1);
+
+      scores[assignedPerson] = (scores[assignedPerson] || 0) - penalty;
     }
   }
 
@@ -479,9 +483,21 @@ export function buildScoreSummary(state, periodId = null) {
       );
 
     if (someoneElseCoveredOverdue) {
-      if (!byPerson[assigned]) byPerson[assigned] = { person: assigned, positive: 0, negative: 0, total: 0 };
-      byPerson[assigned].negative -= 1;
-      byPerson[assigned].total -= 1;
+      const penalty =
+        Number(task?.baseWeight || 1) *
+        Number(log.completionRatio || 1);
+
+      if (!byPerson[assigned]) {
+        byPerson[assigned] = {
+          person: assigned,
+          positive: 0,
+          negative: 0,
+          total: 0
+        };
+      }
+
+      byPerson[assigned].negative -= penalty;
+      byPerson[assigned].total -= penalty;
     }
   }
 

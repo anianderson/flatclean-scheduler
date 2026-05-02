@@ -207,6 +207,11 @@ const translations = {
     noOneOnVacationToday: 'No one is on vacation today',
     vacuumMovedToMopping:
       'Vacuuming was overdue and has been moved to the mopping date.',
+    vacuumRecentlyDoneForMop: 'Vacuuming was already completed recently.',
+    vacuumRecentlyDoneForMopHelp:
+      date => `Vacuuming was completed on ${date}. If mopping is done within 5 days of that vacuuming, vacuuming is not mandatory again and mopping points are not reduced.`,
+    vacuumNotMandatoryThisMop:
+      'Vacuuming is not mandatory for this mopping because it was completed recently.',
     missedVacuumBy:
       person => `${person} missed the original vacuum duty.`,
     moppingComesFirst:
@@ -369,6 +374,11 @@ const translations = {
     noOneOnVacationToday: 'Heute ist niemand im Urlaub',
     vacuumMovedToMopping:
       'Staubsaugen war überfällig und wurde auf den Nasswisch-Termin verschoben.',
+    vacuumRecentlyDoneForMop: 'Staubsaugen wurde kürzlich erledigt.',
+    vacuumRecentlyDoneForMopHelp:
+      date => `Staubsaugen wurde am ${date} erledigt. Wenn Nasswischen innerhalb von 5 Tagen danach erledigt wird, ist erneutes Staubsaugen nicht verpflichtend und die Punkte fürs Nasswischen werden nicht reduziert.`,
+    vacuumNotMandatoryThisMop:
+      'Staubsaugen ist für dieses Nasswischen nicht verpflichtend, weil es kürzlich erledigt wurde.',
     missedVacuumBy:
       person => `${person} hat die ursprüngliche Staubsaug-Aufgabe verpasst.`,
     moppingComesFirst:
@@ -1024,6 +1034,31 @@ function App() {
     return data?.tasks?.find(task => task.id === taskId)?.subtasks || [];
   }
 
+  function isStandaloneVacuumLog(log) {
+    if (!log || log.isDummy) return false;
+    if (log.taskId !== 'vacuum') return false;
+
+    return ![
+      'auto_included',
+      'auto_included_overdue_for_other'
+    ].includes(log.completionType);
+  }
+
+  function getRecentStandaloneVacuumForMoppingDate(moppingDate) {
+    if (!moppingDate) return null;
+
+    return (data?.logs || [])
+      .filter(isStandaloneVacuumLog)
+      .filter(log => {
+        const gap = diffDays(log.date, moppingDate);
+        return gap !== null && gap >= 0 && gap <= FLOOR_BUNDLE_WINDOW_DAYS;
+      })
+      .sort((a, b) => {
+        if (b.date !== a.date) return b.date.localeCompare(a.date);
+        return (b.createdAt || '').localeCompare(a.createdAt || '');
+      })[0] || null;
+  }
+
   function getAllSubtaskIds(taskId) {
     return getTaskSubtasks(taskId).map(subtask => subtask.id);
   }
@@ -1126,7 +1161,10 @@ function App() {
     const subtasks = row.task.subtasks || [];
     setSelectedSubtasks(subtasks.map(subtask => subtask.id));
 
-    if (row.task.id === 'deep_water') setIncludeVacuumWithDeep(true);
+    if (row.task.id === 'deep_water') {
+      const recentVacuum = getRecentStandaloneVacuumForMoppingDate(TODAY);
+      setIncludeVacuumWithDeep(!recentVacuum);
+    }
   }
 
   function closeTaskModal() {
@@ -1680,17 +1718,19 @@ function App() {
         ...form,
         person: normalizeName(currentUser),
 
-        // These are the subtasks for the task the user is directly completing.
         completedSubtaskIds: selectedSubtasks,
 
-        // Important:
-        // If mopping includes vacuum, the bundled vacuum should be full vacuum again.
-        // Do NOT reuse old partial vacuum progress.
-        alsoLogSubtaskIds: isMopping
-          ? getAllSubtaskIds('vacuum')
-          : selectedSubtasks,
+        // If mopping also includes vacuum, only auto-log vacuum for the same
+        // areas/parts that were selected for mopping.
+        alsoLogSubtaskIds: selectedSubtasks,
 
-        includeAlsoLogs: isMopping ? includeVacuumWithDeep : true,
+        // Recent standalone vacuum no longer blocks the Yes option.
+        // If user says Yes, vacuum is logged for selected areas.
+        // If user says No and recent vacuum exists, backend gives no mopping penalty.
+        includeAlsoLogs: isMopping
+          ? includeVacuumWithDeep
+          : true,
+
         isDummy: false
       });
 
@@ -1792,34 +1832,74 @@ function App() {
             placeholder={t.selectPlaceholder}
           />
 
-          {form.taskId === 'deep_water' && (
-            <div className="vacuum-question">
-              <div>
-                <b>{t.didVacuumQuestion}</b>
-                <p>{t.didVacuumHelp}</p>
-              </div>
+          {form.taskId === 'deep_water' && (() => {
+            const recentVacuum = getRecentStandaloneVacuumForMoppingDate(form.date);
 
-              <div className="vacuum-choice-row">
-                <button
-                  type="button"
-                  className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
-                  onClick={() => setIncludeVacuumWithDeep(true)}
-                >
-                  <CheckCircle2 size={18} />
-                  {t.yesVacuumDone}
-                </button>
+            if (recentVacuum) {
+              return (
+                <div className="vacuum-question">
+                  <div>
+                    <b>{t.vacuumRecentlyDoneForMop}</b>
+                    <p>
+                      {t.vacuumRecentlyDoneForMopHelp(
+                        fmt(recentVacuum.date, '', lang)
+                      )}
+                    </p>
+                    <p>{t.didVacuumHelp}</p>
+                  </div>
 
-                <button
-                  type="button"
-                  className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
-                  onClick={() => setIncludeVacuumWithDeep(false)}
-                >
-                  <X size={18} />
-                  {t.noVacuumDone}
-                </button>
+                  <div className="vacuum-choice-row">
+                    <button
+                      type="button"
+                      className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+                      onClick={() => setIncludeVacuumWithDeep(true)}
+                    >
+                      <CheckCircle2 size={18} />
+                      {t.yesVacuumDone}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+                      onClick={() => setIncludeVacuumWithDeep(false)}
+                    >
+                      <X size={18} />
+                      {t.noVacuumDone}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className="vacuum-question">
+                <div>
+                  <b>{t.didVacuumQuestion}</b>
+                  <p>{t.didVacuumHelp}</p>
+                </div>
+
+                <div className="vacuum-choice-row">
+                  <button
+                    type="button"
+                    className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+                    onClick={() => setIncludeVacuumWithDeep(true)}
+                  >
+                    <CheckCircle2 size={18} />
+                    {t.yesVacuumDone}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+                    onClick={() => setIncludeVacuumWithDeep(false)}
+                  >
+                    <X size={18} />
+                    {t.noVacuumDone}
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {renderSubtaskSelector()}
 
@@ -1873,6 +1953,10 @@ function App() {
     const [label, tone] = status(row, data.fullBins || {}, t);
     const isMine = normalizeName(row.person) === normalizeName(currentUser);
     const completion = getCycleCompletion(row);
+    const recentVacuumForBundledMop =
+      row.task.id === 'deep_water'
+        ? getRecentStandaloneVacuumForMoppingDate(row.dueDate)
+        : null;
 
     const showPendingSubtasks =
       completion.pending.length > 0 &&
@@ -1922,7 +2006,9 @@ function App() {
           {row.bundledVacuumRow && (
             <div className="bundle-pill">
               <CheckCircle2 size={16} />
-              {t.deepIncludesVacuum}
+              {recentVacuumForBundledMop
+                ? t.vacuumNotMandatoryThisMop
+                : t.deepIncludesVacuum}
             </div>
           )}
 
@@ -3077,34 +3163,74 @@ function App() {
               </button>
             </div>
 
-            {modalTask.task.id === 'deep_water' && (
-              <div className="vacuum-question">
-                <div>
-                  <b>{t.didVacuumQuestion}</b>
-                  <p>{t.didVacuumHelp}</p>
-                </div>
+            {modalTask.task.id === 'deep_water' && (() => {
+              const recentVacuum = getRecentStandaloneVacuumForMoppingDate(form.date);
 
-                <div className="vacuum-choice-row">
-                  <button
-                    type="button"
-                    className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
-                    onClick={() => setIncludeVacuumWithDeep(true)}
-                  >
-                    <CheckCircle2 size={18} />
-                    {t.yesVacuumDone}
-                  </button>
+              if (recentVacuum) {
+                return (
+                  <div className="vacuum-question">
+                    <div>
+                      <b>{t.vacuumRecentlyDoneForMop}</b>
+                      <p>
+                        {t.vacuumRecentlyDoneForMopHelp(
+                          fmt(recentVacuum.date, '', lang)
+                        )}
+                      </p>
+                      <p>{t.didVacuumHelp}</p>
+                    </div>
 
-                  <button
-                    type="button"
-                    className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
-                    onClick={() => setIncludeVacuumWithDeep(false)}
-                  >
-                    <X size={18} />
-                    {t.noVacuumDone}
-                  </button>
+                    <div className="vacuum-choice-row">
+                      <button
+                        type="button"
+                        className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+                        onClick={() => setIncludeVacuumWithDeep(true)}
+                      >
+                        <CheckCircle2 size={18} />
+                        {t.yesVacuumDone}
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+                        onClick={() => setIncludeVacuumWithDeep(false)}
+                      >
+                        <X size={18} />
+                        {t.noVacuumDone}
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="vacuum-question">
+                  <div>
+                    <b>{t.didVacuumQuestion}</b>
+                    <p>{t.didVacuumHelp}</p>
+                  </div>
+
+                  <div className="vacuum-choice-row">
+                    <button
+                      type="button"
+                      className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+                      onClick={() => setIncludeVacuumWithDeep(true)}
+                    >
+                      <CheckCircle2 size={18} />
+                      {t.yesVacuumDone}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+                      onClick={() => setIncludeVacuumWithDeep(false)}
+                    >
+                      <X size={18} />
+                      {t.noVacuumDone}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {renderSubtaskSelector()}
 

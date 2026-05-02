@@ -1,4 +1,6 @@
 import {
+  FLOOR_BUNDLE_WINDOW_DAYS,
+  diffDays,
   fairPersonForDate,
   getActivePeriod,
   getDueDateFromLastLog,
@@ -9,6 +11,7 @@ import {
   lastLog,
   normalizeName,
   readState,
+  shouldBundleFloorTasks,
   wasPersonUnavailableBetween,
   addDays,
   todayIso
@@ -41,22 +44,28 @@ function getCompletionType({ task, assignedPerson, actualPerson, scheduledDueDat
   return someoneElseDidIt ? 'completed_by_other_late' : 'late';
 }
 
-function getCreditWeight(completionType, taskBaseWeight, completionRatio) {
+function getCreditWeight(completionType, taskBaseWeight, completionRatio, creditFactor = 1) {
   const base = Number(taskBaseWeight || 1);
   const ratio = Number(completionRatio || 1);
 
+  let weight;
+
   switch (completionType) {
     case 'completed_by_other_late':
-      return base * ratio * 1.25;
+      weight = base * ratio * 1.25;
+      break;
     case 'auto_included':
-      return base * ratio * 0.5;
+      weight = base * ratio * 0.5;
+      break;
     case 'auto_included_overdue_for_other':
-      return base * ratio * 1.5;
-    case 'deep_without_vacuum':
-      return base * ratio * DEEP_WITHOUT_VACUUM_FACTOR;
+      weight = base * ratio * 1.5;
+      break;
     default:
-      return base * ratio;
+      weight = base * ratio;
+      break;
   }
+
+  return weight * Number(creditFactor || 1);
 }
 
 function calculateNextDueDate({
@@ -81,6 +90,56 @@ function calculateNextDueDate({
   return addDays(anchorDate, intervalDays);
 }
 
+function isStandaloneVacuumLog(log) {
+  if (!log || log.isDummy) return false;
+  if (log.taskId !== 'vacuum') return false;
+
+  return ![
+    'auto_included',
+    'auto_included_overdue_for_other'
+  ].includes(log.completionType);
+}
+
+function getRecentStandaloneVacuumForMoppingDate(state, moppingDoneDate, requiredSubtaskIds = []) {
+  if (!moppingDoneDate) return null;
+
+  const requiredIds = new Set(
+    Array.isArray(requiredSubtaskIds) ? requiredSubtaskIds.filter(Boolean) : []
+  );
+
+  const recentLogs = (state.logs || [])
+    .filter(isStandaloneVacuumLog)
+    .filter(log => {
+      const gap = diffDays(log.date, moppingDoneDate);
+      return gap !== null && gap >= 0 && gap <= FLOOR_BUNDLE_WINDOW_DAYS;
+    })
+    .sort((a, b) => {
+      if (b.date !== a.date) return b.date.localeCompare(a.date);
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
+
+  if (!requiredIds.size) return recentLogs[0] || null;
+
+  const coveredIds = new Set();
+
+  for (const log of recentLogs) {
+    for (const subtask of log.completedSubtasks || []) {
+      coveredIds.add(subtask.id);
+    }
+  }
+
+  const allRequiredCovered = [...requiredIds].every(id => coveredIds.has(id));
+
+  return allRequiredCovered ? recentLogs[0] || null : null;
+}
+
+function isVacuumCurrentlyBundledWithMopping(state) {
+  const vacuumDueDate = getRawTaskDueDate(state, 'vacuum');
+  const moppingDueDate = getRawTaskDueDate(state, 'deep_water');
+
+  return shouldBundleFloorTasks(vacuumDueDate, moppingDueDate);
+}
+
 async function shiftMoppingIfTooCloseAfterVacuum({ env, stateBefore, vacuumDoneDate }) {
   const currentMoppingDue = getRawTaskDueDate(stateBefore, 'deep_water');
   if (!currentMoppingDue) return;
@@ -98,6 +157,24 @@ async function shiftMoppingIfTooCloseAfterVacuum({ env, stateBefore, vacuumDoneD
     WHERE id = ?
   `)
     .bind(minimumMoppingDate, latestDeepLog.id)
+    .run();
+}
+
+async function resetVacuumScheduleAfterMopping({ env, stateBefore, moppingDoneDate }) {
+  const vacuumTask = stateBefore.tasks.find(task => task.id === 'vacuum');
+  if (!vacuumTask?.intervalDays) return;
+
+  const nextVacuumDueDate = addDays(moppingDoneDate, vacuumTask.intervalDays);
+  const latestVacuumLog = lastLog(stateBefore.logs, 'vacuum');
+
+  if (!latestVacuumLog?.id) return;
+
+  await env.DB.prepare(`
+    UPDATE logs
+    SET next_due_date = ?
+    WHERE id = ?
+  `)
+    .bind(nextVacuumDueDate, latestVacuumLog.id)
     .run();
 }
 
@@ -256,7 +333,8 @@ async function completeTask({
   note,
   completedSubtaskIds,
   forcedCompletionType,
-  forcedNote
+  forcedNote,
+  creditFactor = 1
 }) {
   const info = await getTaskInfo(stateBefore, taskId);
   if (!info) return { error: 'Unknown chore' };
@@ -295,7 +373,12 @@ async function completeTask({
       completionType === 'auto_included_overdue_for_other'
   });
 
-  const creditWeight = getCreditWeight(completionType, info.task.baseWeight, completion.selectedRatio);
+  const creditWeight = getCreditWeight(
+    completionType,
+    info.task.baseWeight,
+    completion.selectedRatio,
+    creditFactor
+  );
 
   const logId = await insertCompletionLog({
     env,
@@ -446,16 +529,52 @@ async function sendMilestoneEmails(env, stateAfter) {
 
 export async function onRequestPost({ request, env }) {
   const body = await request.json();
-  const { taskId, person, date, note, completedSubtaskIds, includeAlsoLogs = true, alsoLogSubtaskIds } = body;
+  const {
+    taskId,
+    person,
+    date,
+    note,
+    completedSubtaskIds,
+    includeAlsoLogs = true,
+    alsoLogSubtaskIds
+  } = body;
 
-  if (!taskId || !person || !date) return json({ error: 'Please choose a chore, profile, and date.' }, 400);
-  if (date > todayIso()) return json({ error: 'Future dates are not allowed.' }, 400);
+  if (!taskId || !person || !date) {
+    return json({ error: 'Please choose a chore, profile, and date.' }, 400);
+  }
+
+  if (date > todayIso()) {
+    return json({ error: 'Future dates are not allowed.' }, 400);
+  }
 
   const actualPerson = normalizeName(person);
   const stateBefore = await readState(env);
   const completionResults = [];
 
-  const deepWithoutVacuum = taskId === 'deep_water' && includeAlsoLogs === false;
+  const recentStandaloneVacuumForMopping =
+    taskId === 'deep_water'
+      ? getRecentStandaloneVacuumForMoppingDate(
+          stateBefore,
+          date,
+          completedSubtaskIds
+        )
+      : null;
+
+  // Important:
+  // Do NOT force includeAlsoLogs to false when recent vacuum exists.
+  // Recent vacuum only means "No vacuum again" should not reduce mopping points.
+  // If the user still selects "Yes, vacuuming was also done", we should log vacuum too.
+  const effectiveIncludeAlsoLogs = includeAlsoLogs;
+
+  const deepWithoutVacuum =
+    taskId === 'deep_water' &&
+    effectiveIncludeAlsoLogs === false &&
+    !recentStandaloneVacuumForMopping;
+
+  const moppingWithoutVacuumButAllowed =
+    taskId === 'deep_water' &&
+    effectiveIncludeAlsoLogs === false &&
+    !!recentStandaloneVacuumForMopping;
 
   const mainResult = await completeTask({
     env,
@@ -465,20 +584,31 @@ export async function onRequestPost({ request, env }) {
     date,
     note,
     completedSubtaskIds,
-    forcedCompletionType: deepWithoutVacuum ? 'deep_without_vacuum' : undefined,
-    forcedNote: deepWithoutVacuum
-      ? `${note || 'Marked as done'} — vacuuming was not included, so mopping points were reduced.`
-      : undefined
+    forcedCompletionType: undefined,
+    creditFactor: deepWithoutVacuum ? DEEP_WITHOUT_VACUUM_FACTOR : 1,
+    forcedNote:
+      deepWithoutVacuum
+        ? `${note || 'Marked as done'} — vacuuming was not included, so mopping points were reduced.`
+        : moppingWithoutVacuumButAllowed
+          ? `${note || 'Marked as done'} — vacuuming was already completed recently, so it was not required again for this mopping.`
+          : undefined
   });
 
-  if (mainResult.error) return json({ error: mainResult.error }, 400);
+  if (mainResult.error) {
+    return json({ error: mainResult.error }, 400);
+  }
+
   completionResults.push(mainResult);
 
   const mainTask = mainResult.info.task;
 
+  // Important:
+  // If vacuum is currently bundled with mopping, manual standalone vacuum completion
+  // must NOT push the mopping date forward.
   if (
     taskId === 'vacuum' &&
-    mainResult.completion?.aggregateRatio >= ADVANCE_THRESHOLD
+    mainResult.completion?.aggregateRatio >= ADVANCE_THRESHOLD &&
+    !isVacuumCurrentlyBundledWithMopping(stateBefore)
   ) {
     await shiftMoppingIfTooCloseAfterVacuum({
       env,
@@ -487,7 +617,7 @@ export async function onRequestPost({ request, env }) {
     });
   }
 
-  if (includeAlsoLogs && mainTask.alsoLogs?.length) {
+  if (effectiveIncludeAlsoLogs && mainTask.alsoLogs?.length) {
     for (const extraTaskId of mainTask.alsoLogs) {
       const updatedState = await readState(env);
       const extraInfo = await getTaskInfo(updatedState, extraTaskId);
@@ -496,7 +626,12 @@ export async function onRequestPost({ request, env }) {
       const assignedWasUnavailable =
         extraInfo.assignedPerson &&
         extraInfo.dueDate &&
-        wasPersonUnavailableBetween(updatedState.absences, extraInfo.assignedPerson, extraInfo.dueDate, date);
+        wasPersonUnavailableBetween(
+          updatedState.absences,
+          extraInfo.assignedPerson,
+          extraInfo.dueDate,
+          date
+        );
 
       const overdueForSomeoneElse =
         extraInfo.task.type !== 'on_demand' &&
@@ -506,14 +641,14 @@ export async function onRequestPost({ request, env }) {
         extraInfo.assignedPerson &&
         normalizeName(extraInfo.assignedPerson) !== actualPerson;
 
-      const completionType = overdueForSomeoneElse ? 'auto_included_overdue_for_other' : 'auto_included';
+      const completionType = overdueForSomeoneElse
+        ? 'auto_included_overdue_for_other'
+        : 'auto_included';
 
       const bundledSubtaskIds =
-        taskId === 'deep_water' && extraTaskId === 'vacuum'
-          ? (extraInfo.task.subtasks || []).map(subtask => subtask.id)
-          : Array.isArray(alsoLogSubtaskIds)
-            ? alsoLogSubtaskIds
-            : completedSubtaskIds;
+        Array.isArray(alsoLogSubtaskIds)
+          ? alsoLogSubtaskIds
+          : completedSubtaskIds;
 
       const extraResult = await completeTask({
         env,
@@ -524,12 +659,33 @@ export async function onRequestPost({ request, env }) {
         completedSubtaskIds: bundledSubtaskIds,
         forcedCompletionType: completionType,
         forcedNote: overdueForSomeoneElse
-          ? `Automatically added because mopping includes full vacuuming again. The old vacuum task was overdue for ${extraInfo.assignedPerson}.`
-          : `Automatically added because mopping includes full vacuuming again.`
+          ? `Automatically added because mopping included vacuuming for the selected areas. The old vacuum task was overdue for ${extraInfo.assignedPerson}.`
+          : `Automatically added because mopping included vacuuming for the selected areas.`
       });
 
       if (extraResult.ok) completionResults.push(extraResult);
     }
+  }
+
+  // Important:
+  // Mopping always resets the next standalone vacuum schedule when mopping advances.
+  // This happens whether the user selected:
+  // - Yes, vacuuming was also done
+  // - No, only mopping was done
+  //
+  // If vacuum was also logged above, this update is harmless because it anchors
+  // the next vacuum date to the same mopping date.
+  if (
+    taskId === 'deep_water' &&
+    mainResult.completion?.aggregateRatio >= ADVANCE_THRESHOLD
+  ) {
+    const latestState = await readState(env);
+
+    await resetVacuumScheduleAfterMopping({
+      env,
+      stateBefore: latestState,
+      moppingDoneDate: date
+    });
   }
 
   const stateAfter = await readState(env);

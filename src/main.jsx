@@ -1024,6 +1024,10 @@ function App() {
     return data?.tasks?.find(task => task.id === taskId)?.subtasks || [];
   }
 
+  function getAllSubtaskIds(taskId) {
+    return getTaskSubtasks(taskId).map(subtask => subtask.id);
+  }
+
   function setAllSubtasksForTask(taskId) {
     const subtasks = getTaskSubtasks(taskId);
     setSelectedSubtasks(subtasks.map(subtask => subtask.id));
@@ -1670,12 +1674,23 @@ function App() {
 
       setSaving(true);
 
+      const isMopping = form.taskId === 'deep_water';
+
       await apiPost('/api/log', {
         ...form,
         person: normalizeName(currentUser),
+
+        // These are the subtasks for the task the user is directly completing.
         completedSubtaskIds: selectedSubtasks,
-        alsoLogSubtaskIds: selectedSubtasks,
-        includeAlsoLogs: form.taskId === 'deep_water' ? includeVacuumWithDeep : true,
+
+        // Important:
+        // If mopping includes vacuum, the bundled vacuum should be full vacuum again.
+        // Do NOT reuse old partial vacuum progress.
+        alsoLogSubtaskIds: isMopping
+          ? getAllSubtaskIds('vacuum')
+          : selectedSubtasks,
+
+        includeAlsoLogs: isMopping ? includeVacuumWithDeep : true,
         isDummy: false
       });
 

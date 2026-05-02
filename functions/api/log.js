@@ -325,7 +325,15 @@ async function completeTask({
       .run();
   }
 
-  return { ok: true, logId, info, completionType, creditWeight, selectedSubtasks };
+  return {
+    ok: true,
+    logId,
+    info,
+    completionType,
+    creditWeight,
+    selectedSubtasks,
+    completion
+  };
 }
 
 function getProfile(state, person) {
@@ -468,7 +476,10 @@ export async function onRequestPost({ request, env }) {
 
   const mainTask = mainResult.info.task;
 
-  if (taskId === 'vacuum') {
+  if (
+    taskId === 'vacuum' &&
+    mainResult.completion?.aggregateRatio >= ADVANCE_THRESHOLD
+  ) {
     await shiftMoppingIfTooCloseAfterVacuum({
       env,
       stateBefore,
@@ -497,17 +508,24 @@ export async function onRequestPost({ request, env }) {
 
       const completionType = overdueForSomeoneElse ? 'auto_included_overdue_for_other' : 'auto_included';
 
+      const bundledSubtaskIds =
+        taskId === 'deep_water' && extraTaskId === 'vacuum'
+          ? (extraInfo.task.subtasks || []).map(subtask => subtask.id)
+          : Array.isArray(alsoLogSubtaskIds)
+            ? alsoLogSubtaskIds
+            : completedSubtaskIds;
+
       const extraResult = await completeTask({
         env,
         stateBefore: updatedState,
         taskId: extraTaskId,
         actualPerson,
         date,
-        completedSubtaskIds: Array.isArray(alsoLogSubtaskIds) ? alsoLogSubtaskIds : completedSubtaskIds,
+        completedSubtaskIds: bundledSubtaskIds,
         forcedCompletionType: completionType,
         forcedNote: overdueForSomeoneElse
-          ? `Automatically added because this chore includes ${extraTaskId}. It was overdue for ${extraInfo.assignedPerson}.`
-          : `Automatically added because this chore includes ${extraTaskId}.`
+          ? `Automatically added because mopping includes full vacuuming again. The old vacuum task was overdue for ${extraInfo.assignedPerson}.`
+          : `Automatically added because mopping includes full vacuuming again.`
       });
 
       if (extraResult.ok) completionResults.push(extraResult);

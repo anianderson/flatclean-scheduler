@@ -327,10 +327,7 @@ export function calculateScores(people, logs, task, activePeriodId = null) {
       );
 
     if (wasOverdueForSomeoneElse) {
-      const penalty =
-        Number(task?.baseWeight || 1) *
-        Number(log.completionRatio || 1);
-
+      const penalty = getPenaltyForCoveredOverdueLog(log, task);
       scores[assignedPerson] = (scores[assignedPerson] || 0) - penalty;
     }
   }
@@ -388,6 +385,22 @@ export function fairPersonForDate({ people, logs, task, activePeriodId = null, p
 
 function round(value) {
   return Number(Number(value || 0).toFixed(2));
+}
+
+function getPenaltyForCoveredOverdueLog(log, fallbackTask = null) {
+  const creditWeight = Number(log?.creditWeight || 0);
+  const completionRatio = Number(log?.completionRatio || 1);
+  const fallbackBase = Number(fallbackTask?.baseWeight || 1);
+
+  if (log?.completionType === 'completed_by_other_late') {
+    return creditWeight > 0 ? creditWeight / 1.25 : fallbackBase * completionRatio;
+  }
+
+  if (log?.completionType === 'auto_included_overdue_for_other') {
+    return creditWeight > 0 ? creditWeight / 1.5 : fallbackBase * completionRatio;
+  }
+
+  return fallbackBase * completionRatio;
 }
 
 export function buildScoreSummary(state, periodId = null) {
@@ -483,9 +496,7 @@ export function buildScoreSummary(state, periodId = null) {
       );
 
     if (someoneElseCoveredOverdue) {
-      const penalty =
-        Number(task?.baseWeight || 1) *
-        Number(log.completionRatio || 1);
+      const penalty = getPenaltyForCoveredOverdueLog(log, task);
 
       if (!byPerson[assigned]) {
         byPerson[assigned] = {

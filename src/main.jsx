@@ -67,6 +67,7 @@ const TASK_TIE_OFFSETS = {
 
 const translations = {
   en: {
+    originalDueDate: 'Original due date',
     badge: 'Shared flat chore planner',
     title: 'Cleaning schedule',
     subtitle: 'A fair cleaning rota for the flat, with reminders, points, history, and away dates.',
@@ -208,6 +209,35 @@ const translations = {
     vacuumMovedToMopping:
       'Vacuuming was overdue and has been moved to the mopping date.',
     vacuumRecentlyDoneForMop: 'Vacuuming was already completed recently.',
+    vacuumBundleStatus: 'Vacuum status in this bundle',
+    vacuumRequired: 'Vacuum required',
+    vacuumNotRequired: 'Vacuum not required',
+    currentBundleDate: 'Current bundle date',
+    originalAssignee: 'Original assignee',
+    currentAssignee: 'Current assignee',
+    lastVacuumDone: 'Last vacuum done',
+    notDoneYet: 'Not done yet',
+    reasonLabel: 'Reason',
+    openParts: 'Open parts',
+    doneParts: 'Done parts',
+    allPartsOpen: 'All parts are still open',
+    allPartsDone: 'All parts are already done',
+    choresOverview: 'Chores overview',
+    pendingOverdue: 'Pending / overdue',
+    upcomingSevenDays: 'Upcoming in next 7 days',
+    noPendingOverdue: 'No pending or overdue chores',
+    noUpcomingSevenDays: 'No chores in the next 7 days',
+    oneChore: '1 chore',
+    manyChores: n => `${n} chores`,
+    assignedShort: 'Assigned',
+    pointsDetails: 'Points details',
+    earnedDetails: 'Earned points',
+    penaltyDetails: 'Penalty details',
+    noEarnedDetails: 'No earned points in this period',
+    noPenaltyDetails: 'No penalties in this period',
+    coveredFor: person => `Covered for ${person}`,
+    completedBy: person => `Completed by ${person}`,
+    penaltyReason: 'Someone else completed this overdue chore',
     vacuumRecentlyDoneForMopHelp:
       date => `Vacuuming was completed on ${date}. If mopping is done within 5 days of that vacuuming, vacuuming is not mandatory again and mopping points are not reduced.`,
     vacuumNotMandatoryThisMop:
@@ -234,6 +264,7 @@ const translations = {
   },
 
   de: {
+    originalDueDate: 'Ursprünglich fällig',
     badge: 'WG-Putzplan',
     title: 'Putzplan',
     subtitle: 'Ein fairer Putzplan für die WG, mit Erinnerungen, Punkten, Historie und Abwesenheiten.',
@@ -375,6 +406,35 @@ const translations = {
     vacuumMovedToMopping:
       'Staubsaugen war überfällig und wurde auf den Nasswisch-Termin verschoben.',
     vacuumRecentlyDoneForMop: 'Staubsaugen wurde kürzlich erledigt.',
+    vacuumBundleStatus: 'Staubsaug-Status in diesem Bündel',
+    vacuumRequired: 'Staubsaugen erforderlich',
+    vacuumNotRequired: 'Staubsaugen nicht erforderlich',
+    currentBundleDate: 'Aktueller Bündel-Termin',
+    originalAssignee: 'Ursprünglich zuständig',
+    currentAssignee: 'Aktuell zuständig',
+    lastVacuumDone: 'Zuletzt staubgesaugt',
+    notDoneYet: 'Noch nicht erledigt',
+    reasonLabel: 'Grund',
+    openParts: 'Offene Teile',
+    doneParts: 'Erledigte Teile',
+    allPartsOpen: 'Alle Teile sind noch offen',
+    allPartsDone: 'Alle Teile sind bereits erledigt',
+    choresOverview: 'Aufgabenübersicht',
+    pendingOverdue: 'Offen / überfällig',
+    upcomingSevenDays: 'In den nächsten 7 Tagen',
+    noPendingOverdue: 'Keine offenen oder überfälligen Aufgaben',
+    noUpcomingSevenDays: 'Keine Aufgaben in den nächsten 7 Tagen',
+    oneChore: '1 Aufgabe',
+    manyChores: n => `${n} Aufgaben`,
+    assignedShort: 'Zuständig',
+    pointsDetails: 'Punkte-Details',
+    earnedDetails: 'Erarbeitete Punkte',
+    penaltyDetails: 'Abzug-Details',
+    noEarnedDetails: 'Keine erarbeiteten Punkte in dieser Periode',
+    noPenaltyDetails: 'Keine Abzüge in dieser Periode',
+    coveredFor: person => `Übernommen für ${person}`,
+    completedBy: person => `Erledigt von ${person}`,
+    penaltyReason: 'Jemand anderes hat diese überfällige Aufgabe erledigt',
     vacuumRecentlyDoneForMopHelp:
       date => `Staubsaugen wurde am ${date} erledigt. Wenn Nasswischen innerhalb von 5 Tagen danach erledigt wird, ist erneutes Staubsaugen nicht verpflichtend und die Punkte fürs Nasswischen werden nicht reduziert.`,
     vacuumNotMandatoryThisMop:
@@ -462,6 +522,38 @@ function formatNumber(value, lang = 'de', fractionDigits = 2) {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits
   }).format(Number(value || 0));
+}
+
+function getPenaltyForCoveredOverdueLog(log, fallbackTask = null) {
+  const creditWeight = Number(log?.creditWeight || 0);
+  const completionRatio = Number(log?.completionRatio || 1);
+  const fallbackBase = Number(fallbackTask?.baseWeight || 1);
+
+  if (log?.completionType === 'completed_by_other_late') {
+    return creditWeight > 0 ? creditWeight / 1.25 : fallbackBase * completionRatio;
+  }
+
+  if (log?.completionType === 'auto_included_overdue_for_other') {
+    return creditWeight > 0 ? creditWeight / 1.5 : fallbackBase * completionRatio;
+  }
+
+  return fallbackBase * completionRatio;
+}
+
+function isCoveredOverdueLog(log) {
+  const assignedPerson = normalizeName(log?.assignedPerson);
+  const actualPerson = normalizeName(log?.actualPerson || log?.person);
+
+  return (
+    log?.taskType !== 'on_demand' &&
+    assignedPerson &&
+    actualPerson &&
+    assignedPerson !== actualPerson &&
+    (
+      log?.completionType === 'completed_by_other_late' ||
+      log?.completionType === 'auto_included_overdue_for_other'
+    )
+  );
 }
 
 function normalizeName(name) {
@@ -707,7 +799,8 @@ function calculateScores(people, logs, task, activePeriodId = null) {
       );
 
     if (wasOverdueForSomeoneElse) {
-      scores[assignedPerson] = (scores[assignedPerson] || 0) - 1;
+      const penalty = getPenaltyForCoveredOverdueLog(log, task);
+      scores[assignedPerson] = (scores[assignedPerson] || 0) - penalty;
     }
   }
 
@@ -1005,6 +1098,8 @@ function App() {
     note: ''
   });
 
+  const [openPersonScores, setOpenPersonScores] = useState({});
+
   useEffect(() => {
     setError('');
     setSuccess('');
@@ -1044,10 +1139,16 @@ function App() {
     ].includes(log.completionType);
   }
 
-  function getRecentStandaloneVacuumForMoppingDate(moppingDate) {
+  function getRecentStandaloneVacuumForMoppingDate(moppingDate, requiredSubtaskIds = []) {
     if (!moppingDate) return null;
 
-    return (data?.logs || [])
+    const requiredIds = new Set(
+      Array.isArray(requiredSubtaskIds)
+        ? requiredSubtaskIds.filter(Boolean)
+        : []
+    );
+
+    const recentLogs = (data?.logs || [])
       .filter(isStandaloneVacuumLog)
       .filter(log => {
         const gap = diffDays(log.date, moppingDate);
@@ -1056,7 +1157,21 @@ function App() {
       .sort((a, b) => {
         if (b.date !== a.date) return b.date.localeCompare(a.date);
         return (b.createdAt || '').localeCompare(a.createdAt || '');
-      })[0] || null;
+      });
+
+    if (!requiredIds.size) return recentLogs[0] || null;
+
+    const coveredIds = new Set();
+
+    for (const log of recentLogs) {
+      for (const subtask of log.completedSubtasks || []) {
+        coveredIds.add(subtask.id);
+      }
+    }
+
+    const allRequiredCovered = [...requiredIds].every(id => coveredIds.has(id));
+
+    return allRequiredCovered ? recentLogs[0] || null : null;
   }
 
   function getAllSubtaskIds(taskId) {
@@ -1078,6 +1193,72 @@ function App() {
 
   function getCycleCompletion(row) {
     return getCycleCompletionFromLogs(data?.logs || [], row.task, row.dueDate);
+  }
+
+  function getBundledVacuumStatus(row) {
+    if (!row?.bundledVacuumRow) return null;
+
+    const vacuumRow = row.bundledVacuumRow;
+    const vacuumCompletion = getCycleCompletionFromLogs(
+      data?.logs || [],
+      vacuumRow.task,
+      vacuumRow.originalDueDate || vacuumRow.dueDate
+    );
+
+    const recentVacuum = getRecentStandaloneVacuumForMoppingDate(
+      row.dueDate,
+      getAllSubtaskIds('vacuum')
+    );
+
+    const originalDueDate = vacuumRow.originalDueDate || vacuumRow.dueDate;
+    const daysFromOriginalVacuumDueToMop =
+      originalDueDate && row.dueDate
+        ? diffDays(originalDueDate, row.dueDate)
+        : null;
+
+    const isOverdueBundle =
+      !!vacuumRow.bundledBecauseOverdue;
+
+    const isMoppingFirstBundle =
+      !!vacuumRow.bundledBecauseMoppingComesFirst;
+
+    const isSameDayBundle =
+      originalDueDate === row.dueDate;
+
+    let vacuumRequired = true;
+    let reason = t.deepIncludesVacuum;
+
+    if (recentVacuum) {
+      vacuumRequired = false;
+      reason = t.vacuumNotMandatoryThisMop;
+    } else if (isOverdueBundle) {
+      vacuumRequired = true;
+      reason = t.vacuumMovedToMopping;
+    } else if (isMoppingFirstBundle) {
+      vacuumRequired = true;
+      reason = t.moppingComesFirst;
+    } else if (isSameDayBundle) {
+      vacuumRequired = true;
+      reason = t.linkedDeep;
+    }
+
+    return {
+      vacuumRequired,
+      reason,
+      originalDueDate,
+      originalPerson: normalizeName(vacuumRow.originalPerson),
+      currentPerson: normalizeName(row.person),
+      lastDoneDate: vacuumRow.last?.date || vacuumRow.last?.doneDate || null,
+      lastDoneBy: normalizeName(
+        vacuumRow.last?.actualPerson ||
+        vacuumRow.last?.person ||
+        ''
+      ),
+      completedParts: vacuumCompletion.completed || [],
+      pendingParts: vacuumCompletion.pending || [],
+      completionRatio: vacuumCompletion.ratio || 0,
+      daysFromOriginalVacuumDueToMop
+    };
   }
 
   function getMyDueRows(allRows) {
@@ -1634,6 +1815,34 @@ function App() {
       });
   }, [data, currentUser, activePeriodId, allLogsForScheduling]);
 
+  const myChoreOverview = useMemo(() => {
+    const mine = rows.filter(row =>
+      normalizeName(row.person) === normalizeName(currentUser)
+    );
+
+    const pendingOverdue = mine
+      .filter(row => {
+        if (row.task.type === 'on_demand') return !!data?.fullBins?.[row.task.id];
+        return row.dueDate && row.dueDate <= TODAY;
+      })
+      .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+
+    const upcomingSevenDays = mine
+      .filter(row => {
+        if (row.task.type !== 'scheduled') return false;
+        if (!row.dueDate) return false;
+
+        const days = diffDays(TODAY, row.dueDate);
+        return days !== null && days > 0 && days <= 7;
+      })
+      .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+
+    return {
+      pendingOverdue,
+      upcomingSevenDays
+    };
+  }, [rows, currentUser, data]);
+
   const myRows = useMemo(() => {
     return getMyDueRows(rows);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1656,6 +1865,72 @@ function App() {
   const currentUserScore = data?.scores?.byPerson?.find(
     row => normalizeName(row.person) === normalizeName(currentUser)
   );
+
+  const scoreDetailsByPerson = useMemo(() => {
+    if (!data) return {};
+
+    const details = Object.fromEntries(
+      (data.flatmates || []).map(person => [
+        normalizeName(person),
+        {
+          earned: [],
+          penalties: []
+        }
+      ])
+    );
+
+    for (const log of data.currentLogs || []) {
+      if (log.isDummy) continue;
+
+      const task = taskById[log.taskId] || { id: log.taskId, baseWeight: 1 };
+      const actualPerson = normalizeName(log.actualPerson || log.person);
+      const assignedPerson = normalizeName(log.assignedPerson);
+      const points = Number(log.creditWeight || 0);
+
+      if (!details[actualPerson]) {
+        details[actualPerson] = { earned: [], penalties: [] };
+      }
+
+      if (points > 0) {
+        details[actualPerson].earned.push({
+          id: `${log.id}-earned`,
+          taskId: log.taskId,
+          task,
+          date: log.date,
+          points,
+          note: log.note,
+          completionType: log.completionType,
+          otherPerson: assignedPerson && assignedPerson !== actualPerson ? assignedPerson : ''
+        });
+      }
+
+      if (isCoveredOverdueLog(log)) {
+        const penalty = getPenaltyForCoveredOverdueLog(log, task);
+
+        if (!details[assignedPerson]) {
+          details[assignedPerson] = { earned: [], penalties: [] };
+        }
+
+        details[assignedPerson].penalties.push({
+          id: `${log.id}-penalty`,
+          taskId: log.taskId,
+          task,
+          date: log.date,
+          points: penalty,
+          completedBy: actualPerson,
+          note: log.note,
+          completionType: log.completionType
+        });
+      }
+    }
+
+    for (const person of Object.keys(details)) {
+      details[person].earned.sort((a, b) => b.date.localeCompare(a.date));
+      details[person].penalties.sort((a, b) => b.date.localeCompare(a.date));
+    }
+
+    return details;
+  }, [data, taskById]);
 
   const myAbsences = (data?.absences || [])
     .filter(absence => normalizeName(absence.person) === normalizeName(currentUser))
@@ -1833,7 +2108,7 @@ function App() {
           />
 
           {form.taskId === 'deep_water' && (() => {
-            const recentVacuum = getRecentStandaloneVacuumForMoppingDate(form.date);
+            const recentVacuum = getRecentStandaloneVacuumForMoppingDate(form.date, selectedSubtasks);
 
             if (recentVacuum) {
               return (
@@ -1955,7 +2230,10 @@ function App() {
     const completion = getCycleCompletion(row);
     const recentVacuumForBundledMop =
       row.task.id === 'deep_water'
-        ? getRecentStandaloneVacuumForMoppingDate(row.dueDate)
+        ? getRecentStandaloneVacuumForMoppingDate(
+            row.dueDate,
+            getAllSubtaskIds('vacuum')
+          )
         : null;
 
     const showPendingSubtasks =
@@ -2047,42 +2325,95 @@ function App() {
           </div>
         </div>
 
-        {row.bundledVacuumRow && (
-          <div className="bundled-subtask">
-            <div>
-              <b>{taskLabel(row.bundledVacuumRow.task)}</b>
-              <span>
-                {row.bundledVacuumRow.bundledBecauseOverdue
-                  ? t.vacuumMovedToMopping
-                  : row.bundledVacuumRow.bundledBecauseMoppingComesFirst
-                    ? t.moppingComesFirst
-                    : t.linkedDeep}
-              </span>
+        {row.bundledVacuumRow && (() => {
+          const vacuumStatus = getBundledVacuumStatus(row);
 
-              {row.bundledVacuumRow.bundledBecauseOverdue && (
-                <small className="missed-duty-note">
-                  {t.missedVacuumBy(normalizeName(row.bundledVacuumRow.originalPerson))}
-                </small>
-              )}
+          return (
+            <div className="bundled-subtask bundled-vacuum-detail">
+              <div className="bundle-detail-main">
+                <div className="bundle-detail-title">
+                  <b>{taskLabel(row.bundledVacuumRow.task)}</b>
+
+                  <span
+                    className={`bundle-status-pill ${
+                      vacuumStatus?.vacuumRequired ? 'required' : 'not-required'
+                    }`}
+                  >
+                    {vacuumStatus?.vacuumRequired
+                      ? t.vacuumRequired
+                      : t.vacuumNotRequired}
+                  </span>
+                </div>
+
+                <span>{vacuumStatus?.reason}</span>
+
+                {row.bundledVacuumRow.bundledBecauseOverdue && (
+                  <small className="missed-duty-note">
+                    {t.missedVacuumBy(vacuumStatus?.originalPerson)}
+                  </small>
+                )}
+
+                <div className="bundle-parts-row">
+                  <div>
+                    <small>{t.doneParts}</small>
+                    <b>
+                      {vacuumStatus?.completedParts?.length
+                        ? vacuumStatus.completedParts
+                            .map(subtask => {
+                              const fullSubtask = row.bundledVacuumRow.task?.subtasks?.find(
+                                item => item.id === subtask.id
+                              );
+                              return fullSubtask ? getSubtaskName(fullSubtask) : subtask.id;
+                            })
+                            .join(', ')
+                        : t.noRecord}
+                    </b>
+                  </div>
+
+                  <div>
+                    <small>{t.openParts}</small>
+                    <b>
+                      {vacuumStatus?.pendingParts?.length
+                        ? vacuumStatus.pendingParts
+                            .map(subtask => getSubtaskName(subtask))
+                            .join(', ')
+                        : t.allPartsDone}
+                    </b>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bundle-detail-card">
+                <span>{t.originalDueDate}</span>
+                <b>{fmt(vacuumStatus?.originalDueDate, '', lang)}</b>
+              </div>
+
+              <div className="bundle-detail-card">
+                <span>{t.currentBundleDate}</span>
+                <b>{fmt(row.dueDate, '', lang)}</b>
+              </div>
+
+              <div className="bundle-detail-card">
+                <span>{t.originalAssignee}</span>
+                <b>{vacuumStatus?.originalPerson || t.noRecord}</b>
+              </div>
+
+              <div className="bundle-detail-card">
+                <span>{t.currentAssignee}</span>
+                <b>{vacuumStatus?.currentPerson || t.noRecord}</b>
+              </div>
+
+              <div className="bundle-detail-card">
+                <span>{t.lastVacuumDone}</span>
+                <b>
+                  {vacuumStatus?.lastDoneDate
+                    ? `${fmt(vacuumStatus.lastDoneDate, '', lang)} ${t.by} ${vacuumStatus.lastDoneBy}`
+                    : t.notDoneYet}
+                </b>
+              </div>
             </div>
-
-            <div>
-              <span>{t.nextDate}</span>
-              <b>{fmt(row.dueDate, '', lang)}</b>
-
-              {row.bundledVacuumRow.originalDueDate && (
-                <small>
-                  {t.lastDone}: {fmt(row.bundledVacuumRow.originalDueDate, '', lang)}
-                </small>
-              )}
-            </div>
-
-            <div>
-              <span>{t.nextPerson}</span>
-              <b>{normalizeName(row.person)}</b>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     );
   }
@@ -2151,13 +2482,139 @@ function App() {
     );
   }
 
+  function renderChoreOverviewList(items, emptyText, mode) {
+    if (!items.length) {
+      return <div className="overview-empty-line">{emptyText}</div>;
+    }
+
+    return (
+      <div className="overview-chore-list">
+        {items.slice(0, 5).map(row => {
+          const days = row.dueDate ? diffDays(TODAY, row.dueDate) : null;
+
+          let timeText = '';
+
+          if (row.task.type === 'on_demand') {
+            timeText = t.onDemand;
+          } else if (days === 0) {
+            timeText = t.dueToday;
+          } else if (days < 0) {
+            timeText = t.late(Math.abs(days));
+          } else {
+            timeText = t.dueIn(days);
+          }
+
+          return (
+            <div className={`overview-chore-line ${mode}`} key={`${mode}-${row.task.id}`}>
+              <span>{taskLabel(row.task)}</span>
+              <small>{timeText}</small>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderPersonScoreDetails(person) {
+    const details = scoreDetailsByPerson[normalizeName(person)] || {
+      earned: [],
+      penalties: []
+    };
+
+    return (
+      <div className="person-score-detail">
+        <div className="person-score-column">
+          <h4>{t.earnedDetails}</h4>
+
+          {details.earned.length ? (
+            details.earned.map(item => (
+              <div className="score-detail-row earned" key={item.id}>
+                <div>
+                  <b>{taskLabel(item.task)}</b>
+                  <span>
+                    {fmt(item.date, '', lang)}
+                    {item.otherPerson ? ` · ${t.coveredFor(item.otherPerson)}` : ''}
+                  </span>
+                  {item.note && <small>{item.note}</small>}
+                </div>
+
+                <strong>+{formatPoints(item.points)}</strong>
+              </div>
+            ))
+          ) : (
+            <div className="overview-empty-line">{t.noEarnedDetails}</div>
+          )}
+        </div>
+
+        <div className="person-score-column">
+          <h4>{t.penaltyDetails}</h4>
+
+          {details.penalties.length ? (
+            details.penalties.map(item => (
+              <div className="score-detail-row penalty" key={item.id}>
+                <div>
+                  <b>{taskLabel(item.task)}</b>
+                  <span>
+                    {fmt(item.date, '', lang)} · {t.completedBy(item.completedBy)}
+                  </span>
+                  <small>{t.penaltyReason}</small>
+                </div>
+
+                <strong>-{formatPoints(item.points)}</strong>
+              </div>
+            ))
+          ) : (
+            <div className="overview-empty-line">{t.noPenaltyDetails}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function renderDashboardPage() {
     return (
       <>
         <section className="compact-dashboard-grid">
-          <div className="mini-dashboard-card important">
-            <span>{t.dueChoresShort}</span>
-            <strong>{myPendingLabel}</strong>
+          <div className="mini-dashboard-card important chores-overview-card">
+            <span>{t.choresOverview}</span>
+
+            <div className="overview-count-row">
+              <div>
+                <small>{t.pendingOverdue}</small>
+                <strong>
+                  {myChoreOverview.pendingOverdue.length === 1
+                    ? t.oneChore
+                    : t.manyChores(myChoreOverview.pendingOverdue.length)}
+                </strong>
+              </div>
+
+              <div>
+                <small>{t.upcomingSevenDays}</small>
+                <strong>
+                  {myChoreOverview.upcomingSevenDays.length === 1
+                    ? t.oneChore
+                    : t.manyChores(myChoreOverview.upcomingSevenDays.length)}
+                </strong>
+              </div>
+            </div>
+
+            <div className="overview-mini-section">
+              <b>{t.pendingOverdue}</b>
+              {renderChoreOverviewList(
+                myChoreOverview.pendingOverdue,
+                t.noPendingOverdue,
+                'pending'
+              )}
+            </div>
+
+            <div className="overview-mini-section">
+              <b>{t.upcomingSevenDays}</b>
+              {renderChoreOverviewList(
+                myChoreOverview.upcomingSevenDays,
+                t.noUpcomingSevenDays,
+                'upcoming'
+              )}
+            </div>
           </div>
 
           <div className="mini-dashboard-card">
@@ -2303,29 +2760,50 @@ function App() {
           </div>
         </div>
 
-        <div className="score-grid">
-          {(data.scores?.byPerson || []).map(row => (
-            <div className="score-person-card" key={row.person}>
-              <div className="score-person-head">
-                <span className="dashboard-avatar">{row.person.slice(0, 1)}</span>
-                <div>
-                  <b>{row.person}</b>
-                  <strong>{formatPoints(row.total || 0)}</strong>
-                </div>
-              </div>
+        <div className="score-grid score-grid-detailed">
+          {(data.scores?.byPerson || []).map(row => {
+            const open = !!openPersonScores[row.person];
 
-              <div className="score-split">
-                <span>
-                  {t.positiveScore}
-                  <b>{formatPoints(row.positive || 0)}</b>
-                </span>
-                <span>
-                  {t.negativeScore}
-                  <b>{formatPoints(row.negative || 0)}</b>
-                </span>
+            return (
+              <div className="score-person-card score-person-card-detailed" key={row.person}>
+                <button
+                  type="button"
+                  className="score-person-button"
+                  onClick={() =>
+                    setOpenPersonScores(current => ({
+                      ...current,
+                      [row.person]: !current[row.person]
+                    }))
+                  }
+                >
+                  <div className="score-person-head">
+                    <span className="dashboard-avatar">{row.person.slice(0, 1)}</span>
+                    <div>
+                      <b>{row.person}</b>
+                      <strong>{formatPoints(row.total || 0)}</strong>
+                    </div>
+                  </div>
+
+                  <div className="score-split">
+                    <span>
+                      {t.positiveScore}
+                      <b>{formatPoints(row.positive || 0)}</b>
+                    </span>
+                    <span>
+                      {t.negativeScore}
+                      <b>{formatPoints(row.negative || 0)}</b>
+                    </span>
+                  </div>
+
+                  <small className="score-detail-toggle">
+                    {open ? t.hideDetails : t.showDetails}
+                  </small>
+                </button>
+
+                {open && renderPersonScoreDetails(row.person)}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <h3 className="score-subtitle">{t.taskScores}</h3>
@@ -3164,7 +3642,7 @@ function App() {
             </div>
 
             {modalTask.task.id === 'deep_water' && (() => {
-              const recentVacuum = getRecentStandaloneVacuumForMoppingDate(form.date);
+              const recentVacuum = getRecentStandaloneVacuumForMoppingDate(form.date, selectedSubtasks);
 
               if (recentVacuum) {
                 return (

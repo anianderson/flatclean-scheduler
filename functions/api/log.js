@@ -140,12 +140,41 @@ function isVacuumCurrentlyBundledWithMopping(state) {
   return shouldBundleFloorTasks(vacuumDueDate, moppingDueDate);
 }
 
-async function shiftMoppingIfTooCloseAfterVacuum({ env, stateBefore, vacuumDoneDate }) {
+async function shiftMoppingIfStandaloneVacuumShouldDelayIt({
+  env,
+  stateBefore,
+  vacuumDoneDate
+}) {
   const currentMoppingDue = getRawTaskDueDate(stateBefore, 'deep_water');
   if (!currentMoppingDue) return;
 
+  // If vacuum and mopping are already bundled by due-date logic,
+  // standalone vacuum must not move mopping.
+  if (isVacuumCurrentlyBundledWithMopping(stateBefore)) return;
+
+  const gapFromVacuumDoneToMoppingDue = diffDays(
+    vacuumDoneDate,
+    currentMoppingDue
+  );
+
+  // Vacuum must be completed before the mopping due date.
+  if (
+    gapFromVacuumDoneToMoppingDue === null ||
+    gapFromVacuumDoneToMoppingDue <= 0
+  ) {
+    return;
+  }
+
+  // If vacuum was done within 5 days before mopping,
+  // it is "recent vacuum", not a reason to move mopping.
+  // Mopping may be done without vacuum again and without point penalty.
+  if (gapFromVacuumDoneToMoppingDue <= FLOOR_BUNDLE_WINDOW_DAYS) {
+    return;
+  }
+
   const minimumMoppingDate = getMinimumNextFloorDate(vacuumDoneDate);
 
+  // If mopping is already at least 10 days after vacuum, no shift needed.
   if (currentMoppingDue >= minimumMoppingDate) return;
 
   const latestDeepLog = lastLog(stateBefore.logs, 'deep_water');
@@ -607,10 +636,9 @@ export async function onRequestPost({ request, env }) {
   // must NOT push the mopping date forward.
   if (
     taskId === 'vacuum' &&
-    mainResult.completion?.aggregateRatio >= ADVANCE_THRESHOLD &&
-    !isVacuumCurrentlyBundledWithMopping(stateBefore)
+    mainResult.completion?.aggregateRatio >= ADVANCE_THRESHOLD
   ) {
-    await shiftMoppingIfTooCloseAfterVacuum({
+    await shiftMoppingIfStandaloneVacuumShouldDelayIt({
       env,
       stateBefore,
       vacuumDoneDate: date

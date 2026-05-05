@@ -67,6 +67,11 @@ const TASK_TIE_OFFSETS = {
 
 const translations = {
   en: {
+    celebrationTitle: 'Great job!',
+    celebrationSubtitle: person => `${person}, your chore was saved.`,
+    pointsEarnedNow: 'Points earned now',
+    totalPointsNow: 'Total points now',
+    celebrationClose: 'Nice!',
     originalDueDate: 'Original due date',
     processing: 'Processing…',
     savedDone: 'Saved.',
@@ -274,6 +279,11 @@ const translations = {
   },
 
   de: {
+    celebrationTitle: 'Super gemacht!',
+    celebrationSubtitle: person => `${person}, deine Aufgabe wurde gespeichert.`,
+    pointsEarnedNow: 'Jetzt verdiente Punkte',
+    totalPointsNow: 'Aktuelle Gesamtpunkte',
+    celebrationClose: 'Cool!',
     originalDueDate: 'Ursprünglich fällig',
     processing: 'Wird verarbeitet…',
     savedDone: 'Gespeichert.',
@@ -1123,6 +1133,7 @@ function App() {
 
   const [openPersonScores, setOpenPersonScores] = useState({});
   const [busyAction, setBusyAction] = useState('');
+  const [celebration, setCelebration] = useState(null);
 
   useEffect(() => {
     setError('');
@@ -1349,6 +1360,26 @@ function App() {
     window.setTimeout(() => {
       setSuccess('');
     }, 2800);
+  }
+
+  function getPersonTotalFromState(state, person) {
+    return Number(
+      state?.scores?.byPerson?.find(
+        row => normalizeName(row.person) === normalizeName(person)
+      )?.total || 0
+    );
+  }
+
+  function showCelebration({ person, pointsEarned, totalPoints }) {
+    setCelebration({
+      person: normalizeName(person),
+      pointsEarned: Number(pointsEarned || 0),
+      totalPoints: Number(totalPoints || 0)
+    });
+
+    window.setTimeout(() => {
+      setCelebration(null);
+    }, 4200);
   }
 
   function openTaskModal(row) {
@@ -2026,10 +2057,12 @@ function App() {
       setSaving(true);
 
       const isMopping = form.taskId === 'deep_water';
+      const person = normalizeName(currentUser);
+      const totalBefore = getPersonTotalFromState(data, person);
 
-      await apiPost('/api/log', {
+      const updatedState = await apiPost('/api/log', {
         ...form,
-        person: normalizeName(currentUser),
+        person,
 
         completedSubtaskIds: selectedSubtasks,
 
@@ -2047,9 +2080,19 @@ function App() {
         isDummy: false
       });
 
+      const totalAfter = getPersonTotalFromState(updatedState, person);
+      const pointsEarned = Math.max(0, totalAfter - totalBefore);
+
       setForm(current => ({ ...current, note: '' }));
       setModalTask(null);
       setSuccess(t.choreSavedDone);
+
+      showCelebration({
+        person,
+        pointsEarned,
+        totalPoints: totalAfter
+      });
+
       clearSuccessSoon();
     } catch (e) {
       setError(e.message || t.saveError);
@@ -2719,6 +2762,20 @@ function App() {
             </button>
           </div>
         </section>
+
+        <button
+          type="button"
+          className="secondary-action"
+          onClick={() =>
+            showCelebration({
+              person: currentUser || 'Test user',
+              pointsEarned: 2.5,
+              totalPoints: 14.75
+            })
+          }
+        >
+          Test celebration
+        </button>
 
         <section className="card compact-main-card">
           <div className="card-head">
@@ -3717,6 +3774,57 @@ function App() {
                 )}
               </button>
             </div>
+          </section>
+        </div>
+      )}
+
+      {celebration && (
+        <div
+          className="celebration-backdrop"
+          onClick={() => setCelebration(null)}
+        >
+          <section
+            className="celebration-modal"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="celebration-confetti" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+
+            <div className="celebration-icon">
+              <Sparkles size={34} />
+            </div>
+
+            <h2>{t.celebrationTitle}</h2>
+            <p>{t.celebrationSubtitle(celebration.person)}</p>
+
+            <div className="celebration-points-grid">
+              <div>
+                <span>{t.pointsEarnedNow}</span>
+                <strong>+{formatPoints(celebration.pointsEarned)}</strong>
+              </div>
+
+              <div>
+                <span>{t.totalPointsNow}</span>
+                <strong>{formatPoints(celebration.totalPoints)}</strong>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="primary celebration-button"
+              onClick={() => setCelebration(null)}
+            >
+              <Trophy size={20} />
+              {t.celebrationClose}
+            </button>
           </section>
         </div>
       )}

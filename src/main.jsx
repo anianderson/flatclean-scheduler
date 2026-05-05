@@ -2763,20 +2763,6 @@ function App() {
           </div>
         </section>
 
-        <button
-          type="button"
-          className="secondary-action"
-          onClick={() =>
-            showCelebration({
-              person: currentUser || 'Test user',
-              pointsEarned: 2.5,
-              totalPoints: 14.75
-            })
-          }
-        >
-          Test celebration
-        </button>
-
         <section className="card compact-main-card">
           <div className="card-head">
             <div>

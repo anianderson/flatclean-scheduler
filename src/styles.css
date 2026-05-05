@@ -288,7 +288,7 @@ h3 {
 .compact-dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 1fr);
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: auto 1fr;
   gap: 14px;
   margin-bottom: 18px;
   align-items: stretch;
@@ -308,20 +308,20 @@ h3 {
 
 .mini-dashboard-card.important {
   grid-column: 1;
-  grid-row: 1;
+  grid-row: 1 / span 2;
   background:
     radial-gradient(circle at top right, rgba(34, 197, 94, .16), transparent 42%),
     rgba(255,255,255,.92);
 }
 
-.mini-dashboard-card:not(.important):not(.vacation-summary-card) {
-  grid-column: 1;
-  grid-row: 2;
+.points-summary-card {
+  grid-column: 2;
+  grid-row: 1;
 }
 
 .vacation-summary-card {
   grid-column: 2;
-  grid-row: 1 / span 2;
+  grid-row: 2;
 }
 
 .mini-dashboard-card span {
@@ -1868,7 +1868,7 @@ button:disabled {
   }
 
   .mini-dashboard-card.important,
-  .mini-dashboard-card:not(.important):not(.vacation-summary-card),
+  .points-summary-card,
   .vacation-summary-card {
     grid-column: auto;
     grid-row: auto;
@@ -2255,4 +2255,34 @@ button:disabled {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+.overview-count-row > .overview-count-upcoming {
+  background:
+    radial-gradient(circle at top right, rgba(99, 102, 241, .18), transparent 45%),
+    linear-gradient(135deg, rgba(238, 242, 255, .96), rgba(224, 242, 254, .9));
+  border-color: rgba(99, 102, 241, .38);
+  box-shadow:
+    0 12px 28px rgba(79, 70, 229, .10),
+    inset 0 0 0 1px rgba(255, 255, 255, .65);
+}
+
+.overview-count-row > .overview-count-upcoming small {
+  color: #4338ca;
+}
+
+.overview-count-row > .overview-count-upcoming strong {
+  color: #1e1b4b;
+}
+
+.secondary-action.saving,
+.danger-action.saving,
+.admin-actions button:disabled,
+.check input:disabled {
+  cursor: wait;
+  opacity: .75;
+}
+
+.check {
+  min-height: 42px;
 }

@@ -461,6 +461,10 @@ async function sendCompletionEmails(env, stateAfter, completionResults, actualPe
   const actualProfile = getProfile(stateAfter, actualPerson);
   const totalPoints = completionResults.reduce((sum, item) => sum + Number(item.creditWeight || 0), 0);
   const taskList = completionResults.map(item => taskName(item.info.task.id, stateAfter)).join(', ');
+  const actualScoreRow = stateAfter.scores?.byPerson?.find(
+    row => normalizeName(row.person) === normalizeName(actualPerson)
+  );
+  const totalScoreAfter = Number(actualScoreRow?.total || 0);
 
   if (actualProfile?.email) {
     const email = bilingualEmail({
@@ -468,8 +472,14 @@ async function sendCompletionEmails(env, stateAfter, completionResults, actualPe
       titleEn: `Points updated: +${totalPoints.toFixed(2)}`,
       summaryDe: `${actualPerson}, deine erledigte Aufgabe wurde gespeichert.`,
       summaryEn: `${actualPerson}, your completed chore has been saved.`,
-      detailsDe: `Aufgabe(n): ${taskList}. Datum: ${date}. Neue Punkte aus diesem Eintrag: +${totalPoints.toFixed(2)}.`,
-      detailsEn: `Chore(s): ${taskList}. Date: ${date}. Points earned from this entry: +${totalPoints.toFixed(2)}.`
+      detailsDe:
+        `Aufgabe(n): ${taskList}. Datum: ${date}. ` +
+        `Neue Punkte aus diesem Eintrag: +${totalPoints.toFixed(2)}. ` +
+        `Dein aktueller Gesamtpunktestand ist jetzt ${totalScoreAfter.toFixed(2)} Punkte.`,
+      detailsEn:
+        `Chore(s): ${taskList}. Date: ${date}. ` +
+        `Points earned from this entry: +${totalPoints.toFixed(2)}. ` +
+        `Your current total score is now ${totalScoreAfter.toFixed(2)} points.`
     });
 
     await sendAndLog(env, { to: actualProfile.email, ...email }, {
@@ -497,13 +507,25 @@ async function sendCompletionEmails(env, stateAfter, completionResults, actualPe
     const assignedProfile = getProfile(stateAfter, assignedPerson);
     if (!assignedProfile?.email) continue;
 
+    const assignedScoreRow = stateAfter.scores?.byPerson?.find(
+      row => normalizeName(row.person) === normalizeName(assignedPerson)
+    );
+
+    const assignedTotalScoreAfter = Number(assignedScoreRow?.total || 0);
+
     const email = bilingualEmail({
       titleDe: 'Fairness-Update',
       titleEn: 'Fairness update',
       summaryDe: `${actualPerson} hat eine überfällige Aufgabe übernommen.`,
       summaryEn: `${actualPerson} covered an overdue chore.`,
-      detailsDe: `Die Aufgabe "${taskName(result.info.task.id, stateAfter)}" war ${assignedPerson} zugeordnet und wurde von ${actualPerson} erledigt. Die Fairness-Punkte wurden angepasst, damit die nächsten Aufgaben wieder ausgeglichener verteilt werden.`,
-      detailsEn: `The chore "${taskName(result.info.task.id, stateAfter)}" was assigned to ${assignedPerson} and was completed by ${actualPerson}. The fairness points were adjusted so upcoming chores can be shared more evenly.`
+      detailsDe:
+        `Die Aufgabe "${taskName(result.info.task.id, stateAfter)}" war ${assignedPerson} zugeordnet und wurde von ${actualPerson} erledigt. ` +
+        `Die Fairness-Punkte wurden angepasst, damit die nächsten Aufgaben wieder ausgeglichener verteilt werden. ` +
+        `Aktueller Gesamtpunktestand von ${assignedPerson}: ${assignedTotalScoreAfter.toFixed(2)} Punkte.`,
+      detailsEn:
+        `The chore "${taskName(result.info.task.id, stateAfter)}" was assigned to ${assignedPerson} and was completed by ${actualPerson}. ` +
+        `The fairness points were adjusted so upcoming chores can be shared more evenly. ` +
+        `${assignedPerson}'s current total score is now ${assignedTotalScoreAfter.toFixed(2)} points.`
     });
 
     await sendAndLog(env, { to: assignedProfile.email, ...email }, {

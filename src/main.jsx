@@ -68,6 +68,16 @@ const TASK_TIE_OFFSETS = {
 const translations = {
   en: {
     originalDueDate: 'Original due date',
+    processing: 'Processing…',
+    savedDone: 'Saved.',
+    deletedDone: 'Deleted.',
+    addedDone: 'Added.',
+    updatedDone: 'Updated.',
+    emailUpdatedDone: 'Email updated.',
+    vacationAddedDone: 'Vacation dates added.',
+    vacationDeletedDone: 'Vacation dates deleted.',
+    binUpdatedDone: 'Bin status updated.',
+    choreSavedDone: 'Chore saved.',
     badge: 'Shared flat chore planner',
     title: 'Cleaning schedule',
     subtitle: 'A fair cleaning rota for the flat, with reminders, points, history, and away dates.',
@@ -265,6 +275,16 @@ const translations = {
 
   de: {
     originalDueDate: 'Ursprünglich fällig',
+    processing: 'Wird verarbeitet…',
+    savedDone: 'Gespeichert.',
+    deletedDone: 'Gelöscht.',
+    addedDone: 'Hinzugefügt.',
+    updatedDone: 'Aktualisiert.',
+    emailUpdatedDone: 'E-Mail aktualisiert.',
+    vacationAddedDone: 'Urlaub gespeichert.',
+    vacationDeletedDone: 'Urlaub gelöscht.',
+    binUpdatedDone: 'Tonnenstatus aktualisiert.',
+    choreSavedDone: 'Aufgabe gespeichert.',
     badge: 'WG-Putzplan',
     title: 'Putzplan',
     subtitle: 'Ein fairer Putzplan für die WG, mit Erinnerungen, Punkten, Historie und Abwesenheiten.',
@@ -1011,16 +1031,19 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
           className="fancy-trigger"
           onClick={() => setOpen(current => !current)}
           aria-expanded={open}
+          aria-haspopup="listbox"
         >
           <span className="fancy-value">{selected?.label || placeholder}</span>
           <ChevronDown size={18} className="fancy-chevron" />
         </button>
 
         {open && (
-          <div className="fancy-menu">
+          <div className="fancy-menu" role="listbox">
             {options.map(option => (
               <button
                 type="button"
+                role="option"
+                aria-selected={option.value === value}
                 key={option.value}
                 className={`fancy-option ${option.value === value ? 'active' : ''}`}
                 onClick={() => {
@@ -1099,6 +1122,7 @@ function App() {
   });
 
   const [openPersonScores, setOpenPersonScores] = useState({});
+  const [busyAction, setBusyAction] = useState('');
 
   useEffect(() => {
     setError('');
@@ -1460,7 +1484,7 @@ function App() {
       setPendingUser('');
       setEmailMode(false);
       setEmailDraft('');
-      setSuccess(t.emailSaved);
+      setSuccess(t.emailUpdatedDone);
       clearSuccessSoon();
     } catch (e) {
       setError(e.message || t.saveError);
@@ -1543,7 +1567,21 @@ function App() {
 
       setAdminModal(null);
       setAdminPin('');
-      setSuccess(t.saved);
+      if (adminModal.endpoint === '/api/availability') {
+        setSuccess(
+          adminModal.action === 'admin_vacation_delete'
+            ? t.vacationDeletedDone
+            : t.vacationAddedDone
+        );
+      } else if (adminModal.action === 'delete') {
+        setSuccess(t.deletedDone);
+      } else if (adminModal.action === 'add') {
+        setSuccess(t.addedDone);
+      } else if (adminModal.action === 'update') {
+        setSuccess(t.updatedDone);
+      } else {
+        setSuccess(t.savedDone);
+      }
       clearSuccessSoon();
     } catch (e) {
       setError(e.message || t.saveError);
@@ -1569,7 +1607,7 @@ function App() {
         reason: ''
       });
 
-      setSuccess(t.saved);
+      setSuccess(t.vacationAddedDone);
       clearSuccessSoon();
     } catch (e) {
       setError(e.message || t.saveError);
@@ -1589,7 +1627,7 @@ function App() {
         id
       });
 
-      setSuccess(t.saved);
+      setSuccess(t.vacationDeletedDone);
       clearSuccessSoon();
     } catch (e) {
       setError(e.message || t.saveError);
@@ -2011,7 +2049,7 @@ function App() {
 
       setForm(current => ({ ...current, note: '' }));
       setModalTask(null);
-      setSuccess(t.saved);
+      setSuccess(t.choreSavedDone);
       clearSuccessSoon();
     } catch (e) {
       setError(e.message || t.saveError);
@@ -2024,11 +2062,16 @@ function App() {
     try {
       setError('');
       setSuccess('');
+      setBusyAction(`bin:${taskId}`);
+
       await apiPost('/api/bin', { taskId, isFull });
-      setSuccess(t.saved);
+
+      setSuccess(t.binUpdatedDone);
       clearSuccessSoon();
     } catch (e) {
       setError(e.message || t.saveError);
+    } finally {
+      setBusyAction('');
     }
   }
 
@@ -2211,7 +2254,7 @@ function App() {
           {saving ? (
             <>
               <Loader2 size={20} className="spin" />
-              {t.saving}
+              {t.processing}
             </>
           ) : (
             <>
@@ -2295,9 +2338,18 @@ function App() {
               <input
                 type="checkbox"
                 checked={!!data.fullBins?.[row.task.id]}
+                disabled={busyAction === `bin:${row.task.id}`}
                 onChange={event => toggleBin(row.task.id, event.target.checked)}
               />
-              {t.binFull}
+
+              {busyAction === `bin:${row.task.id}` ? (
+                <>
+                  <Loader2 size={16} className="spin" />
+                  {t.processing}
+                </>
+              ) : (
+                t.binFull
+              )}
             </label>
           )}
         </div>
@@ -2467,7 +2519,7 @@ function App() {
               {emailSaving ? (
                 <>
                   <Loader2 size={20} className="spin" />
-                  {t.saving}
+                  {t.processing}
                 </>
               ) : (
                 <>
@@ -2588,7 +2640,7 @@ function App() {
                 </strong>
               </div>
 
-              <div>
+              <div className="overview-count-upcoming">
                 <small>{t.upcomingSevenDays}</small>
                 <strong>
                   {myChoreOverview.upcomingSevenDays.length === 1
@@ -2617,7 +2669,7 @@ function App() {
             </div>
           </div>
 
-          <div className="mini-dashboard-card">
+          <div className="mini-dashboard-card points-summary-card">
             <span>{t.pointsShort}</span>
             <strong>{formatPoints(currentUserScore?.total || 0)}</strong>
           </div>
@@ -2995,8 +3047,17 @@ function App() {
               disabled={adminSaving}
               onClick={saveAdminAwayDates}
             >
-              <Plane size={16} />
-              {t.saveVacationForUser}
+              {adminSaving ? (
+                <>
+                  <Loader2 size={16} className="spin" />
+                  {t.processing}
+                </>
+              ) : (
+                <>
+                  <Plane size={16} />
+                  {t.saveVacationForUser}
+                </>
+              )}
             </button>
           </div>
 
@@ -3019,11 +3080,16 @@ function App() {
                     type="button"
                     className="danger-action"
                     disabled={adminSaving}
-                    onClick={() =>
-                      deleteAdminAwayDate(absence.id, absence.person)
-                    }
+                    onClick={() => deleteAdminAwayDate(absence.id, absence.person)}
                   >
-                    {t.deleteAway}
+                    {adminSaving ? (
+                      <>
+                        <Loader2 size={16} className="spin" />
+                        {t.processing}
+                      </>
+                    ) : (
+                      t.deleteAway
+                    )}
                   </button>
                 </div>
               ))
@@ -3059,7 +3125,14 @@ function App() {
               })
             }
           >
-            {t.addUser}
+            {adminSaving ? (
+              <>
+                <Loader2 size={16} className="spin" />
+                {t.processing}
+              </>
+            ) : (
+              t.addUser
+            )}
           </button>
         </div>
 
@@ -3101,7 +3174,14 @@ function App() {
               })
             }
           >
-            {t.updateUser}
+            {adminSaving ? (
+              <>
+                <Loader2 size={16} className="spin" />
+                {t.processing}
+              </>
+            ) : (
+              t.updateUser
+            )}
           </button>
         </div>
       </section>
@@ -3425,7 +3505,12 @@ function App() {
       </main>
 
       {awayModalOpen && (
-        <div className="modal-backdrop" onClick={() => setAwayModalOpen(false)}>
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            if (!saving) setAwayModalOpen(false);
+          }}
+        >
           <section
             className="task-modal away-modal"
             onClick={event => event.stopPropagation()}
@@ -3440,7 +3525,10 @@ function App() {
               <button
                 type="button"
                 className="icon-button"
-                onClick={() => setAwayModalOpen(false)}
+                onClick={() => {
+                  if (!saving) setAwayModalOpen(false);
+                }}
+                disabled={saving}
                 aria-label={t.close}
               >
                 <X size={20} />
@@ -3502,18 +3590,28 @@ function App() {
                 type="button"
                 className="secondary-action"
                 onClick={() => setAwayModalOpen(false)}
+                disabled={saving}
               >
                 {t.cancel}
               </button>
 
               <button
                 type="button"
-                className="primary"
+                className={`primary ${saving ? 'saving' : ''}`}
                 onClick={saveAwayDates}
                 disabled={saving}
               >
-                <Plane size={16} />
-                {saving ? t.saving : t.addAway}
+                {saving ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    {t.processing}
+                  </>
+                ) : (
+                  <>
+                    <Plane size={16} />
+                    {t.addAway}
+                  </>
+                )}
               </button>
             </div>
 
@@ -3530,11 +3628,18 @@ function App() {
 
                     <button
                       type="button"
-                      className="danger-action"
+                      className={`danger-action ${saving ? 'saving' : ''}`}
                       onClick={() => deleteAwayDate(item.id)}
                       disabled={saving}
                     >
-                      {t.deleteAway}
+                      {saving ? (
+                        <>
+                          <Loader2 size={16} className="spin" />
+                          {t.processing}
+                        </>
+                      ) : (
+                        t.deleteAway
+                      )}
                     </button>
                   </div>
                 ))
@@ -3602,7 +3707,7 @@ function App() {
                 {adminSaving ? (
                   <>
                     <Loader2 size={20} className="spin" />
-                    {t.saving}
+                    {t.processing}
                   </>
                 ) : (
                   <>
@@ -3751,7 +3856,7 @@ function App() {
                 {saving ? (
                   <>
                     <Loader2 size={20} className="spin" />
-                    {t.saving}
+                    {t.processing}
                   </>
                 ) : (
                   <>

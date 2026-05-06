@@ -2618,3 +2618,119 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.simple-task-admin-section {
+  gap: 18px;
+}
+
+.simple-admin-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(99, 102, 241, .08), transparent 34%),
+    rgba(255, 255, 255, .78);
+  border: 1px solid rgba(203, 213, 225, .95);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, .05);
+}
+
+.simple-admin-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.simple-admin-card-head h3 {
+  margin: 0 0 5px;
+  color: #0f172a;
+}
+
+.simple-admin-card-head p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.simple-admin-example {
+  margin-top: 8px !important;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(238, 242, 255, .75);
+  border: 1px solid rgba(199, 210, 254, .85);
+  color: #3730a3 !important;
+  font-weight: 750;
+}
+
+.simple-admin-subtitle {
+  margin: 0;
+  color: #172033;
+  font-size: .98rem;
+}
+
+.simple-admin-actions {
+  margin: 0;
+}
+
+.simple-admin-actions button {
+  min-height: 48px;
+}
+
+.advanced-toggle-button {
+  justify-self: start;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.admin-advanced-box {
+  margin-bottom: 0;
+}
+
+.simple-split-task-list {
+  gap: 12px;
+}
+
+.simple-split-task-row {
+  grid-template-columns: minmax(220px, 1fr) minmax(170px, .7fr) minmax(170px, .7fr) auto;
+  align-items: start;
+}
+
+.simple-split-task-row .fancy-field {
+  margin-bottom: 0;
+}
+
+.simple-split-task-row input,
+.simple-split-task-row .fancy-trigger {
+  min-height: 50px;
+}
+
+.simple-split-task-row .danger-action {
+  min-height: 50px;
+}
+
+@media (max-width: 1050px) {
+  .simple-split-task-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .simple-split-task-row .danger-action {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  .simple-admin-card {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .simple-admin-card-head {
+    flex-direction: column;
+  }
+
+  .simple-split-task-row {
+    grid-template-columns: 1fr;
+  }
+}

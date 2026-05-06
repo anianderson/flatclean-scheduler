@@ -65,8 +65,54 @@ const TASK_TIE_OFFSETS = {
   paper_bin: 1
 };
 
+const FREQUENCY_PRESETS = [
+  { value: 7, labelEn: 'Every week', labelDe: 'Jede Woche' },
+  { value: 10, labelEn: 'Every 10 days', labelDe: 'Alle 10 Tage' },
+  { value: 14, labelEn: 'Every 2 weeks', labelDe: 'Alle 2 Wochen' },
+  { value: 20, labelEn: 'Every 20 days', labelDe: 'Alle 20 Tage' },
+  { value: 30, labelEn: 'Every month', labelDe: 'Jeden Monat' },
+  { value: 61, labelEn: 'Every 2 months', labelDe: 'Alle 2 Monate' },
+  { value: 122, labelEn: 'Every 4 months', labelDe: 'Alle 4 Monate' },
+  { value: 'custom', labelEn: 'Custom', labelDe: 'Eigener Wert' }
+];
+
+const DIFFICULTY_PRESETS = [
+  { value: 0.5, labelEn: 'Very easy', labelDe: 'Sehr einfach' },
+  { value: 1, labelEn: 'Easy', labelDe: 'Einfach' },
+  { value: 1.5, labelEn: 'Normal', labelDe: 'Normal' },
+  { value: 2.5, labelEn: 'Hard', labelDe: 'Schwer' },
+  { value: 4, labelEn: 'Very hard', labelDe: 'Sehr schwer' },
+  { value: 'custom', labelEn: 'Custom', labelDe: 'Eigener Wert' }
+];
+
+function presetLabel(item, lang) {
+  return lang === 'de' ? item.labelDe : item.labelEn;
+}
+
 const translations = {
   en: {
+    editExistingChore: 'Edit existing chore',
+    editExistingChoreHelp: 'Use this when you only want to change a chore that already exists.',
+    addNewChoreTitle: 'Add new chore',
+    addNewChoreHelp: 'Use this when you want to create a completely new chore.',
+    splitBigChoreTitle: 'Split big chore',
+    splitBigChoreHelp: 'Use this when one chore is too big and should become smaller chores.',
+    chooseChore: 'Choose chore',
+    choreName: 'Chore name',
+    choreNameExample: 'Example: Clean fridge',
+    repeatEvery: 'Repeat every',
+    customDays: 'Custom days',
+    difficultySimple: 'Difficulty',
+    customPoints: 'Custom points',
+    advancedParts: 'Advanced: edit areas / parts',
+    hideAdvancedParts: 'Hide advanced parts',
+    saveChanges: 'Save changes',
+    archiveThisChore: 'Archive this chore',
+    addNewChoreButton: 'Add new chore',
+    splitIntoSmallerChores: 'New smaller chores',
+    splitExample: 'Example: split “Clean bathtub, toilet and wash basin” into “Clean toilet and bathtub” and “Clean wash basin”.',
+    smallerChoreName: 'Smaller chore name',
+    addSmallerChore: 'Add another smaller chore',
     taskArchivedDone: 'Chore archived.',
     taskSplitDone: 'Chore split.',
     taskAddedDone: 'Chore added.',
@@ -309,6 +355,28 @@ const translations = {
   },
 
   de: {
+    editExistingChore: 'Bestehende Aufgabe bearbeiten',
+    editExistingChoreHelp: 'Nutze das, wenn du nur eine vorhandene Aufgabe ändern möchtest.',
+    addNewChoreTitle: 'Neue Aufgabe hinzufügen',
+    addNewChoreHelp: 'Nutze das, wenn du eine komplett neue Aufgabe erstellen möchtest.',
+    splitBigChoreTitle: 'Große Aufgabe aufteilen',
+    splitBigChoreHelp: 'Nutze das, wenn eine Aufgabe zu groß ist und in kleinere Aufgaben aufgeteilt werden soll.',
+    chooseChore: 'Aufgabe auswählen',
+    choreName: 'Aufgabenname',
+    choreNameExample: 'Beispiel: Kühlschrank reinigen',
+    repeatEvery: 'Wiederholen alle',
+    customDays: 'Eigene Anzahl Tage',
+    difficultySimple: 'Schwierigkeit',
+    customPoints: 'Eigene Punkte',
+    advancedParts: 'Erweitert: Bereiche / Teile bearbeiten',
+    hideAdvancedParts: 'Erweiterte Teile ausblenden',
+    saveChanges: 'Änderungen speichern',
+    archiveThisChore: 'Diese Aufgabe archivieren',
+    addNewChoreButton: 'Neue Aufgabe hinzufügen',
+    splitIntoSmallerChores: 'Neue kleinere Aufgaben',
+    splitExample: 'Beispiel: Teile „Badewanne, Toilette und Waschbecken reinigen“ in „Toilette und Badewanne reinigen“ und „Waschbecken reinigen“ auf.',
+    smallerChoreName: 'Name der kleineren Aufgabe',
+    addSmallerChore: 'Weitere kleinere Aufgabe hinzufügen',
     taskArchivedDone: 'Aufgabe archiviert.',
     taskSplitDone: 'Aufgabe aufgeteilt.',
     taskAddedDone: 'Aufgabe hinzugefügt.',
@@ -1196,12 +1264,10 @@ function App() {
     name: '',
     type: 'scheduled',
     intervalDays: 14,
-    difficultyMode: 'manual',
+    frequencyPreset: 14,
+    difficultyPreset: 1,
     baseWeight: 1,
-    easierThanTaskId: '',
-    harderThanTaskId: '',
-    lowerTaskId: '',
-    upperTaskId: '',
+    showAdvancedParts: false,
     subtasks: []
   });
 
@@ -1209,8 +1275,8 @@ function App() {
     originalTaskId: '',
     archiveOriginal: true,
     newTasks: [
-      { name: '', intervalDays: 14, baseWeight: 1, subtasks: [] },
-      { name: '', intervalDays: 14, baseWeight: 1, subtasks: [] }
+      { name: '', intervalDays: 14, frequencyPreset: 14, baseWeight: 1, difficultyPreset: 1, subtasks: [] },
+      { name: '', intervalDays: 14, frequencyPreset: 14, baseWeight: 1, difficultyPreset: 1, subtasks: [] }
     ]
   });
 
@@ -1261,70 +1327,11 @@ function App() {
   }
 
   function calculateDifficultyFromForm(formValue) {
-    const tasks = sortedTasksByDifficulty();
-    const byId = Object.fromEntries(tasks.map(task => [task.id, task]));
-    const weights = tasks.map(task => Number(task.baseWeight || 1));
-
-    if (!tasks.length) {
+    if (formValue.difficultyPreset === 'custom') {
       return Number(formValue.baseWeight || 1);
     }
 
-    const minWeight = Math.min(...weights);
-    const maxWeight = Math.max(...weights);
-
-    if (formValue.difficultyMode === 'manual') {
-      return Number(formValue.baseWeight || 1);
-    }
-
-    if (formValue.difficultyMode === 'easier') {
-      const ref = byId[formValue.easierThanTaskId];
-      if (!ref) return Number(formValue.baseWeight || 1);
-
-      const refWeight = Number(ref.baseWeight || 1);
-
-      // If selected chore is already the easiest, keep the new chore just below it.
-      // Never go below 0.25.
-      if (refWeight <= minWeight) {
-        return Math.max(0.25, Number((refWeight - 0.25).toFixed(2)));
-      }
-
-      return Math.max(0.25, Number((refWeight - 0.25).toFixed(2)));
-    }
-
-    if (formValue.difficultyMode === 'harder') {
-      const ref = byId[formValue.harderThanTaskId];
-      if (!ref) return Number(formValue.baseWeight || 1);
-
-      const refWeight = Number(ref.baseWeight || 1);
-
-      // If selected chore is already the hardest, place the new chore above it.
-      return Number((refWeight + 0.25).toFixed(2));
-    }
-
-    if (formValue.difficultyMode === 'between') {
-      const lower = byId[formValue.lowerTaskId];
-      const upper = byId[formValue.upperTaskId];
-
-      if (!lower || !upper) return Number(formValue.baseWeight || 1);
-
-      const lowerWeight = Number(lower.baseWeight || 1);
-      const upperWeight = Number(upper.baseWeight || 1);
-
-      if (lower.id === upper.id) {
-        return lowerWeight;
-      }
-
-      const easierWeight = Math.min(lowerWeight, upperWeight);
-      const harderWeight = Math.max(lowerWeight, upperWeight);
-
-      if (easierWeight === harderWeight) {
-        return easierWeight;
-      }
-
-      return Number(((easierWeight + harderWeight) / 2).toFixed(2));
-    }
-
-    return Number(formValue.baseWeight || 1);
+    return Number(formValue.difficultyPreset || formValue.baseWeight || 1);
   }
 
   function addTaskPart() {
@@ -1357,17 +1364,26 @@ function App() {
     const task = (data?.tasks || []).find(item => item.id === taskId);
     if (!task) return;
 
+    const intervalDays = Number(task.intervalDays || 14);
+    const baseWeight = Number(task.baseWeight || 1);
+
+    const frequencyPreset = FREQUENCY_PRESETS.some(item => item.value === intervalDays)
+      ? intervalDays
+      : 'custom';
+
+    const difficultyPreset = DIFFICULTY_PRESETS.some(item => item.value === baseWeight)
+      ? baseWeight
+      : 'custom';
+
     setTaskAdminForm({
       id: task.id,
       name: task.name || taskLabel(task),
       type: task.type || 'scheduled',
-      intervalDays: task.intervalDays || 14,
-      difficultyMode: 'manual',
-      baseWeight: Number(task.baseWeight || 1),
-      easierThanTaskId: '',
-      harderThanTaskId: '',
-      lowerTaskId: '',
-      upperTaskId: '',
+      intervalDays,
+      frequencyPreset,
+      difficultyPreset,
+      baseWeight,
+      showAdvancedParts: false,
       subtasks: (task.subtasks || []).map(subtask => ({
         name: lang === 'de' ? subtask.nameDe : subtask.nameEn,
         nameEn: subtask.nameEn,
@@ -1436,7 +1452,14 @@ function App() {
       ...current,
       newTasks: [
         ...current.newTasks,
-        { name: '', intervalDays: 14, baseWeight: 1, subtasks: [] }
+        {
+          name: '',
+          intervalDays: 14,
+          frequencyPreset: 14,
+          baseWeight: 1,
+          difficultyPreset: 1,
+          subtasks: []
+        }
       ]
     }));
   }
@@ -2357,6 +2380,118 @@ function App() {
       setEmailMode(false);
     }
   }, [data, currentUser]);
+
+    function frequencyOptions() {
+    return FREQUENCY_PRESETS.map(item => ({
+      value: item.value,
+      label: presetLabel(item, lang)
+    }));
+  }
+
+  function difficultyOptions() {
+    return DIFFICULTY_PRESETS.map(item => ({
+      value: item.value,
+      label: presetLabel(item, lang)
+    }));
+  }
+
+  function setTaskFrequency(value) {
+    setTaskAdminForm(current => ({
+      ...current,
+      frequencyPreset: value,
+      intervalDays: value === 'custom' ? current.intervalDays : Number(value)
+    }));
+  }
+
+  function setTaskDifficulty(value) {
+    setTaskAdminForm(current => ({
+      ...current,
+      difficultyPreset: value,
+      baseWeight: value === 'custom' ? current.baseWeight : Number(value)
+    }));
+  }
+
+  function setSplitTaskFrequency(index, value) {
+    updateSplitTask(index, {
+      frequencyPreset: value,
+      intervalDays: value === 'custom'
+        ? splitTaskForm.newTasks[index]?.intervalDays || 14
+        : Number(value)
+    });
+  }
+
+  function setSplitTaskDifficulty(index, value) {
+    updateSplitTask(index, {
+      difficultyPreset: value,
+      baseWeight: value === 'custom'
+        ? splitTaskForm.newTasks[index]?.baseWeight || 1
+        : Number(value)
+    });
+  }
+
+  function resetTaskAdminFormForAdd() {
+    setTaskAdminForm({
+      id: '',
+      name: '',
+      type: 'scheduled',
+      intervalDays: 14,
+      frequencyPreset: 14,
+      difficultyPreset: 1,
+      baseWeight: 1,
+      showAdvancedParts: false,
+      subtasks: []
+    });
+  }
+
+  function renderAdvancedPartsEditor() {
+    return (
+      <div className="subtask-box admin-advanced-box">
+        <div className="subtask-head">
+          <div>
+            <b>{t.subtasks}</b>
+            <p>{t.partialTask}</p>
+          </div>
+
+          <button type="button" className="mini-action" onClick={addTaskPart}>
+            {t.addPart}
+          </button>
+        </div>
+
+        <div className="admin-task-parts">
+          {taskAdminForm.subtasks.map((part, index) => (
+            <div className="admin-task-part-row" key={`part-${index}`}>
+              <input
+                value={part.name}
+                onChange={event => updateTaskPart(index, { name: event.target.value })}
+                placeholder={t.subtaskName}
+              />
+
+              <input
+                type="number"
+                min="0.25"
+                step="0.25"
+                value={part.weight}
+                onChange={event => updateTaskPart(index, { weight: event.target.value })}
+                placeholder={t.subtaskWeight}
+              />
+
+              <button
+                type="button"
+                className="danger-action"
+                onClick={() => removeTaskPart(index)}
+              >
+                {t.removePart}
+              </button>
+            </div>
+          ))}
+
+          {!taskAdminForm.subtasks.length && (
+            <div className="empty-state">{t.noRecord}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   async function markDone() {
     try {
@@ -3305,357 +3440,423 @@ function App() {
           </div>
         </div>
 
-        <div className="admin-section-block task-admin-section">
+        <div className="admin-section-block task-admin-section simple-task-admin-section">
           <h3>{t.adminTasks}</h3>
           <p className="admin-section-help">{t.adminTasksHelp}</p>
 
-          <div className="admin-grid two">
-            <FancySelect
-              label={t.updateChore}
-              value={taskAdminForm.id}
-              onChange={loadTaskIntoAdminForm}
-              options={(data.tasks || []).map(task => ({
-                value: task.id,
-                label: taskLabel(task)
-              }))}
-              placeholder={t.selectPlaceholder}
-            />
-
-            <label>
-              {t.userName}
-              <input
-                value={taskAdminForm.name}
-                onChange={event =>
-                  setTaskAdminForm({
-                    ...taskAdminForm,
-                    name: event.target.value
-                  })
-                }
-                placeholder={t.task}
-              />
-            </label>
-
-            <FancySelect
-              label={t.taskType}
-              value={taskAdminForm.type}
-              onChange={value =>
-                setTaskAdminForm({
-                  ...taskAdminForm,
-                  type: value
-                })
-              }
-              options={[
-                { value: 'scheduled', label: t.scheduledTask },
-                { value: 'on_demand', label: t.onDemandTask }
-              ]}
-              placeholder={t.scheduledTask}
-            />
-
-            {taskAdminForm.type === 'scheduled' && (
-              <label>
-                {t.taskFrequencyDays}
-                <input
-                  type="number"
-                  min="1"
-                  max="3650"
-                  value={taskAdminForm.intervalDays}
-                  onChange={event =>
-                    setTaskAdminForm({
-                      ...taskAdminForm,
-                      intervalDays: event.target.value
-                    })
-                  }
-                />
-              </label>
-            )}
-
-            <FancySelect
-              label={t.difficultyMode}
-              value={taskAdminForm.difficultyMode}
-              onChange={value =>
-                setTaskAdminForm({
-                  ...taskAdminForm,
-                  difficultyMode: value
-                })
-              }
-              options={[
-                { value: 'manual', label: t.difficultyManual },
-                { value: 'easier', label: t.difficultyEasierThan },
-                { value: 'harder', label: t.difficultyHarderThan },
-                { value: 'between', label: t.difficultyBetween }
-              ]}
-              placeholder={t.difficultyManual}
-            />
-
-            {taskAdminForm.difficultyMode === 'manual' && (
-              <label>
-                {t.difficultyNumber}
-                <input
-                  type="number"
-                  min="0.25"
-                  step="0.25"
-                  value={taskAdminForm.baseWeight}
-                  onChange={event =>
-                    setTaskAdminForm({
-                      ...taskAdminForm,
-                      baseWeight: event.target.value
-                    })
-                  }
-                />
-              </label>
-            )}
-
-            {taskAdminForm.difficultyMode === 'easier' && (
-              <FancySelect
-                label={t.easierThanTask}
-                value={taskAdminForm.easierThanTaskId}
-                onChange={value =>
-                  setTaskAdminForm({
-                    ...taskAdminForm,
-                    easierThanTaskId: value
-                  })
-                }
-                options={difficultyTaskOptions()}
-                placeholder={t.selectPlaceholder}
-              />
-            )}
-
-            {taskAdminForm.difficultyMode === 'harder' && (
-              <FancySelect
-                label={t.harderThanTask}
-                value={taskAdminForm.harderThanTaskId}
-                onChange={value =>
-                  setTaskAdminForm({
-                    ...taskAdminForm,
-                    harderThanTaskId: value
-                  })
-                }
-                options={difficultyTaskOptions()}
-                placeholder={t.selectPlaceholder}
-              />
-            )}
-
-            {taskAdminForm.difficultyMode === 'between' && (
-              <>
-                <FancySelect
-                  label={t.easierThanTask}
-                  value={taskAdminForm.lowerTaskId}
-                  onChange={value =>
-                    setTaskAdminForm({
-                      ...taskAdminForm,
-                      lowerTaskId: value
-                    })
-                  }
-                  options={difficultyTaskOptions()}
-                  placeholder={t.selectPlaceholder}
-                />
-
-                <FancySelect
-                  label={t.harderThanTask}
-                  value={taskAdminForm.upperTaskId}
-                  onChange={value =>
-                    setTaskAdminForm({
-                      ...taskAdminForm,
-                      upperTaskId: value
-                    })
-                  }
-                  options={difficultyTaskOptions()}
-                  placeholder={t.selectPlaceholder}
-                />
-              </>
-            )}
-          </div>
-
-          <div className="task-admin-preview">
-            <span>{t.taskDifficulty}</span>
-            <strong>{formatPoints(calculateDifficultyFromForm(taskAdminForm))}</strong>
-          </div>
-
-          <div className="subtask-box">
-            <div className="subtask-head">
+          <div className="simple-admin-card">
+            <div className="simple-admin-card-head">
               <div>
-                <b>{t.subtasks}</b>
-                <p>{t.partialTask}</p>
+                <h3>{t.editExistingChore}</h3>
+                <p>{t.editExistingChoreHelp}</p>
               </div>
-
-              <button type="button" className="mini-action" onClick={addTaskPart}>
-                {t.addPart}
-              </button>
             </div>
 
-            <div className="admin-task-parts">
-              {taskAdminForm.subtasks.map((part, index) => (
-                <div className="admin-task-part-row" key={`part-${index}`}>
-                  <input
-                    value={part.name}
-                    onChange={event => updateTaskPart(index, { name: event.target.value })}
-                    placeholder={t.subtaskName}
-                  />
+            <div className="admin-grid two">
+              <FancySelect
+                label={t.chooseChore}
+                value={taskAdminForm.id}
+                onChange={loadTaskIntoAdminForm}
+                options={(data.tasks || []).map(task => ({
+                  value: task.id,
+                  label: taskLabel(task)
+                }))}
+                placeholder={t.selectPlaceholder}
+              />
 
+              <label>
+                {t.choreName}
+                <input
+                  value={taskAdminForm.name}
+                  onChange={event =>
+                    setTaskAdminForm({
+                      ...taskAdminForm,
+                      name: event.target.value
+                    })
+                  }
+                  placeholder={t.choreNameExample}
+                />
+              </label>
+
+              <FancySelect
+                label={t.taskType}
+                value={taskAdminForm.type}
+                onChange={value =>
+                  setTaskAdminForm({
+                    ...taskAdminForm,
+                    type: value
+                  })
+                }
+                options={[
+                  { value: 'scheduled', label: t.scheduledTask },
+                  { value: 'on_demand', label: t.onDemandTask }
+                ]}
+                placeholder={t.scheduledTask}
+              />
+
+              {taskAdminForm.type === 'scheduled' && (
+                <FancySelect
+                  label={t.repeatEvery}
+                  value={taskAdminForm.frequencyPreset}
+                  onChange={setTaskFrequency}
+                  options={frequencyOptions()}
+                  placeholder={t.repeatEvery}
+                />
+              )}
+
+              {taskAdminForm.type === 'scheduled' && taskAdminForm.frequencyPreset === 'custom' && (
+                <label>
+                  {t.customDays}
+                  <input
+                    type="number"
+                    min="1"
+                    max="3650"
+                    value={taskAdminForm.intervalDays}
+                    onChange={event =>
+                      setTaskAdminForm({
+                        ...taskAdminForm,
+                        intervalDays: event.target.value
+                      })
+                    }
+                  />
+                </label>
+              )}
+
+              <FancySelect
+                label={t.difficultySimple}
+                value={taskAdminForm.difficultyPreset}
+                onChange={setTaskDifficulty}
+                options={difficultyOptions()}
+                placeholder={t.difficultySimple}
+              />
+
+              {taskAdminForm.difficultyPreset === 'custom' && (
+                <label>
+                  {t.customPoints}
                   <input
                     type="number"
                     min="0.25"
                     step="0.25"
-                    value={part.weight}
-                    onChange={event => updateTaskPart(index, { weight: event.target.value })}
-                    placeholder={t.subtaskWeight}
+                    value={taskAdminForm.baseWeight}
+                    onChange={event =>
+                      setTaskAdminForm({
+                        ...taskAdminForm,
+                        baseWeight: event.target.value
+                      })
+                    }
                   />
+                </label>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="advanced-toggle-button"
+              onClick={() =>
+                setTaskAdminForm(current => ({
+                  ...current,
+                  showAdvancedParts: !current.showAdvancedParts
+                }))
+              }
+            >
+              {taskAdminForm.showAdvancedParts ? t.hideAdvancedParts : t.advancedParts}
+            </button>
+
+            {taskAdminForm.showAdvancedParts && renderAdvancedPartsEditor()}
+
+            <div className="admin-actions simple-admin-actions">
+              <button
+                type="button"
+                disabled={adminSaving || !taskAdminForm.id}
+                onClick={() => saveTaskAdminForm('update')}
+              >
+                {adminSaving ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    {t.processing}
+                  </>
+                ) : (
+                  t.saveChanges
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="danger-action"
+                disabled={adminSaving || !taskAdminForm.id}
+                onClick={archiveTaskFromAdmin}
+              >
+                {adminSaving ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    {t.processing}
+                  </>
+                ) : (
+                  t.archiveThisChore
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="simple-admin-card">
+            <div className="simple-admin-card-head">
+              <div>
+                <h3>{t.addNewChoreTitle}</h3>
+                <p>{t.addNewChoreHelp}</p>
+              </div>
+
+              <button type="button" className="mini-action" onClick={resetTaskAdminFormForAdd}>
+                {t.cancel}
+              </button>
+            </div>
+
+            <div className="admin-grid two">
+              <label>
+                {t.choreName}
+                <input
+                  value={!taskAdminForm.id ? taskAdminForm.name : ''}
+                  onChange={event =>
+                    setTaskAdminForm(current => ({
+                      ...current,
+                      id: '',
+                      name: event.target.value
+                    }))
+                  }
+                  placeholder={t.choreNameExample}
+                />
+              </label>
+
+              <FancySelect
+                label={t.taskType}
+                value={!taskAdminForm.id ? taskAdminForm.type : 'scheduled'}
+                onChange={value =>
+                  setTaskAdminForm(current => ({
+                    ...current,
+                    id: '',
+                    type: value
+                  }))
+                }
+                options={[
+                  { value: 'scheduled', label: t.scheduledTask },
+                  { value: 'on_demand', label: t.onDemandTask }
+                ]}
+                placeholder={t.scheduledTask}
+              />
+
+              {(!taskAdminForm.id ? taskAdminForm.type : 'scheduled') === 'scheduled' && (
+                <FancySelect
+                  label={t.repeatEvery}
+                  value={!taskAdminForm.id ? taskAdminForm.frequencyPreset : 14}
+                  onChange={value =>
+                    setTaskAdminForm(current => ({
+                      ...current,
+                      id: '',
+                      frequencyPreset: value,
+                      intervalDays: value === 'custom' ? current.intervalDays : Number(value)
+                    }))
+                  }
+                  options={frequencyOptions()}
+                  placeholder={t.repeatEvery}
+                />
+              )}
+
+              {!taskAdminForm.id &&
+                taskAdminForm.type === 'scheduled' &&
+                taskAdminForm.frequencyPreset === 'custom' && (
+                  <label>
+                    {t.customDays}
+                    <input
+                      type="number"
+                      min="1"
+                      max="3650"
+                      value={taskAdminForm.intervalDays}
+                      onChange={event =>
+                        setTaskAdminForm({
+                          ...taskAdminForm,
+                          intervalDays: event.target.value
+                        })
+                      }
+                    />
+                  </label>
+                )}
+
+              <FancySelect
+                label={t.difficultySimple}
+                value={!taskAdminForm.id ? taskAdminForm.difficultyPreset : 1}
+                onChange={value =>
+                  setTaskAdminForm(current => ({
+                    ...current,
+                    id: '',
+                    difficultyPreset: value,
+                    baseWeight: value === 'custom' ? current.baseWeight : Number(value)
+                  }))
+                }
+                options={difficultyOptions()}
+                placeholder={t.difficultySimple}
+              />
+
+              {!taskAdminForm.id && taskAdminForm.difficultyPreset === 'custom' && (
+                <label>
+                  {t.customPoints}
+                  <input
+                    type="number"
+                    min="0.25"
+                    step="0.25"
+                    value={taskAdminForm.baseWeight}
+                    onChange={event =>
+                      setTaskAdminForm({
+                        ...taskAdminForm,
+                        baseWeight: event.target.value
+                      })
+                    }
+                  />
+                </label>
+              )}
+            </div>
+
+            <div className="admin-actions simple-admin-actions">
+              <button
+                type="button"
+                disabled={adminSaving || taskAdminForm.id || !taskAdminForm.name.trim()}
+                onClick={() => saveTaskAdminForm('add')}
+              >
+                {adminSaving ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    {t.processing}
+                  </>
+                ) : (
+                  t.addNewChoreButton
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="simple-admin-card">
+            <div className="simple-admin-card-head">
+              <div>
+                <h3>{t.splitBigChoreTitle}</h3>
+                <p>{t.splitBigChoreHelp}</p>
+                <p className="simple-admin-example">{t.splitExample}</p>
+              </div>
+            </div>
+
+            <div className="admin-grid two">
+              <FancySelect
+                label={t.originalChore}
+                value={splitTaskForm.originalTaskId}
+                onChange={value =>
+                  setSplitTaskForm({
+                    ...splitTaskForm,
+                    originalTaskId: value
+                  })
+                }
+                options={(data.tasks || []).map(task => ({
+                  value: task.id,
+                  label: taskLabel(task)
+                }))}
+                placeholder={t.selectPlaceholder}
+              />
+
+              <label className="check admin-check">
+                <input
+                  type="checkbox"
+                  checked={splitTaskForm.archiveOriginal}
+                  onChange={event =>
+                    setSplitTaskForm({
+                      ...splitTaskForm,
+                      archiveOriginal: event.target.checked
+                    })
+                  }
+                />
+                {t.archiveOriginalChore}
+              </label>
+            </div>
+
+            <h4 className="simple-admin-subtitle">{t.splitIntoSmallerChores}</h4>
+
+            <div className="split-task-list simple-split-task-list">
+              {splitTaskForm.newTasks.map((item, index) => (
+                <div className="split-task-row simple-split-task-row" key={`split-${index}`}>
+                  <input
+                    value={item.name}
+                    onChange={event => updateSplitTask(index, { name: event.target.value })}
+                    placeholder={`${t.smallerChoreName} ${index + 1}`}
+                  />
+
+                  <FancySelect
+                    label=""
+                    value={item.frequencyPreset}
+                    onChange={value => setSplitTaskFrequency(index, value)}
+                    options={frequencyOptions()}
+                    placeholder={t.repeatEvery}
+                  />
+
+                  {item.frequencyPreset === 'custom' && (
+                    <input
+                      type="number"
+                      min="1"
+                      max="3650"
+                      value={item.intervalDays}
+                      onChange={event => updateSplitTask(index, { intervalDays: event.target.value })}
+                      placeholder={t.customDays}
+                    />
+                  )}
+
+                  <FancySelect
+                    label=""
+                    value={item.difficultyPreset}
+                    onChange={value => setSplitTaskDifficulty(index, value)}
+                    options={difficultyOptions()}
+                    placeholder={t.difficultySimple}
+                  />
+
+                  {item.difficultyPreset === 'custom' && (
+                    <input
+                      type="number"
+                      min="0.25"
+                      step="0.25"
+                      value={item.baseWeight}
+                      onChange={event => updateSplitTask(index, { baseWeight: event.target.value })}
+                      placeholder={t.customPoints}
+                    />
+                  )}
 
                   <button
                     type="button"
                     className="danger-action"
-                    onClick={() => removeTaskPart(index)}
+                    onClick={() => removeSplitTaskRow(index)}
                   >
                     {t.removePart}
                   </button>
                 </div>
               ))}
             </div>
-          </div>
 
-          <div className="admin-actions">
-            <button
-              type="button"
-              disabled={adminSaving}
-              onClick={() => saveTaskAdminForm('add')}
-            >
-              {adminSaving ? (
-                <>
-                  <Loader2 size={16} className="spin" />
-                  {t.processing}
-                </>
-              ) : (
-                t.addChore
-              )}
-            </button>
+            <div className="admin-actions simple-admin-actions">
+              <button
+                type="button"
+                disabled={adminSaving}
+                onClick={addSplitTaskRow}
+              >
+                {t.addSmallerChore}
+              </button>
 
-            <button
-              type="button"
-              disabled={adminSaving || !taskAdminForm.id}
-              onClick={() => saveTaskAdminForm('update')}
-            >
-              {adminSaving ? (
-                <>
-                  <Loader2 size={16} className="spin" />
-                  {t.processing}
-                </>
-              ) : (
-                t.updateChore
-              )}
-            </button>
-
-            <button
-              type="button"
-              className="danger-action"
-              disabled={adminSaving || !taskAdminForm.id}
-              onClick={archiveTaskFromAdmin}
-            >
-              {adminSaving ? (
-                <>
-                  <Loader2 size={16} className="spin" />
-                  {t.processing}
-                </>
-              ) : (
-                t.archiveChore
-              )}
-            </button>
-          </div>
-
-          <h3>{t.splitChore}</h3>
-
-          <div className="admin-grid two">
-            <FancySelect
-              label={t.originalChore}
-              value={splitTaskForm.originalTaskId}
-              onChange={value =>
-                setSplitTaskForm({
-                  ...splitTaskForm,
-                  originalTaskId: value
-                })
-              }
-              options={(data.tasks || []).map(task => ({
-                value: task.id,
-                label: taskLabel(task)
-              }))}
-              placeholder={t.selectPlaceholder}
-            />
-
-            <label className="check admin-check">
-              <input
-                type="checkbox"
-                checked={splitTaskForm.archiveOriginal}
-                onChange={event =>
-                  setSplitTaskForm({
-                    ...splitTaskForm,
-                    archiveOriginal: event.target.checked
-                  })
-                }
-              />
-              {t.archiveOriginalChore}
-            </label>
-          </div>
-
-          <div className="split-task-list">
-            {splitTaskForm.newTasks.map((item, index) => (
-              <div className="split-task-row" key={`split-${index}`}>
-                <input
-                  value={item.name}
-                  onChange={event => updateSplitTask(index, { name: event.target.value })}
-                  placeholder={`${t.task} ${index + 1}`}
-                />
-
-                <input
-                  type="number"
-                  min="1"
-                  max="3650"
-                  value={item.intervalDays}
-                  onChange={event => updateSplitTask(index, { intervalDays: event.target.value })}
-                  placeholder={t.taskFrequencyDays}
-                />
-
-                <input
-                  type="number"
-                  min="0.25"
-                  step="0.25"
-                  value={item.baseWeight}
-                  onChange={event => updateSplitTask(index, { baseWeight: event.target.value })}
-                  placeholder={t.difficultyNumber}
-                />
-
-                <button
-                  type="button"
-                  className="danger-action"
-                  onClick={() => removeSplitTaskRow(index)}
-                >
-                  {t.removePart}
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="admin-actions">
-            <button
-              type="button"
-              disabled={adminSaving}
-              onClick={addSplitTaskRow}
-            >
-              {t.addPart}
-            </button>
-
-            <button
-              type="button"
-              disabled={adminSaving || !splitTaskForm.originalTaskId}
-              onClick={submitSplitTask}
-            >
-              {adminSaving ? (
-                <>
-                  <Loader2 size={16} className="spin" />
-                  {t.processing}
-                </>
-              ) : (
-                t.splitChore
-              )}
-            </button>
+              <button
+                type="button"
+                disabled={adminSaving || !splitTaskForm.originalTaskId}
+                onClick={submitSplitTask}
+              >
+                {adminSaving ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    {t.processing}
+                  </>
+                ) : (
+                  t.splitBigChoreTitle
+                )}
+              </button>
+            </div>
           </div>
         </div>
 

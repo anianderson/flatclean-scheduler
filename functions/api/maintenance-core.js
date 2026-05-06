@@ -20,7 +20,10 @@ const SEND_WINDOW_START_HOUR = 7;
 const SEND_WINDOW_END_HOUR = 21;
 const GROUP_NOTICE_HOUR = 10;
 
+const UPCOMING_WEEK_REMINDER_DAYS = 7;
 const UPCOMING_REMINDER_DAYS = 1;
+const GRACE_PERIOD_DAYS = 3;
+const OVERDUE_FOR_DAYS_NOTICE = 3;
 const WEEK_OVERDUE_DAYS = 7;
 
 function formatDate(date) {
@@ -249,11 +252,26 @@ function classifyReminder(row, today) {
   const daysUntilDue = diffDays(today, row.dueDate);
   if (daysUntilDue === null) return null;
 
-  if (daysUntilDue < 0) {
+  // Existing previous email: 1 day before due date.
+  if (daysUntilDue === UPCOMING_REMINDER_DAYS) {
     return {
-      emailType: 'overdue_reminder',
-      referenceDate: `${today}:${row.dueDate}`,
-      urgency: 'overdue',
+      emailType: 'upcoming_reminder',
+      referenceDate: row.dueDate,
+      urgency: 'upcoming',
+      daysUntilDue
+    };
+  }
+
+  // New email: due within the next week.
+  // This intentionally excludes day 1 so the previous 1-day reminder remains separate.
+  if (
+    daysUntilDue > UPCOMING_REMINDER_DAYS &&
+    daysUntilDue <= UPCOMING_WEEK_REMINDER_DAYS
+  ) {
+    return {
+      emailType: 'upcoming_week_reminder',
+      referenceDate: `${row.dueDate}:week-${daysUntilDue}`,
+      urgency: 'upcoming_week',
       daysUntilDue
     };
   }
@@ -267,12 +285,48 @@ function classifyReminder(row, today) {
     };
   }
 
-  if (daysUntilDue <= UPCOMING_REMINDER_DAYS) {
+  if (daysUntilDue < 0) {
+    const daysPastDue = Math.abs(daysUntilDue);
+
+    // Due date + day 1 and day 2 are grace period silence.
+    if (daysPastDue < GRACE_PERIOD_DAYS) {
+      return null;
+    }
+
+    // Due date + day 3: grace-period-ending email.
+    if (daysPastDue === GRACE_PERIOD_DAYS) {
+      return {
+        emailType: 'grace_period_ending_reminder',
+        referenceDate: `${row.dueDate}:grace-ending`,
+        urgency: 'grace_ending',
+        daysUntilDue,
+        daysPastDue
+      };
+    }
+
+    // Overdue starts after the 3-day grace period.
+    const overdueDays = daysPastDue - GRACE_PERIOD_DAYS;
+
+    // 3 actual overdue days after grace period.
+    // Example: due + 6 days.
+    if (overdueDays === OVERDUE_FOR_DAYS_NOTICE) {
+      return {
+        emailType: 'overdue_3_days_reminder',
+        referenceDate: `${row.dueDate}:overdue-${OVERDUE_FOR_DAYS_NOTICE}`,
+        urgency: 'overdue_3_days',
+        daysUntilDue,
+        daysPastDue,
+        overdueDays
+      };
+    }
+
     return {
-      emailType: 'upcoming_reminder',
-      referenceDate: row.dueDate,
-      urgency: 'upcoming',
-      daysUntilDue
+      emailType: 'overdue_reminder',
+      referenceDate: `${today}:${row.dueDate}`,
+      urgency: 'overdue',
+      daysUntilDue,
+      daysPastDue,
+      overdueDays
     };
   }
 
@@ -291,29 +345,85 @@ function buildReminderEmail({ row, reminder, today }) {
   let detailsDe = `Aufgabe: ${choreName}. Fällig am: ${dueDateText}.`;
   let detailsEn = `Chore: ${choreName}. Due date: ${dueDateText}.`;
 
+  if (reminder.urgency === 'upcoming_week') {
+    titleDe = `In den nächsten 7 Tagen fällig: ${choreName}`;
+    titleEn = `Due in the next 7 days: ${choreName}`;
+    summaryDe = `${person}, diese Aufgabe ist in ${reminder.daysUntilDue} Tagen fällig.`;
+    summaryEn = `${person}, this chore is due in ${reminder.daysUntilDue} days.`;
+    detailsDe += ` Du bekommst zusätzlich weiterhin die normale Erinnerung 1 Tag vor Fälligkeit. Nach dem Fälligkeitsdatum gibt es ${GRACE_PERIOD_DAYS} Tage Kulanzzeit.`;
+    detailsEn += ` You will still also receive the normal reminder 1 day before the due date. After the due date, there is a ${GRACE_PERIOD_DAYS}-day grace period.`;
+  }
+
+  if (reminder.urgency === 'upcoming') {
+    titleDe = `Morgen fällig: ${choreName}`;
+    titleEn = `Due tomorrow: ${choreName}`;
+    summaryDe = `${person}, diese Aufgabe ist morgen fällig.`;
+    summaryEn = `${person}, this chore is due tomorrow.`;
+    detailsDe += ` Nach dem Fälligkeitsdatum gibt es ${GRACE_PERIOD_DAYS} Tage Kulanzzeit.`;
+    detailsEn += ` After the due date, there is a ${GRACE_PERIOD_DAYS}-day grace period.`;
+  }
+
   if (reminder.urgency === 'today') {
     titleDe = `Heute fällig: ${choreName}`;
     titleEn = `Due today: ${choreName}`;
     summaryDe = `${person}, diese Aufgabe ist heute fällig.`;
     summaryEn = `${person}, this chore is due today.`;
+    detailsDe += ` Danach beginnt eine Kulanzzeit von ${GRACE_PERIOD_DAYS} Tagen.`;
+    detailsEn += ` After today, a ${GRACE_PERIOD_DAYS}-day grace period begins.`;
+  }
+
+  if (reminder.urgency === 'grace_ending') {
+    titleDe = `Kulanzzeit endet heute: ${choreName}`;
+    titleEn = `Grace period ends today: ${choreName}`;
+    summaryDe = `${person}, die Kulanzzeit für diese Aufgabe endet heute.`;
+    summaryEn = `${person}, the grace period for this chore ends today.`;
+    detailsDe =
+      `Aufgabe: ${choreName}. Ursprünglich fällig am: ${dueDateText}. ` +
+      `Heute ist der ${GRACE_PERIOD_DAYS}. Tag nach dem Fälligkeitsdatum. ` +
+      `Wenn die Aufgabe danach offen bleibt, zählt sie als überfällig.`;
+    detailsEn =
+      `Chore: ${choreName}. Originally due on: ${dueDateText}. ` +
+      `Today is day ${GRACE_PERIOD_DAYS} after the due date. ` +
+      `If the chore remains open after this, it will count as overdue.`;
   }
 
   if (reminder.urgency === 'overdue') {
-    const lateDays = Math.abs(reminder.daysUntilDue);
-
     titleDe = `Überfällig: ${choreName}`;
     titleEn = `Overdue: ${choreName}`;
-    summaryDe = `${person}, diese Aufgabe ist seit ${lateDays} Tag${lateDays === 1 ? '' : 'en'} überfällig.`;
-    summaryEn = `${person}, this chore is ${lateDays} day${lateDays === 1 ? '' : 's'} overdue.`;
-    detailsDe += ` Heute ist ${formatDate(today)}. Wenn jemand anderes die überfällige Aufgabe übernimmt, werden die Fairness-Punkte angepasst.`;
-    detailsEn += ` Today is ${formatDate(today)}. If someone else covers the overdue chore, fairness points will be adjusted.`;
+    summaryDe = `${person}, diese Aufgabe ist jetzt überfällig.`;
+    summaryEn = `${person}, this chore is now overdue.`;
+    detailsDe =
+      `Aufgabe: ${choreName}. Ursprünglich fällig am: ${dueDateText}. ` +
+      `Die ${GRACE_PERIOD_DAYS}-tägige Kulanzzeit ist abgelaufen. ` +
+      `Die Aufgabe ist aktuell ${reminder.overdueDays} Tag${reminder.overdueDays === 1 ? '' : 'e'} überfällig. ` +
+      `Wenn jemand anderes die Aufgabe übernimmt, werden die Fairness-Punkte angepasst.`;
+    detailsEn =
+      `Chore: ${choreName}. Originally due on: ${dueDateText}. ` +
+      `The ${GRACE_PERIOD_DAYS}-day grace period has ended. ` +
+      `The chore is currently ${reminder.overdueDays} day${reminder.overdueDays === 1 ? '' : 's'} overdue. ` +
+      `If someone else covers it, fairness points will be adjusted.`;
+  }
+
+  if (reminder.urgency === 'overdue_3_days') {
+    titleDe = `Seit 3 Tagen überfällig: ${choreName}`;
+    titleEn = `Overdue for 3 days: ${choreName}`;
+    summaryDe = `${person}, diese Aufgabe ist seit 3 Tagen überfällig.`;
+    summaryEn = `${person}, this chore has been overdue for 3 days.`;
+    detailsDe =
+      `Aufgabe: ${choreName}. Ursprünglich fällig am: ${dueDateText}. ` +
+      `Nach der ${GRACE_PERIOD_DAYS}-tägigen Kulanzzeit ist die Aufgabe nun seit ${OVERDUE_FOR_DAYS_NOTICE} Tagen überfällig. ` +
+      `Bitte erledige sie möglichst bald. Wenn jemand anderes sie übernimmt, werden die Fairness-Punkte angepasst.`;
+    detailsEn =
+      `Chore: ${choreName}. Originally due on: ${dueDateText}. ` +
+      `After the ${GRACE_PERIOD_DAYS}-day grace period, this chore has now been overdue for ${OVERDUE_FOR_DAYS_NOTICE} days. ` +
+      `Please complete it as soon as possible. If someone else covers it, fairness points will be adjusted.`;
   }
 
   if (row.bundledVacuumRow) {
     titleDe = `Boden-Aufgabe: ${choreName} + Staubsaugen`;
     titleEn = `Floor chore: ${choreName} + vacuuming`;
-    detailsDe += ` Staubsaugen ist in diesem Termin enthalten. Die Boden-Regel hält mindestens ${FLOOR_MIN_GAP_DAYS} Tage Abstand zwischen Staubsaugen und Nasswischen; nahe Termine werden innerhalb von ${FLOOR_BUNDLE_WINDOW_DAYS} Tagen gebündelt.`;
-    detailsEn += ` Vacuuming is included in this appointment. The floor rule keeps at least ${FLOOR_MIN_GAP_DAYS} days between vacuuming and mopping; nearby dates are bundled within ${FLOOR_BUNDLE_WINDOW_DAYS} days.`;
+    detailsDe += ` Staubsaugen ist in diesem Termin enthalten.`;
+    detailsEn += ` Vacuuming is included in this appointment.`;
   }
 
   return bilingualEmail({ titleDe, titleEn, summaryDe, summaryEn, detailsDe, detailsEn });
@@ -356,9 +466,13 @@ function getWeekOverdueRows(rows, today) {
     if (row.task.type !== 'scheduled' || !row.dueDate || !row.person) return false;
 
     const daysUntilDue = diffDays(today, row.dueDate);
-    if (daysUntilDue === null) return false;
+    if (daysUntilDue === null || daysUntilDue >= 0) return false;
 
-    return Math.abs(daysUntilDue) > WEEK_OVERDUE_DAYS && daysUntilDue < 0;
+    const daysPastDue = Math.abs(daysUntilDue);
+
+    // Group escalation goes to all flatmates on Due + 7.
+    // alreadySent() prevents repeating it after that.
+    return daysPastDue >= WEEK_OVERDUE_DAYS;
   });
 }
 
@@ -366,7 +480,7 @@ function buildWeekOverdueEmail({ row, today }) {
   const choreName = taskName(row.task, row.task.id);
   const person = normalizeName(row.person);
   const dueDateText = formatDate(row.dueDate);
-  const lateDays = Math.abs(diffDays(today, row.dueDate) || 0);
+  const daysPastDue = Math.abs(diffDays(today, row.dueDate) || 0);
 
   let bundleDe = '';
   let bundleEn = '';
@@ -377,17 +491,17 @@ function buildWeekOverdueEmail({ row, today }) {
   }
 
   return bilingualEmail({
-    titleDe: `Mehr als eine Woche überfällig: ${choreName}`,
-    titleEn: `Overdue for more than one week: ${choreName}`,
-    summaryDe: `Diese Aufgabe ist seit mehr als einer Woche überfällig.`,
-    summaryEn: `This chore is overdue for more than one week.`,
+    titleDe: `Seit 7 Tagen fällig: ${choreName}`,
+    titleEn: `Due for 7 days: ${choreName}`,
+    summaryDe: `Diese Aufgabe ist seit 7 Tagen nach dem ursprünglichen Fälligkeitsdatum offen.`,
+    summaryEn: `This chore has been open for 7 days after the original due date.`,
     detailsDe:
-      `Aufgabe: ${choreName}. Fällig seit: ${dueDateText}. Aktuell zuständig: ${person}. ` +
-      `Die Aufgabe ist jetzt seit ${lateDays} Tagen überfällig.${bundleDe} ` +
+      `Aufgabe: ${choreName}. Ursprünglich fällig seit: ${dueDateText}. Aktuell zuständig: ${person}. ` +
+      `Die Aufgabe ist jetzt seit ${daysPastDue} Tag${daysPastDue === 1 ? '' : 'en'} nach dem ursprünglichen Fälligkeitsdatum offen.${bundleDe} ` +
       `Alle können helfen. Wenn jemand anderes diese Aufgabe übernimmt, wird die Fairness-Wertung automatisch angepasst.`,
     detailsEn:
-      `Chore: ${choreName}. Due since: ${dueDateText}. Current assigned person: ${person}. ` +
-      `The chore is now ${lateDays} days overdue.${bundleEn} ` +
+      `Chore: ${choreName}. Originally due since: ${dueDateText}. Current assigned person: ${person}. ` +
+      `The chore has now been open for ${daysPastDue} day${daysPastDue === 1 ? '' : 's'} after the original due date.${bundleEn} ` +
       `Anyone can help. If someone else takes over this chore, the fairness score will adjust automatically.`
   });
 }

@@ -67,6 +67,36 @@ const TASK_TIE_OFFSETS = {
 
 const translations = {
   en: {
+    taskArchivedDone: 'Chore archived.',
+    taskSplitDone: 'Chore split.',
+    taskAddedDone: 'Chore added.',
+    taskUpdatedDone: 'Chore updated.',
+    adminTasks: 'Chore settings',
+    adminTasksHelp: 'Change frequencies, add chores, set difficulty, or split one chore into multiple chores.',
+    taskFrequencyDays: 'Frequency in days',
+    taskDifficulty: 'Relative difficulty',
+    difficultyNumber: 'Difficulty points',
+    difficultyMode: 'Difficulty mode',
+    difficultyManual: 'Manual points',
+    difficultyEasierThan: 'Easier than',
+    difficultyHarderThan: 'Harder than',
+    difficultyBetween: 'Between two chores',
+    easierThanTask: 'Easier than chore',
+    harderThanTask: 'Harder than chore',
+    addChore: 'Add chore',
+    updateChore: 'Update chore',
+    archiveChore: 'Archive chore',
+    splitChore: 'Split chore',
+    originalChore: 'Original chore',
+    newSplitChores: 'New chores after split',
+    archiveOriginalChore: 'Archive original chore after splitting',
+    subtaskName: 'Part name',
+    subtaskWeight: 'Part weight',
+    addPart: 'Add part',
+    removePart: 'Remove part',
+    taskType: 'Task type',
+    scheduledTask: 'Scheduled',
+    onDemandTask: 'As needed',
     celebrationTitle: 'Great job!',
     celebrationSubtitle: person => `${person}, your chore was saved.`,
     pointsEarnedNow: 'Points earned now',
@@ -279,6 +309,36 @@ const translations = {
   },
 
   de: {
+    taskArchivedDone: 'Aufgabe archiviert.',
+    taskSplitDone: 'Aufgabe aufgeteilt.',
+    taskAddedDone: 'Aufgabe hinzugefügt.',
+    taskUpdatedDone: 'Aufgabe aktualisiert.',
+    adminTasks: 'Aufgaben-Einstellungen',
+    adminTasksHelp: 'Häufigkeit ändern, Aufgaben hinzufügen, Schwierigkeit festlegen oder eine Aufgabe in mehrere Aufgaben aufteilen.',
+    taskFrequencyDays: 'Häufigkeit in Tagen',
+    taskDifficulty: 'Relative Schwierigkeit',
+    difficultyNumber: 'Schwierigkeitspunkte',
+    difficultyMode: 'Schwierigkeitsmodus',
+    difficultyManual: 'Manuelle Punkte',
+    difficultyEasierThan: 'Einfacher als',
+    difficultyHarderThan: 'Schwerer als',
+    difficultyBetween: 'Zwischen zwei Aufgaben',
+    easierThanTask: 'Einfacher als Aufgabe',
+    harderThanTask: 'Schwerer als Aufgabe',
+    addChore: 'Aufgabe hinzufügen',
+    updateChore: 'Aufgabe aktualisieren',
+    archiveChore: 'Aufgabe archivieren',
+    splitChore: 'Aufgabe aufteilen',
+    originalChore: 'Ursprüngliche Aufgabe',
+    newSplitChores: 'Neue Aufgaben nach Aufteilung',
+    archiveOriginalChore: 'Ursprüngliche Aufgabe nach Aufteilung archivieren',
+    subtaskName: 'Teilname',
+    subtaskWeight: 'Teilgewicht',
+    addPart: 'Teil hinzufügen',
+    removePart: 'Teil entfernen',
+    taskType: 'Aufgabentyp',
+    scheduledTask: 'Geplant',
+    onDemandTask: 'Bei Bedarf',
     celebrationTitle: 'Super gemacht!',
     celebrationSubtitle: person => `${person}, deine Aufgabe wurde gespeichert.`,
     pointsEarnedNow: 'Jetzt verdiente Punkte',
@@ -1131,6 +1191,29 @@ function App() {
     note: ''
   });
 
+  const [taskAdminForm, setTaskAdminForm] = useState({
+    id: '',
+    name: '',
+    type: 'scheduled',
+    intervalDays: 14,
+    difficultyMode: 'manual',
+    baseWeight: 1,
+    easierThanTaskId: '',
+    harderThanTaskId: '',
+    lowerTaskId: '',
+    upperTaskId: '',
+    subtasks: []
+  });
+
+  const [splitTaskForm, setSplitTaskForm] = useState({
+    originalTaskId: '',
+    archiveOriginal: true,
+    newTasks: [
+      { name: '', intervalDays: 14, baseWeight: 1, subtasks: [] },
+      { name: '', intervalDays: 14, baseWeight: 1, subtasks: [] }
+    ]
+  });
+
   const [openPersonScores, setOpenPersonScores] = useState({});
   const [busyAction, setBusyAction] = useState('');
   const [celebration, setCelebration] = useState(null);
@@ -1162,6 +1245,230 @@ function App() {
 
   function getTaskSubtasks(taskId) {
     return data?.tasks?.find(task => task.id === taskId)?.subtasks || [];
+  }
+
+  function sortedTasksByDifficulty() {
+    return [...(data?.tasks || [])].sort(
+      (a, b) => Number(a.baseWeight || 1) - Number(b.baseWeight || 1)
+    );
+  }
+
+  function difficultyTaskOptions() {
+    return sortedTasksByDifficulty().map(task => ({
+      value: task.id,
+      label: `${taskLabel(task)} (${formatPoints(task.baseWeight || 1)})`
+    }));
+  }
+
+  function calculateDifficultyFromForm(formValue) {
+    const tasks = sortedTasksByDifficulty();
+    const byId = Object.fromEntries(tasks.map(task => [task.id, task]));
+    const weights = tasks.map(task => Number(task.baseWeight || 1));
+
+    if (!tasks.length) {
+      return Number(formValue.baseWeight || 1);
+    }
+
+    const minWeight = Math.min(...weights);
+    const maxWeight = Math.max(...weights);
+
+    if (formValue.difficultyMode === 'manual') {
+      return Number(formValue.baseWeight || 1);
+    }
+
+    if (formValue.difficultyMode === 'easier') {
+      const ref = byId[formValue.easierThanTaskId];
+      if (!ref) return Number(formValue.baseWeight || 1);
+
+      const refWeight = Number(ref.baseWeight || 1);
+
+      // If selected chore is already the easiest, keep the new chore just below it.
+      // Never go below 0.25.
+      if (refWeight <= minWeight) {
+        return Math.max(0.25, Number((refWeight - 0.25).toFixed(2)));
+      }
+
+      return Math.max(0.25, Number((refWeight - 0.25).toFixed(2)));
+    }
+
+    if (formValue.difficultyMode === 'harder') {
+      const ref = byId[formValue.harderThanTaskId];
+      if (!ref) return Number(formValue.baseWeight || 1);
+
+      const refWeight = Number(ref.baseWeight || 1);
+
+      // If selected chore is already the hardest, place the new chore above it.
+      return Number((refWeight + 0.25).toFixed(2));
+    }
+
+    if (formValue.difficultyMode === 'between') {
+      const lower = byId[formValue.lowerTaskId];
+      const upper = byId[formValue.upperTaskId];
+
+      if (!lower || !upper) return Number(formValue.baseWeight || 1);
+
+      const lowerWeight = Number(lower.baseWeight || 1);
+      const upperWeight = Number(upper.baseWeight || 1);
+
+      if (lower.id === upper.id) {
+        return lowerWeight;
+      }
+
+      const easierWeight = Math.min(lowerWeight, upperWeight);
+      const harderWeight = Math.max(lowerWeight, upperWeight);
+
+      if (easierWeight === harderWeight) {
+        return easierWeight;
+      }
+
+      return Number(((easierWeight + harderWeight) / 2).toFixed(2));
+    }
+
+    return Number(formValue.baseWeight || 1);
+  }
+
+  function addTaskPart() {
+    setTaskAdminForm(current => ({
+      ...current,
+      subtasks: [
+        ...current.subtasks,
+        { name: '', weight: 1 }
+      ]
+    }));
+  }
+
+  function updateTaskPart(index, patch) {
+    setTaskAdminForm(current => ({
+      ...current,
+      subtasks: current.subtasks.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item
+      )
+    }));
+  }
+
+  function removeTaskPart(index) {
+    setTaskAdminForm(current => ({
+      ...current,
+      subtasks: current.subtasks.filter((_, itemIndex) => itemIndex !== index)
+    }));
+  }
+
+  function loadTaskIntoAdminForm(taskId) {
+    const task = (data?.tasks || []).find(item => item.id === taskId);
+    if (!task) return;
+
+    setTaskAdminForm({
+      id: task.id,
+      name: task.name || taskLabel(task),
+      type: task.type || 'scheduled',
+      intervalDays: task.intervalDays || 14,
+      difficultyMode: 'manual',
+      baseWeight: Number(task.baseWeight || 1),
+      easierThanTaskId: '',
+      harderThanTaskId: '',
+      lowerTaskId: '',
+      upperTaskId: '',
+      subtasks: (task.subtasks || []).map(subtask => ({
+        name: lang === 'de' ? subtask.nameDe : subtask.nameEn,
+        nameEn: subtask.nameEn,
+        nameDe: subtask.nameDe,
+        weight: Number(subtask.weight || 1)
+      }))
+    });
+  }
+
+  function saveTaskAdminForm(action) {
+    const baseWeight = calculateDifficultyFromForm(taskAdminForm);
+
+    openAdminModal(
+      action,
+      {
+        action,
+
+        // Important:
+        // For add, let backend generate a new id from the new name.
+        // For update, keep the selected existing id.
+        id: action === 'add' ? '' : taskAdminForm.id,
+
+        name: taskAdminForm.name,
+        type: taskAdminForm.type,
+        intervalDays: taskAdminForm.type === 'scheduled'
+          ? Number(taskAdminForm.intervalDays || 14)
+          : null,
+        baseWeight,
+        subtasks: taskAdminForm.subtasks
+          .filter(item => String(item.name || item.nameEn || item.nameDe || '').trim())
+          .map(item => ({
+            name: item.name || item.nameEn || item.nameDe,
+            nameEn: item.nameEn || item.name,
+            nameDe: item.nameDe || item.name,
+            weight: Number(item.weight || 1)
+          }))
+      },
+      '/api/admin-tasks'
+    );
+  }
+
+  function archiveTaskFromAdmin() {
+    if (!taskAdminForm.id) return;
+
+    openAdminModal(
+      'archive',
+      {
+        action: 'archive',
+        id: taskAdminForm.id
+      },
+      '/api/admin-tasks'
+    );
+  }
+
+  function updateSplitTask(index, patch) {
+    setSplitTaskForm(current => ({
+      ...current,
+      newTasks: current.newTasks.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item
+      )
+    }));
+  }
+
+  function addSplitTaskRow() {
+    setSplitTaskForm(current => ({
+      ...current,
+      newTasks: [
+        ...current.newTasks,
+        { name: '', intervalDays: 14, baseWeight: 1, subtasks: [] }
+      ]
+    }));
+  }
+
+  function removeSplitTaskRow(index) {
+    setSplitTaskForm(current => ({
+      ...current,
+      newTasks: current.newTasks.length <= 2
+        ? current.newTasks
+        : current.newTasks.filter((_, itemIndex) => itemIndex !== index)
+    }));
+  }
+
+  function submitSplitTask() {
+    openAdminModal(
+      'split',
+      {
+        action: 'split',
+        originalTaskId: splitTaskForm.originalTaskId,
+        archiveOriginal: splitTaskForm.archiveOriginal,
+        newTasks: splitTaskForm.newTasks
+          .filter(item => String(item.name || '').trim())
+          .map(item => ({
+            name: item.name,
+            type: 'scheduled',
+            intervalDays: Number(item.intervalDays || 14),
+            baseWeight: Number(item.baseWeight || 1),
+            subtasks: item.subtasks || []
+          }))
+      },
+      '/api/admin-tasks'
+    );
   }
 
   function isStandaloneVacuumLog(log) {
@@ -1604,6 +1911,18 @@ function App() {
             ? t.vacationDeletedDone
             : t.vacationAddedDone
         );
+      } else if (adminModal.endpoint === '/api/admin-tasks') {
+        if (adminModal.action === 'add') {
+          setSuccess(t.taskAddedDone);
+        } else if (adminModal.action === 'update') {
+          setSuccess(t.taskUpdatedDone);
+        } else if (adminModal.action === 'archive') {
+          setSuccess(t.taskArchivedDone);
+        } else if (adminModal.action === 'split') {
+          setSuccess(t.taskSplitDone);
+        } else {
+          setSuccess(t.savedDone);
+        }
       } else if (adminModal.action === 'delete') {
         setSuccess(t.deletedDone);
       } else if (adminModal.action === 'add') {
@@ -1703,7 +2022,7 @@ function App() {
   }
 
   const taskById = useMemo(
-    () => Object.fromEntries((data?.tasks || []).map(task => [task.id, task])),
+    () => Object.fromEntries(((data?.allTasks || data?.tasks || [])).map(task => [task.id, task])),
     [data]
   );
 
@@ -2983,6 +3302,360 @@ function App() {
           <div>
             <h2>{t.adminPanel}</h2>
             <p>{t.adminHelp}</p>
+          </div>
+        </div>
+
+        <div className="admin-section-block task-admin-section">
+          <h3>{t.adminTasks}</h3>
+          <p className="admin-section-help">{t.adminTasksHelp}</p>
+
+          <div className="admin-grid two">
+            <FancySelect
+              label={t.updateChore}
+              value={taskAdminForm.id}
+              onChange={loadTaskIntoAdminForm}
+              options={(data.tasks || []).map(task => ({
+                value: task.id,
+                label: taskLabel(task)
+              }))}
+              placeholder={t.selectPlaceholder}
+            />
+
+            <label>
+              {t.userName}
+              <input
+                value={taskAdminForm.name}
+                onChange={event =>
+                  setTaskAdminForm({
+                    ...taskAdminForm,
+                    name: event.target.value
+                  })
+                }
+                placeholder={t.task}
+              />
+            </label>
+
+            <FancySelect
+              label={t.taskType}
+              value={taskAdminForm.type}
+              onChange={value =>
+                setTaskAdminForm({
+                  ...taskAdminForm,
+                  type: value
+                })
+              }
+              options={[
+                { value: 'scheduled', label: t.scheduledTask },
+                { value: 'on_demand', label: t.onDemandTask }
+              ]}
+              placeholder={t.scheduledTask}
+            />
+
+            {taskAdminForm.type === 'scheduled' && (
+              <label>
+                {t.taskFrequencyDays}
+                <input
+                  type="number"
+                  min="1"
+                  max="3650"
+                  value={taskAdminForm.intervalDays}
+                  onChange={event =>
+                    setTaskAdminForm({
+                      ...taskAdminForm,
+                      intervalDays: event.target.value
+                    })
+                  }
+                />
+              </label>
+            )}
+
+            <FancySelect
+              label={t.difficultyMode}
+              value={taskAdminForm.difficultyMode}
+              onChange={value =>
+                setTaskAdminForm({
+                  ...taskAdminForm,
+                  difficultyMode: value
+                })
+              }
+              options={[
+                { value: 'manual', label: t.difficultyManual },
+                { value: 'easier', label: t.difficultyEasierThan },
+                { value: 'harder', label: t.difficultyHarderThan },
+                { value: 'between', label: t.difficultyBetween }
+              ]}
+              placeholder={t.difficultyManual}
+            />
+
+            {taskAdminForm.difficultyMode === 'manual' && (
+              <label>
+                {t.difficultyNumber}
+                <input
+                  type="number"
+                  min="0.25"
+                  step="0.25"
+                  value={taskAdminForm.baseWeight}
+                  onChange={event =>
+                    setTaskAdminForm({
+                      ...taskAdminForm,
+                      baseWeight: event.target.value
+                    })
+                  }
+                />
+              </label>
+            )}
+
+            {taskAdminForm.difficultyMode === 'easier' && (
+              <FancySelect
+                label={t.easierThanTask}
+                value={taskAdminForm.easierThanTaskId}
+                onChange={value =>
+                  setTaskAdminForm({
+                    ...taskAdminForm,
+                    easierThanTaskId: value
+                  })
+                }
+                options={difficultyTaskOptions()}
+                placeholder={t.selectPlaceholder}
+              />
+            )}
+
+            {taskAdminForm.difficultyMode === 'harder' && (
+              <FancySelect
+                label={t.harderThanTask}
+                value={taskAdminForm.harderThanTaskId}
+                onChange={value =>
+                  setTaskAdminForm({
+                    ...taskAdminForm,
+                    harderThanTaskId: value
+                  })
+                }
+                options={difficultyTaskOptions()}
+                placeholder={t.selectPlaceholder}
+              />
+            )}
+
+            {taskAdminForm.difficultyMode === 'between' && (
+              <>
+                <FancySelect
+                  label={t.easierThanTask}
+                  value={taskAdminForm.lowerTaskId}
+                  onChange={value =>
+                    setTaskAdminForm({
+                      ...taskAdminForm,
+                      lowerTaskId: value
+                    })
+                  }
+                  options={difficultyTaskOptions()}
+                  placeholder={t.selectPlaceholder}
+                />
+
+                <FancySelect
+                  label={t.harderThanTask}
+                  value={taskAdminForm.upperTaskId}
+                  onChange={value =>
+                    setTaskAdminForm({
+                      ...taskAdminForm,
+                      upperTaskId: value
+                    })
+                  }
+                  options={difficultyTaskOptions()}
+                  placeholder={t.selectPlaceholder}
+                />
+              </>
+            )}
+          </div>
+
+          <div className="task-admin-preview">
+            <span>{t.taskDifficulty}</span>
+            <strong>{formatPoints(calculateDifficultyFromForm(taskAdminForm))}</strong>
+          </div>
+
+          <div className="subtask-box">
+            <div className="subtask-head">
+              <div>
+                <b>{t.subtasks}</b>
+                <p>{t.partialTask}</p>
+              </div>
+
+              <button type="button" className="mini-action" onClick={addTaskPart}>
+                {t.addPart}
+              </button>
+            </div>
+
+            <div className="admin-task-parts">
+              {taskAdminForm.subtasks.map((part, index) => (
+                <div className="admin-task-part-row" key={`part-${index}`}>
+                  <input
+                    value={part.name}
+                    onChange={event => updateTaskPart(index, { name: event.target.value })}
+                    placeholder={t.subtaskName}
+                  />
+
+                  <input
+                    type="number"
+                    min="0.25"
+                    step="0.25"
+                    value={part.weight}
+                    onChange={event => updateTaskPart(index, { weight: event.target.value })}
+                    placeholder={t.subtaskWeight}
+                  />
+
+                  <button
+                    type="button"
+                    className="danger-action"
+                    onClick={() => removeTaskPart(index)}
+                  >
+                    {t.removePart}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="admin-actions">
+            <button
+              type="button"
+              disabled={adminSaving}
+              onClick={() => saveTaskAdminForm('add')}
+            >
+              {adminSaving ? (
+                <>
+                  <Loader2 size={16} className="spin" />
+                  {t.processing}
+                </>
+              ) : (
+                t.addChore
+              )}
+            </button>
+
+            <button
+              type="button"
+              disabled={adminSaving || !taskAdminForm.id}
+              onClick={() => saveTaskAdminForm('update')}
+            >
+              {adminSaving ? (
+                <>
+                  <Loader2 size={16} className="spin" />
+                  {t.processing}
+                </>
+              ) : (
+                t.updateChore
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="danger-action"
+              disabled={adminSaving || !taskAdminForm.id}
+              onClick={archiveTaskFromAdmin}
+            >
+              {adminSaving ? (
+                <>
+                  <Loader2 size={16} className="spin" />
+                  {t.processing}
+                </>
+              ) : (
+                t.archiveChore
+              )}
+            </button>
+          </div>
+
+          <h3>{t.splitChore}</h3>
+
+          <div className="admin-grid two">
+            <FancySelect
+              label={t.originalChore}
+              value={splitTaskForm.originalTaskId}
+              onChange={value =>
+                setSplitTaskForm({
+                  ...splitTaskForm,
+                  originalTaskId: value
+                })
+              }
+              options={(data.tasks || []).map(task => ({
+                value: task.id,
+                label: taskLabel(task)
+              }))}
+              placeholder={t.selectPlaceholder}
+            />
+
+            <label className="check admin-check">
+              <input
+                type="checkbox"
+                checked={splitTaskForm.archiveOriginal}
+                onChange={event =>
+                  setSplitTaskForm({
+                    ...splitTaskForm,
+                    archiveOriginal: event.target.checked
+                  })
+                }
+              />
+              {t.archiveOriginalChore}
+            </label>
+          </div>
+
+          <div className="split-task-list">
+            {splitTaskForm.newTasks.map((item, index) => (
+              <div className="split-task-row" key={`split-${index}`}>
+                <input
+                  value={item.name}
+                  onChange={event => updateSplitTask(index, { name: event.target.value })}
+                  placeholder={`${t.task} ${index + 1}`}
+                />
+
+                <input
+                  type="number"
+                  min="1"
+                  max="3650"
+                  value={item.intervalDays}
+                  onChange={event => updateSplitTask(index, { intervalDays: event.target.value })}
+                  placeholder={t.taskFrequencyDays}
+                />
+
+                <input
+                  type="number"
+                  min="0.25"
+                  step="0.25"
+                  value={item.baseWeight}
+                  onChange={event => updateSplitTask(index, { baseWeight: event.target.value })}
+                  placeholder={t.difficultyNumber}
+                />
+
+                <button
+                  type="button"
+                  className="danger-action"
+                  onClick={() => removeSplitTaskRow(index)}
+                >
+                  {t.removePart}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="admin-actions">
+            <button
+              type="button"
+              disabled={adminSaving}
+              onClick={addSplitTaskRow}
+            >
+              {t.addPart}
+            </button>
+
+            <button
+              type="button"
+              disabled={adminSaving || !splitTaskForm.originalTaskId}
+              onClick={submitSplitTask}
+            >
+              {adminSaving ? (
+                <>
+                  <Loader2 size={16} className="spin" />
+                  {t.processing}
+                </>
+              ) : (
+                t.splitChore
+              )}
+            </button>
           </div>
         </div>
 

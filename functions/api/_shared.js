@@ -543,7 +543,19 @@ export async function readState(env) {
   const [periods, flatmates, tasks, taskSubtasks, logs, logSubtasks, bins, flatmateHistory, absences] = await Promise.all([
     env.DB.prepare(`SELECT id, name, started_at AS startedAt, ended_at AS endedAt, reason FROM scoring_periods ORDER BY started_at DESC`).all(),
     env.DB.prepare(`SELECT name, email FROM flatmates ORDER BY rowid`).all(),
-    env.DB.prepare(`SELECT id, name, type, interval_days AS intervalDays, task_group AS taskGroup, also_logs AS alsoLogs, COALESCE(base_weight, 1) AS baseWeight FROM tasks ORDER BY rowid`).all(),
+    env.DB.prepare(`
+      SELECT
+        id,
+        name,
+        type,
+        interval_days AS intervalDays,
+        task_group AS taskGroup,
+        also_logs AS alsoLogs,
+        COALESCE(base_weight, 1) AS baseWeight,
+        COALESCE(active, 1) AS active
+      FROM tasks
+      ORDER BY rowid
+    `).all(),
     env.DB.prepare(`SELECT ts.task_id AS taskId, s.id, s.name_en AS nameEn, s.name_de AS nameDe, s.weight, s.sort_order AS sortOrder FROM task_subtasks ts JOIN subtasks s ON s.id = ts.subtask_id ORDER BY ts.task_id, s.sort_order`).all(),
     env.DB.prepare(`SELECT id, task_id AS taskId, person, COALESCE(actual_person, person) AS actualPerson, assigned_person AS assignedPerson, done_date AS date, scheduled_due_date AS scheduledDueDate, next_due_date AS nextDueDate, completion_type AS completionType, COALESCE(credit_weight, 1) AS creditWeight, COALESCE(is_partial, 0) AS isPartial, COALESCE(completion_ratio, 1) AS completionRatio, cycle_id AS cycleId, scoring_period_id AS scoringPeriodId, COALESCE(is_dummy, 0) AS isDummy, note, created_at AS createdAt FROM logs ORDER BY done_date DESC, created_at DESC`).all(),
     env.DB.prepare(`SELECT log_id AS logId, subtask_id AS subtaskId, completed, weight FROM log_subtasks`).all(),
@@ -569,15 +581,18 @@ export async function readState(env) {
 
   const people = (flatmates.results || []).map(row => ({ name: normalizeName(row.name), email: row.email || '' }));
 
-  const taskRows = (tasks.results || []).map(task => ({
+  const allTaskRows = (tasks.results || []).map(task => ({
     ...task,
+    active: task.active !== 0,
     baseWeight: Number(task.baseWeight || 1),
     alsoLogs: task.alsoLogs ? task.alsoLogs.split(',').map(value => value.trim()).filter(Boolean) : [],
     subtasks: subtasksByTask[task.id] || []
   }));
 
+  const taskRows = allTaskRows.filter(task => task.active);
+
   const logsWithTasks = (logs.results || []).map(log => {
-    const task = taskRows.find(item => item.id === log.taskId);
+    const task = allTaskRows.find(item => item.id === log.taskId);
     return {
       ...log,
       person: normalizeName(log.person),
@@ -599,14 +614,15 @@ export async function readState(env) {
     flatmateHistory: (flatmateHistory.results || []).map(row => ({ ...row, name: normalizeName(row.name) })),
     absences: (absences.results || []).map(row => ({ ...row, person: normalizeName(row.person) })),
     tasks: taskRows,
+    allTasks: allTaskRows,
     logs: logsWithTasks,
     fullBins
   };
 
   state.activeScoringPeriod = getActivePeriod(state);
   state.currentLogs = state.logs.filter(log => log.scoringPeriodId === state.activeScoringPeriod?.id && !log.isDummy);
-  state.scores = buildScoreSummary(state);
-  state.periodHistory = buildPeriodHistory(state);
+  state.scores = buildScoreSummary({ ...state, tasks: allTaskRows });
+  state.periodHistory = buildPeriodHistory({ ...state, tasks: allTaskRows });
 
   return state;
 }

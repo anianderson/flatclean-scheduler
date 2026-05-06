@@ -1,0 +1,5 @@
+ALTER TABLE tasks ADD COLUMN active INTEGER DEFAULT 1;
+
+UPDATE tasks
+SET active = 1
+WHERE active IS NULL;

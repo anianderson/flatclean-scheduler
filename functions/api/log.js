@@ -20,7 +20,7 @@ import { bilingualEmail, sendAndLog } from './email.js';
 
 const ADVANCE_THRESHOLD = 0.7;
 const DEEP_WITHOUT_VACUUM_FACTOR = 0.7;
-const MILESTONES = [5, 10, 25, 50, 100, 150, 200];
+const MILESTONES = [5, 10, 25, 50, 75, 100, 125, 150, 175, 200];
 
 function getCompletionType({ task, assignedPerson, actualPerson, scheduledDueDate, actualDoneDate, wasAssignedUnavailable }) {
   if (task?.type === 'on_demand') return 'on_demand';

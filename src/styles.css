@@ -2734,3 +2734,12 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.partial-done-subtasks {
+  border-color: rgba(16, 185, 129, 0.28);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.partial-done-subtasks b {
+  color: #047857;
+}

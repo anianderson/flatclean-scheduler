@@ -1256,7 +1256,8 @@ function App() {
   const [form, setForm] = useState({
     taskId: 'gas_stove',
     date: TODAY,
-    note: ''
+    note: '',
+    assignedPerson: ''
   });
 
   const [taskAdminForm, setTaskAdminForm] = useState({
@@ -1721,7 +1722,8 @@ function App() {
       ...current,
       taskId: row.task.id,
       date: TODAY,
-      note: ''
+      note: '',
+      assignedPerson: normalizeName(row.person)
     }));
 
     const subtasks = row.task.subtasks || [];
@@ -2303,6 +2305,8 @@ function App() {
       }
 
       if (points > 0) {
+        const coveredForSomeone = isCoveredOverdueLog(log);
+
         details[actualPerson].earned.push({
           id: `${log.id}-earned`,
           taskId: log.taskId,
@@ -2311,7 +2315,7 @@ function App() {
           points,
           note: log.note,
           completionType: log.completionType,
-          otherPerson: assignedPerson && assignedPerson !== actualPerson ? assignedPerson : ''
+          otherPerson: coveredForSomeone ? assignedPerson : ''
         });
       }
 
@@ -2514,9 +2518,12 @@ function App() {
       const person = normalizeName(currentUser);
       const totalBefore = getPersonTotalFromState(data, person);
 
+      const selectedRow = rows.find(row => row.task.id === form.taskId);
+
       const updatedState = await apiPost('/api/log', {
         ...form,
         person,
+        assignedPerson: normalizeName(form.assignedPerson || selectedRow?.person || ''),
 
         completedSubtaskIds: selectedSubtasks,
 
@@ -2636,7 +2643,14 @@ function App() {
             label={t.task}
             value={form.taskId}
             onChange={value => {
-              setForm({ ...form, taskId: value });
+              const selectedRow = rows.find(row => row.task.id === value);
+
+              setForm({
+                ...form,
+                taskId: value,
+                assignedPerson: normalizeName(selectedRow?.person || '')
+              });
+              
               setAllSubtasksForTask(value);
 
               if (value === 'deep_water') {
@@ -2776,12 +2790,6 @@ function App() {
           )
         : null;
 
-    const showPendingSubtasks =
-      completion.pending.length > 0 &&
-      completion.ratio < 1 &&
-      row.dueDate &&
-      row.dueDate <= TODAY;
-
     return (
       <div
         role="button"
@@ -2810,7 +2818,24 @@ function App() {
               : t.noRecord}
           </p>
 
-          {showPendingSubtasks && (
+          {row.last?.isPartial && row.last.completedSubtasks?.length > 0 && (
+            <div className="pending-subtasks partial-done-subtasks">
+              <b>{t.partiallyCompleted}</b>
+              <span>
+                {row.last.completedSubtasks
+                  .map(subtask => {
+                    const fullSubtask = row.task?.subtasks?.find(
+                      item => item.id === subtask.id
+                    );
+
+                    return fullSubtask ? getSubtaskName(fullSubtask) : subtask.id;
+                  })
+                  .join(', ')}
+              </span>
+            </div>
+          )}
+
+          {completion.isOpen && completion.pending.length > 0 && (
             <div className="pending-subtasks">
               <b>{t.pendingParts}</b>
               <span>

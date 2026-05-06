@@ -358,6 +358,7 @@ async function completeTask({
   stateBefore,
   taskId,
   actualPerson,
+  assignedPersonOverride = '',
   date,
   note,
   completedSubtaskIds,
@@ -367,6 +368,10 @@ async function completeTask({
 }) {
   const info = await getTaskInfo(stateBefore, taskId);
   if (!info) return { error: 'Unknown chore' };
+
+  if (assignedPersonOverride) {
+    info.assignedPerson = normalizeName(assignedPersonOverride);
+  }
 
   const activePeriod = getActivePeriod(stateBefore);
   const selectedSubtasks = getSelectedSubtasks(info.task, completedSubtaskIds);
@@ -383,7 +388,7 @@ async function completeTask({
     info.dueDate &&
     wasPersonUnavailableBetween(stateBefore.absences, info.assignedPerson, info.dueDate, date);
 
-  const completionType = forcedCompletionType || getCompletionType({
+  let completionType = forcedCompletionType || getCompletionType({
     task: info.task,
     assignedPerson: info.assignedPerson,
     actualPerson,
@@ -391,6 +396,12 @@ async function completeTask({
     actualDoneDate: date,
     wasAssignedUnavailable
   });
+
+  if (completion.isPartial && !forcedCompletionType) {
+    completionType = normalizeName(info.assignedPerson) === normalizeName(actualPerson)
+      ? 'partial'
+      : completionType;
+  }
 
   const nextDueDate = calculateNextDueDate({
     scheduledDueDate: info.dueDate,
@@ -583,6 +594,7 @@ export async function onRequestPost({ request, env }) {
   const {
     taskId,
     person,
+    assignedPerson,
     date,
     note,
     completedSubtaskIds,
@@ -599,6 +611,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   const actualPerson = normalizeName(person);
+  const submittedAssignedPerson = normalizeName(assignedPerson);
   const stateBefore = await readState(env);
   const completionResults = [];
 
@@ -632,6 +645,7 @@ export async function onRequestPost({ request, env }) {
     stateBefore,
     taskId,
     actualPerson,
+    assignedPersonOverride: submittedAssignedPerson,
     date,
     note,
     completedSubtaskIds,

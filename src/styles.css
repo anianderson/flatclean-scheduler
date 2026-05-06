@@ -2743,3 +2743,7 @@ button:disabled {
 .partial-done-subtasks b {
   color: #047857;
 }
+
+.partial-done-subtasks span {
+  color: #047857;
+}

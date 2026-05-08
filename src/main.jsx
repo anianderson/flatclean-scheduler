@@ -1138,6 +1138,7 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const triggerRef = useRef(null);
+  const selectingRef = useRef(false);
 
   useEffect(() => {
     function handlePointerDownOutside(event) {
@@ -1162,16 +1163,18 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
     };
   }, []);
 
-  const selected = options.find(option => option.value === value);
+  const selected = options.find(item => item.value === value);
 
   function selectOption(nextValue) {
-    if (!open) return;
+    if (selectingRef.current) return;
 
+    selectingRef.current = true;
     setOpen(false);
     triggerRef.current?.blur();
 
     window.setTimeout(() => {
       onChange(nextValue);
+      selectingRef.current = false;
     }, 0);
   }
 
@@ -1184,13 +1187,9 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
           ref={triggerRef}
           type="button"
           className="fancy-trigger"
-          onPointerDown={event => {
-            event.preventDefault();
-            selectOption(option.value);
-          }}
           onClick={event => {
             event.preventDefault();
-            selectOption(option.value);
+            setOpen(current => !current);
           }}
           aria-expanded={open}
           aria-haspopup="listbox"
@@ -1206,14 +1205,17 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
                 type="button"
                 role="option"
                 aria-selected={option.value === value}
-                key={option.value}
+                key={String(option.value)}
                 className={`fancy-option ${option.value === value ? 'active' : ''}`}
                 onPointerDown={event => {
                   event.preventDefault();
+                  event.stopPropagation();
                   selectOption(option.value);
                 }}
                 onClick={event => {
                   event.preventDefault();
+                  event.stopPropagation();
+                  selectOption(option.value);
                 }}
               >
                 <span>{option.label}</span>

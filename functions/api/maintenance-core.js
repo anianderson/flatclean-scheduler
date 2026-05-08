@@ -340,36 +340,36 @@ function buildReminderEmail({ row, reminder, today }) {
 
   let titleDe = 'Putzplan-Erinnerung';
   let titleEn = 'Cleaning reminder';
-  let summaryDe = `${person}, eine Aufgabe ist bald fällig.`;
+  let summaryDe = `${person}, eine Aufgabe ist bald geplant.`;
   let summaryEn = `${person}, a chore is coming up.`;
-  let detailsDe = `Aufgabe: ${choreName}. Fällig am: ${dueDateText}.`;
-  let detailsEn = `Chore: ${choreName}. Due date: ${dueDateText}.`;
+  let detailsDe = `Aufgabe: ${choreName}. Geplant ab: ${dueDateText}.`;
+  let detailsEn = `Chore: ${choreName}. Scheduled from: ${dueDateText}.`;
 
   if (reminder.urgency === 'upcoming_week') {
-    titleDe = `In den nächsten 7 Tagen fällig: ${choreName}`;
-    titleEn = `Due in the next 7 days: ${choreName}`;
-    summaryDe = `${person}, diese Aufgabe ist in ${reminder.daysUntilDue} Tagen fällig.`;
-    summaryEn = `${person}, this chore is due in ${reminder.daysUntilDue} days.`;
-    detailsDe += ` Du bekommst zusätzlich weiterhin die normale Erinnerung 1 Tag vor Fälligkeit. Nach dem Fälligkeitsdatum gibt es ${GRACE_PERIOD_DAYS} Tage Kulanzzeit.`;
-    detailsEn += ` You will still also receive the normal reminder 1 day before the due date. After the due date, there is a ${GRACE_PERIOD_DAYS}-day grace period.`;
+    titleDe = `In den nächsten 7 Tagen geplant: ${choreName}`;
+    titleEn = `Scheduled in the next 7 days: ${choreName}`;
+    summaryDe = `${person}, diese Aufgabe ist in ${reminder.daysUntilDue} Tagen geplant.`;
+    summaryEn = `${person}, this chore is scheduled in ${reminder.daysUntilDue} days.`;
+    detailsDe += ` Du bekommst zusätzlich weiterhin die normale Erinnerung 1 Tag vorher. Ab dem geplanten Datum gibt es ${GRACE_PERIOD_DAYS} Tage Kulanzzeit.`;
+    detailsEn += ` You will still also receive the normal reminder 1 day before. From the scheduled date, there is a ${GRACE_PERIOD_DAYS}-day grace period.`;
   }
 
   if (reminder.urgency === 'upcoming') {
-    titleDe = `Morgen fällig: ${choreName}`;
-    titleEn = `Due tomorrow: ${choreName}`;
-    summaryDe = `${person}, diese Aufgabe ist morgen fällig.`;
-    summaryEn = `${person}, this chore is due tomorrow.`;
-    detailsDe += ` Nach dem Fälligkeitsdatum gibt es ${GRACE_PERIOD_DAYS} Tage Kulanzzeit.`;
-    detailsEn += ` After the due date, there is a ${GRACE_PERIOD_DAYS}-day grace period.`;
+    titleDe = `Ab morgen geplant: ${choreName}`;
+    titleEn = `Scheduled from tomorrow: ${choreName}`;
+    summaryDe = `${person}, diese Aufgabe ist ab morgen geplant.`;
+    summaryEn = `${person}, this chore is scheduled from tomorrow.`;
+    detailsDe += ` Ab dem geplanten Datum gibt es ${GRACE_PERIOD_DAYS} Tage Kulanzzeit.`;
+    detailsEn += ` From the scheduled date, there is a ${GRACE_PERIOD_DAYS}-day grace period.`;
   }
 
   if (reminder.urgency === 'today') {
-    titleDe = `Heute fällig: ${choreName}`;
-    titleEn = `Due today: ${choreName}`;
-    summaryDe = `${person}, diese Aufgabe ist heute fällig.`;
-    summaryEn = `${person}, this chore is due today.`;
-    detailsDe += ` Danach beginnt eine Kulanzzeit von ${GRACE_PERIOD_DAYS} Tagen.`;
-    detailsEn += ` After today, a ${GRACE_PERIOD_DAYS}-day grace period begins.`;
+    titleDe = `Ab heute geplant: ${choreName}`;
+    titleEn = `Scheduled from today: ${choreName}`;
+    summaryDe = `${person}, diese Aufgabe ist ab heute geplant.`;
+    summaryEn = `${person}, this chore is scheduled from today.`;
+    detailsDe += ` Ab heute beginnt eine Kulanzzeit von ${GRACE_PERIOD_DAYS} Tagen.`;
+    detailsEn += ` From today, a ${GRACE_PERIOD_DAYS}-day grace period begins.`;
   }
 
   if (reminder.urgency === 'grace_ending') {
@@ -378,12 +378,12 @@ function buildReminderEmail({ row, reminder, today }) {
     summaryDe = `${person}, die Kulanzzeit für diese Aufgabe endet heute.`;
     summaryEn = `${person}, the grace period for this chore ends today.`;
     detailsDe =
-      `Aufgabe: ${choreName}. Ursprünglich fällig am: ${dueDateText}. ` +
-      `Heute ist der ${GRACE_PERIOD_DAYS}. Tag nach dem Fälligkeitsdatum. ` +
+      `Aufgabe: ${choreName}. Geplant ab: ${dueDateText}. ` +
+      `Heute ist der ${GRACE_PERIOD_DAYS}. Tag nach dem geplanten Startdatum. ` +
       `Wenn die Aufgabe danach offen bleibt, zählt sie als überfällig.`;
     detailsEn =
-      `Chore: ${choreName}. Originally due on: ${dueDateText}. ` +
-      `Today is day ${GRACE_PERIOD_DAYS} after the due date. ` +
+      `Chore: ${choreName}. Scheduled from: ${dueDateText}. ` +
+      `Today is day ${GRACE_PERIOD_DAYS} after the scheduled-from date. ` +
       `If the chore remains open after this, it will count as overdue.`;
   }
 
@@ -393,12 +393,12 @@ function buildReminderEmail({ row, reminder, today }) {
     summaryDe = `${person}, diese Aufgabe ist jetzt überfällig.`;
     summaryEn = `${person}, this chore is now overdue.`;
     detailsDe =
-      `Aufgabe: ${choreName}. Ursprünglich fällig am: ${dueDateText}. ` +
+      `Aufgabe: ${choreName}. Geplant ab: ${dueDateText}. ` +
       `Die ${GRACE_PERIOD_DAYS}-tägige Kulanzzeit ist abgelaufen. ` +
       `Die Aufgabe ist aktuell ${reminder.overdueDays} Tag${reminder.overdueDays === 1 ? '' : 'e'} überfällig. ` +
       `Wenn jemand anderes die Aufgabe übernimmt, werden die Fairness-Punkte angepasst.`;
     detailsEn =
-      `Chore: ${choreName}. Originally due on: ${dueDateText}. ` +
+      `Chore: ${choreName}. Scheduled from: ${dueDateText}. ` +
       `The ${GRACE_PERIOD_DAYS}-day grace period has ended. ` +
       `The chore is currently ${reminder.overdueDays} day${reminder.overdueDays === 1 ? '' : 's'} overdue. ` +
       `If someone else covers it, fairness points will be adjusted.`;
@@ -410,11 +410,11 @@ function buildReminderEmail({ row, reminder, today }) {
     summaryDe = `${person}, diese Aufgabe ist seit 3 Tagen überfällig.`;
     summaryEn = `${person}, this chore has been overdue for 3 days.`;
     detailsDe =
-      `Aufgabe: ${choreName}. Ursprünglich fällig am: ${dueDateText}. ` +
+      `Aufgabe: ${choreName}. Geplant ab: ${dueDateText}. ` +
       `Nach der ${GRACE_PERIOD_DAYS}-tägigen Kulanzzeit ist die Aufgabe nun seit ${OVERDUE_FOR_DAYS_NOTICE} Tagen überfällig. ` +
       `Bitte erledige sie möglichst bald. Wenn jemand anderes sie übernimmt, werden die Fairness-Punkte angepasst.`;
     detailsEn =
-      `Chore: ${choreName}. Originally due on: ${dueDateText}. ` +
+      `Chore: ${choreName}. Scheduled from: ${dueDateText}. ` +
       `After the ${GRACE_PERIOD_DAYS}-day grace period, this chore has now been overdue for ${OVERDUE_FOR_DAYS_NOTICE} days. ` +
       `Please complete it as soon as possible. If someone else covers it, fairness points will be adjusted.`;
   }
@@ -491,17 +491,17 @@ function buildWeekOverdueEmail({ row, today }) {
   }
 
   return bilingualEmail({
-    titleDe: `Seit 7 Tagen fällig: ${choreName}`,
-    titleEn: `Due for 7 days: ${choreName}`,
-    summaryDe: `Diese Aufgabe ist seit 7 Tagen nach dem ursprünglichen Fälligkeitsdatum offen.`,
-    summaryEn: `This chore has been open for 7 days after the original due date.`,
+    titleDe: `Seit 7 Tagen offen: ${choreName}`,
+    titleEn: `Open for 7 days: ${choreName}`,
+    summaryDe: `Diese Aufgabe ist seit 7 Tagen nach dem geplanten Startdatum offen.`,
+    summaryEn: `This chore has been open for 7 days after the scheduled-from date.`,
     detailsDe:
-      `Aufgabe: ${choreName}. Ursprünglich fällig seit: ${dueDateText}. Aktuell zuständig: ${person}. ` +
-      `Die Aufgabe ist jetzt seit ${daysPastDue} Tag${daysPastDue === 1 ? '' : 'en'} nach dem ursprünglichen Fälligkeitsdatum offen.${bundleDe} ` +
+      `Aufgabe: ${choreName}. Geplant ab: ${dueDateText}. Aktuell zuständig: ${person}. ` +
+      `Die Aufgabe ist jetzt seit ${daysPastDue} Tag${daysPastDue === 1 ? '' : 'en'} nach dem geplanten Startdatum offen.${bundleDe} ` +
       `Alle können helfen. Wenn jemand anderes diese Aufgabe übernimmt, wird die Fairness-Wertung automatisch angepasst.`,
     detailsEn:
-      `Chore: ${choreName}. Originally due since: ${dueDateText}. Current assigned person: ${person}. ` +
-      `The chore has now been open for ${daysPastDue} day${daysPastDue === 1 ? '' : 's'} after the original due date.${bundleEn} ` +
+      `Chore: ${choreName}. Scheduled from: ${dueDateText}. Current assigned person: ${person}. ` +
+      `The chore has now been open for ${daysPastDue} day${daysPastDue === 1 ? '' : 's'} after the scheduled-from date.${bundleEn} ` +
       `Anyone can help. If someone else takes over this chore, the fairness score will adjust automatically.`
   });
 }
@@ -593,8 +593,8 @@ function buildOverdueVacuumBundledEmail({ row, today }) {
     detailsDe:
       `Staubsaugen war seit ${formatDate(vacuumDueDate)} offen und ist damit seit ${lateDays} Tag${lateDays === 1 ? '' : 'en'} überfällig. ` +
       `Offene Teile laut ursprünglicher Staubsaug-Aufgabe: ${pendingSubtaskText}. ` +
-      `Da der Nasswisch-Termin am ${formatDate(moppingDueDate)} nahe ist und Nasswischen Staubsaugen einschließt, wird beides als eine gemeinsame Boden-Aufgabe gebündelt. ` +
-      `Neuer gemeinsamer Termin: ${formatDate(moppingDueDate)}. ` +
+      `Da Nasswischen ab ${formatDate(moppingDueDate)} geplant ist und Nasswischen Staubsaugen einschließt, wird beides als eine gemeinsame Boden-Aufgabe gebündelt. ` +
+      `Gemeinsam geplant ab: ${formatDate(moppingDueDate)}. ` +
       `Aufgabe: ${moppingName} + ${vacuumName}. ` +
       `Aktuell zuständig für die gebündelte Boden-Aufgabe: ${floorPerson}. ` +
       `Ursprünglich war Staubsaugen ${originalPerson} zugeordnet. ` +
@@ -604,8 +604,8 @@ function buildOverdueVacuumBundledEmail({ row, today }) {
     detailsEn:
       `Vacuuming had been open since ${formatDate(vacuumDueDate)}, so it is ${lateDays} day${lateDays === 1 ? '' : 's'} overdue. ` +
       `Pending parts from the original vacuuming chore: ${pendingSubtaskText}. ` +
-      `Because the mopping date on ${formatDate(moppingDueDate)} is nearby and mopping includes vacuuming, both chores are now bundled into one floor chore. ` +
-      `New combined date: ${formatDate(moppingDueDate)}. ` +
+      `Because mopping is scheduled from ${formatDate(moppingDueDate)} and mopping includes vacuuming, both chores are now bundled into one floor chore. ` +
+      `Combined chore scheduled from: ${formatDate(moppingDueDate)}. ` +
       `Chore: ${moppingName} + ${vacuumName}. ` +
       `Current assigned person for the bundled floor chore: ${floorPerson}. ` +
       `The original vacuuming chore was assigned to ${originalPerson}. ` +

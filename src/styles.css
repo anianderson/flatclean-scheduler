@@ -2893,10 +2893,12 @@ input[type="date"] {
 }
 
 .fancy-menu {
-  touch-action: manipulation;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .fancy-option {
-  touch-action: manipulation;
+  touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
 }

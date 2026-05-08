@@ -1139,6 +1139,7 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
   const ref = useRef(null);
   const triggerRef = useRef(null);
   const selectingRef = useRef(false);
+  const pointerStartRef = useRef(null);
 
   useEffect(() => {
     function handlePointerDownOutside(event) {
@@ -1199,7 +1200,13 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
         </button>
 
         {open && (
-          <div className="fancy-menu" role="listbox">
+          <div
+            className="fancy-menu"
+            role="listbox"
+            onPointerDown={event => {
+              event.stopPropagation();
+            }}
+          >
             {options.map(option => (
               <button
                 type="button"
@@ -1208,6 +1215,23 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
                 key={String(option.value)}
                 className={`fancy-option ${option.value === value ? 'active' : ''}`}
                 onPointerDown={event => {
+                  pointerStartRef.current = {
+                    x: event.clientX,
+                    y: event.clientY
+                  };
+                }}
+                onPointerUp={event => {
+                  const start = pointerStartRef.current;
+                  pointerStartRef.current = null;
+
+                  if (!start) return;
+
+                  const movedX = Math.abs(event.clientX - start.x);
+                  const movedY = Math.abs(event.clientY - start.y);
+
+                  // If user dragged vertically/horizontally, treat it as scroll, not selection.
+                  if (movedX > 8 || movedY > 8) return;
+
                   event.preventDefault();
                   event.stopPropagation();
                   selectOption(option.value);
@@ -1215,7 +1239,6 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
                 onClick={event => {
                   event.preventDefault();
                   event.stopPropagation();
-                  selectOption(option.value);
                 }}
               >
                 <span>{option.label}</span>

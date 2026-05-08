@@ -1137,26 +1137,43 @@ function shouldBundleVacuumWithDeep(vacuumRow, deepRow) {
 function FancySelect({ label, value, onChange, options, placeholder, className = '' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const triggerRef = useRef(null);
 
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (!ref.current?.contains(event.target)) setOpen(false);
+    function handlePointerDownOutside(event) {
+      if (!ref.current?.contains(event.target)) {
+        setOpen(false);
+      }
     }
 
     function handleEscape(event) {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.blur();
+      }
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handlePointerDownOutside);
     document.addEventListener('keydown', handleEscape);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('pointerdown', handlePointerDownOutside);
       document.removeEventListener('keydown', handleEscape);
     };
   }, []);
 
   const selected = options.find(option => option.value === value);
+
+  function selectOption(nextValue) {
+    if (!open) return;
+
+    setOpen(false);
+    triggerRef.current?.blur();
+
+    window.setTimeout(() => {
+      onChange(nextValue);
+    }, 0);
+  }
 
   return (
     <label className={`fancy-field ${className}`}>
@@ -1164,9 +1181,17 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
 
       <div className={`fancy-select ${open ? 'open' : ''}`} ref={ref}>
         <button
+          ref={triggerRef}
           type="button"
           className="fancy-trigger"
-          onClick={() => setOpen(current => !current)}
+          onPointerDown={event => {
+            event.preventDefault();
+            selectOption(option.value);
+          }}
+          onClick={event => {
+            event.preventDefault();
+            selectOption(option.value);
+          }}
           aria-expanded={open}
           aria-haspopup="listbox"
         >
@@ -1183,9 +1208,12 @@ function FancySelect({ label, value, onChange, options, placeholder, className =
                 aria-selected={option.value === value}
                 key={option.value}
                 className={`fancy-option ${option.value === value ? 'active' : ''}`}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
+                onPointerDown={event => {
+                  event.preventDefault();
+                  selectOption(option.value);
+                }}
+                onClick={event => {
+                  event.preventDefault();
                 }}
               >
                 <span>{option.label}</span>

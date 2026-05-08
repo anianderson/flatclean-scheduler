@@ -2747,3 +2747,156 @@ button:disabled {
 .partial-done-subtasks span {
   color: #047857;
 }
+
+/* Fix bundled vacuum detail overflow */
+.bundled-subtask,
+.bundled-vacuum-detail,
+.bundle-detail-main,
+.bundle-detail-card,
+.bundle-parts-row,
+.bundle-parts-row > div,
+.bundle-detail-title {
+  min-width: 0;
+}
+
+.bundled-vacuum-detail {
+  overflow: hidden;
+}
+
+.bundle-detail-title {
+  flex-wrap: wrap;
+}
+
+.bundle-status-pill {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.bundle-parts-row > div {
+  overflow: hidden;
+}
+
+.bundle-parts-row b,
+.bundle-detail-card b,
+.bundle-detail-main span,
+.missed-duty-note {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.bundle-detail-card span,
+.bundle-parts-row small {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1180px) {
+  .bundled-vacuum-detail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .bundle-detail-main {
+    grid-column: 1 / -1;
+  }
+
+  .score-person-button {
+    grid-template-columns: 1fr;
+  }
+
+  .score-detail-toggle {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 900px) and (min-width: 681px) {
+  .bundled-vacuum-detail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bundle-detail-main {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  .bundled-vacuum-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .bundle-detail-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bundle-status-pill {
+    width: fit-content;
+    max-width: 100%;
+  }
+}
+
+/* Fix native date input overflow on small devices */
+input[type="date"] {
+  min-width: 0;
+  max-width: 100%;
+  appearance: auto;
+  -webkit-appearance: none;
+}
+
+.modal-grid,
+.form-grid,
+.task-modal label,
+.card label {
+  min-width: 0;
+}
+
+.task-modal input,
+.card input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  input[type="date"] {
+    font-size: 1rem;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .task-modal {
+    overflow-x: hidden;
+  }
+
+  .modal-grid label,
+  .form-grid label {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .modal-grid input,
+  .form-grid input {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-backdrop {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .task-modal {
+    max-width: 100%;
+  }
+}
+
+.fancy-menu {
+  touch-action: manipulation;
+}
+
+.fancy-option {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}

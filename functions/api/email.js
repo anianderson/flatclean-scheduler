@@ -276,7 +276,6 @@ function escapeHeader(value) {
     .trim();
 }
 
-
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -287,8 +286,7 @@ function escapeHtml(value) {
 }
 
 function htmlParagraph(value) {
-  return escapeHtml(value).replace(/
-/g, '<br />');
+  return escapeHtml(value).replace(/\n/g, '<br />');
 }
 
 function stripHtml(html) {
@@ -365,7 +363,7 @@ function buildMimeMessage({ env, to, subject, html, text }) {
     'Content-Type: text/html; charset="UTF-8"',
     'Content-Transfer-Encoding: 8bit',
     '',
-    html || `<pre>${plainText}</pre>`,
+    html || `<pre>${escapeHtml(plainText)}</pre>`,
     '',
     `--${boundary}--`
   ].join('\r\n');
@@ -456,22 +454,24 @@ export function bilingualEmail({
   detailsEn,
   detailsDe
 }) {
-  const subject = `${escapeHeader(titleDe)} / ${escapeHeader(titleEn)}`;
+  const safeTitleDe = escapeHeader(titleDe);
+  const safeTitleEn = escapeHeader(titleEn);
+  const subject = `${safeTitleDe} / ${safeTitleEn}`;
 
   const text = `
-${titleDe}
-${summaryDe}
+${String(titleDe || '')}
+${String(summaryDe || '')}
 
 Details:
-${detailsDe}
+${String(detailsDe || '')}
 
 ------------------------------
 
-${titleEn}
-${summaryEn}
+${String(titleEn || '')}
+${String(summaryEn || '')}
 
 Details:
-${detailsEn}
+${String(detailsEn || '')}
 `.trim();
 
   const html = `

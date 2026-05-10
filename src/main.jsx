@@ -1,3 +1,4925 @@
+// import React, { useEffect, useMemo, useRef, useState } from 'react';
+// import { createRoot } from 'react-dom/client';
+// import {
+//   AlertTriangle,
+//   CalendarDays,
+//   Check,
+//   CheckCircle2,
+//   ChevronDown,
+//   History,
+//   Home,
+//   Loader2,
+//   Mail,
+//   Menu,
+//   Pencil,
+//   Plane,
+//   Sparkles,
+//   Trophy,
+//   X
+// } from 'lucide-react';
+// import './styles.css';
+
+// const APP_TIME_ZONE = 'Europe/Berlin';
+
+// function todayIso() {
+//   return new Intl.DateTimeFormat('en-CA', {
+//     timeZone: APP_TIME_ZONE,
+//     year: 'numeric',
+//     month: '2-digit',
+//     day: '2-digit'
+//   }).format(new Date());
+// }
+
+// function parseIsoDateParts(date) {
+//   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+//   if (!match) return null;
+
+//   return {
+//     year: Number(match[1]),
+//     month: Number(match[2]),
+//     day: Number(match[3])
+//   };
+// }
+
+// const TODAY = todayIso();
+
+// const FLOOR_MIN_GAP_DAYS = 10;
+// const FLOOR_BUNDLE_WINDOW_DAYS = 5;
+
+// const HEAVY_TASK_IDS = new Set([
+//   'driveway_backyard',
+//   'deep_water',
+//   'bath_toilet_basin',
+//   'vacuum'
+// ]);
+
+// const TASK_TIE_OFFSETS = {
+//   gas_stove: 0,
+//   deep_water: 1,
+//   bath_toilet_basin: 2,
+//   driveway_backyard: 1,
+//   vacuum: 2,
+//   bio_bin: 1,
+//   yellow_bin: 2,
+//   black_bin: 0,
+//   paper_bin: 1
+// };
+
+// const FREQUENCY_PRESETS = [
+//   { value: 7, labelEn: 'Every week', labelDe: 'Jede Woche' },
+//   { value: 10, labelEn: 'Every 10 days', labelDe: 'Alle 10 Tage' },
+//   { value: 14, labelEn: 'Every 2 weeks', labelDe: 'Alle 2 Wochen' },
+//   { value: 20, labelEn: 'Every 20 days', labelDe: 'Alle 20 Tage' },
+//   { value: 30, labelEn: 'Every month', labelDe: 'Jeden Monat' },
+//   { value: 61, labelEn: 'Every 2 months', labelDe: 'Alle 2 Monate' },
+//   { value: 122, labelEn: 'Every 4 months', labelDe: 'Alle 4 Monate' },
+//   { value: 'custom', labelEn: 'Custom', labelDe: 'Eigener Wert' }
+// ];
+
+// const DIFFICULTY_PRESETS = [
+//   { value: 0.5, labelEn: 'Very easy', labelDe: 'Sehr einfach' },
+//   { value: 1, labelEn: 'Easy', labelDe: 'Einfach' },
+//   { value: 1.5, labelEn: 'Normal', labelDe: 'Normal' },
+//   { value: 2.5, labelEn: 'Hard', labelDe: 'Schwer' },
+//   { value: 4, labelEn: 'Very hard', labelDe: 'Sehr schwer' },
+//   { value: 'custom', labelEn: 'Custom', labelDe: 'Eigener Wert' }
+// ];
+
+// function presetLabel(item, lang) {
+//   return lang === 'de' ? item.labelDe : item.labelEn;
+// }
+
+// const translations = {
+//   en: {
+//     editExistingChore: 'Edit existing chore',
+//     editExistingChoreHelp: 'Use this when you only want to change a chore that already exists.',
+//     addNewChoreTitle: 'Add new chore',
+//     addNewChoreHelp: 'Use this when you want to create a completely new chore.',
+//     splitBigChoreTitle: 'Split big chore',
+//     splitBigChoreHelp: 'Use this when one chore is too big and should become smaller chores.',
+//     chooseChore: 'Choose chore',
+//     choreName: 'Chore name',
+//     choreNameExample: 'Example: Clean fridge',
+//     repeatEvery: 'Repeat every',
+//     customDays: 'Custom days',
+//     difficultySimple: 'Difficulty',
+//     customPoints: 'Custom points',
+//     advancedParts: 'Advanced: edit areas / parts',
+//     hideAdvancedParts: 'Hide advanced parts',
+//     saveChanges: 'Save changes',
+//     archiveThisChore: 'Archive this chore',
+//     addNewChoreButton: 'Add new chore',
+//     splitIntoSmallerChores: 'New smaller chores',
+//     splitExample: 'Example: split “Clean bathtub, toilet and wash basin” into “Clean toilet and bathtub” and “Clean wash basin”.',
+//     smallerChoreName: 'Smaller chore name',
+//     addSmallerChore: 'Add another smaller chore',
+//     taskArchivedDone: 'Chore archived.',
+//     taskSplitDone: 'Chore split.',
+//     taskAddedDone: 'Chore added.',
+//     taskUpdatedDone: 'Chore updated.',
+//     adminTasks: 'Chore settings',
+//     adminTasksHelp: 'Change frequencies, add chores, set difficulty, or split one chore into multiple chores.',
+//     taskFrequencyDays: 'Frequency in days',
+//     taskDifficulty: 'Relative difficulty',
+//     difficultyNumber: 'Difficulty points',
+//     difficultyMode: 'Difficulty mode',
+//     difficultyManual: 'Manual points',
+//     difficultyEasierThan: 'Easier than',
+//     difficultyHarderThan: 'Harder than',
+//     difficultyBetween: 'Between two chores',
+//     easierThanTask: 'Easier than chore',
+//     harderThanTask: 'Harder than chore',
+//     addChore: 'Add chore',
+//     updateChore: 'Update chore',
+//     archiveChore: 'Archive chore',
+//     splitChore: 'Split chore',
+//     originalChore: 'Original chore',
+//     newSplitChores: 'New chores after split',
+//     archiveOriginalChore: 'Archive original chore after splitting',
+//     subtaskName: 'Part name',
+//     subtaskWeight: 'Part weight',
+//     addPart: 'Add part',
+//     removePart: 'Remove part',
+//     taskType: 'Task type',
+//     scheduledTask: 'Scheduled',
+//     onDemandTask: 'As needed',
+//     celebrationTitle: 'Great job!',
+//     celebrationSubtitle: person => `${person}, your chore was saved.`,
+//     pointsEarnedNow: 'Points earned now',
+//     totalPointsNow: 'Total points now',
+//     celebrationClose: 'Nice!',
+//     originalDueDate: 'Original scheduled-from date',
+//     processing: 'Processing…',
+//     savedDone: 'Saved.',
+//     deletedDone: 'Deleted.',
+//     addedDone: 'Added.',
+//     updatedDone: 'Updated.',
+//     emailUpdatedDone: 'Email updated.',
+//     vacationAddedDone: 'Vacation dates added.',
+//     vacationDeletedDone: 'Vacation dates deleted.',
+//     binUpdatedDone: 'Bin status updated.',
+//     choreSavedDone: 'Chore saved.',
+//     badge: 'Shared flat chore planner',
+//     title: 'Cleaning schedule',
+//     subtitle: 'A fair cleaning rota for the flat, with reminders, points, history, and away dates.',
+//     fairnessPolicyLink: 'Read the fairness policy',
+//     navigation: 'Navigation',
+//     dashboard: 'Overview',
+//     nextTasks: 'Scheduled chores',
+//     nextTasksHelp: 'All chores, including future, open, overdue, and as-needed chores.',
+//     markDone: 'Mark as done',
+//     markDoneHelp: 'Choose the chore and date. It will be saved under your profile.',
+//     recentLog: 'Recent activity',
+//     recentLogHelp: 'Recently completed chores in the current period.',
+//     scores: 'Points',
+//     scoresHelp: 'Difficulty points show how hard a chore is. Earned points show completed work in this period.',
+//     totalScore: 'Total points',
+//     positiveScore: 'Work points',
+//     negativeScore: 'Covered by others',
+//     taskScores: 'Points by chore',
+//     task: 'Chore',
+//     dateDone: 'Done on',
+//     note: 'Note',
+//     optional: 'Optional',
+//     saveCompleted: 'Save completed chore',
+//     saving: 'Saving…',
+//     saved: 'Saved successfully.',
+//     lastDone: 'Last done',
+//     noRecord: 'No record yet',
+//     nextDate: 'Scheduled from',
+//     nextPerson: 'Assigned to',
+//     status: 'Status',
+//     whenFull: 'When full',
+//     notScheduled: 'Not scheduled yet',
+//     addFirstRecord: 'Add first record',
+//     needsCleaning: 'Needs cleaning',
+//     onDemand: 'As needed',
+//     binFull: 'Bin is full / needs cleaning',
+//     linkedDeep: 'Combined with mopping on this date.',
+//     deepIncludesVacuum: 'This includes vacuuming on the same day.',
+//     didVacuumQuestion: 'Did you also vacuum?',
+//     didVacuumHelp: 'Mopping usually needs vacuuming first. If vacuuming was not done, mopping points are reduced.',
+//     yesVacuumDone: 'Yes, vacuuming was also done',
+//     noVacuumDone: 'No, only mopping was done',
+//     by: 'by',
+//     loading: 'Loading…',
+//     loadError: 'Could not load the app data.',
+//     saveError: 'Could not save. Please try again.',
+//     futureDateError: 'Future dates are not allowed.',
+//     auto: 'Auto',
+//     german: 'German',
+//     english: 'English',
+//     language: 'Language',
+//     languageHelp: 'Auto uses your device language.',
+//     dueToday: 'Scheduled from today',
+//     menu: 'Menu',
+//     close: 'Close',
+//     jumpTo: 'Go to',
+//     selectPlaceholder: 'Select',
+//     whoAreYou: 'Who are you?',
+//     chooseProfile: 'Choose your profile on this device.',
+//     continueAs: 'Continue as',
+//     switchUser: 'Switch user',
+//     yourTask: 'Assigned to you',
+//     markingAs: 'This will be saved as',
+//     noUserSelected: 'Please choose your profile first.',
+//     quickMarkDone: 'Mark chore as done',
+//     openTask: 'Open chore',
+//     cancel: 'Cancel',
+//     profile: 'Profile',
+//     yourPendingTasks: 'Your open chores',
+//     onePendingTask: '1 open chore',
+//     manyPendingTasks: n => `${n} open chores`,
+//     noPendingTasks: 'No open chores',
+//     subtasks: 'Areas / parts',
+//     selectAll: 'Select all',
+//     partialTask: 'Untick anything that was not completed.',
+//     pendingParts: 'Still open',
+//     emailTitle: 'Email required',
+//     emailInfo: 'This email is used for reminders, overdue notices, point updates, and milestone messages.',
+//     emailAddress: 'Email address',
+//     saveAndContinue: 'Save and continue',
+//     changeEmail: 'Change email',
+//     emailSaved: 'Email saved successfully.',
+//     invalidEmail: 'Please enter a valid email address.',
+//     admin: 'Admin',
+//     adminPanel: 'Admin area',
+//     adminHelp: 'Manage active flatmates. Adding or removing flatmates starts a new fair points period.',
+//     userName: 'Name',
+//     addUser: 'Add flatmate',
+//     updateUser: 'Update email',
+//     deleteUser: 'Delete',
+//     activeUsers: 'Active flatmates',
+//     history: 'History',
+//     previousPeriods: 'Previous periods',
+//     historyHelp: 'When flatmates change, the current period is closed. Its activity, points, and milestones stay here.',
+//     periodLogs: 'Activity',
+//     periodScores: 'Points',
+//     periodMilestones: 'Milestones',
+//     noPeriodLogs: 'No activity in this period',
+//     noPeriodMilestones: 'No milestones in this period',
+//     showDetails: 'Show details',
+//     hideDetails: 'Hide details',
+//     baseScore: 'Difficulty points',
+//     earnedScore: 'Earned points',
+//     singleTask: 'Single chore',
+//     activePeriod: 'Current points period',
+//     noEmail: 'No email added yet',
+//     adminPin: 'Admin PIN',
+//     adminPinHelp: 'Enter the admin PIN to confirm this action.',
+//     adminPinForVacationHelp: 'Admin PIN is required to save or delete vacation dates for another flatmate.',
+//     confirm: 'Confirm',
+//     away: 'Vacation',
+//     awayHelp: 'Add vacation or unavailable dates. You will not be assigned scheduled chores during this time.',
+//     awayFrom: 'Away from',
+//     awayUntil: 'Away until',
+//     reason: 'Reason',
+//     partiallyCompleted: 'Partially completed',
+//     completedParts: 'Completed',
+//     addAway: 'Save vacation dates',
+//     yourAwayDates: 'Your saved vacation dates',
+//     noAwayDates: 'No vacation dates saved',
+//     noAwayPlanned: 'No vacation planned',
+//     vacationQuickHelp: 'Set your vacation dates here so chores stay fair while you are away.',
+//     manageVacation: 'Manage vacation',
+//     currentVacation: 'Currently away',
+//     nextVacation: 'Next vacation',
+//     deleteAway: 'Delete vacation dates',
+//     vacationForUser: 'Vacation for flatmate',
+//     selectFlatmate: 'Select flatmate',
+//     saveVacationForUser: 'Save vacation for flatmate',
+//     allVacationDates: 'All vacation dates',
+//     person: 'Person',
+//     usefulLinks: 'What else can you do?',
+//     usefulLinksHelp: 'Use the sidebar to open full pages for marking work done, points, history, and admin settings.',
+//     dueChoresShort: 'Open now',
+//     pointsShort: 'Your points',
+//     awayShort: 'Vacation',
+//     peopleOnVacationToday: 'On vacation today',
+//     noOneOnVacationToday: 'No one is on vacation today',
+//     vacuumMovedToMopping: 'Vacuuming was overdue and has been moved to the mopping date.',
+//     vacuumRecentlyDoneForMop: 'Vacuuming was already completed recently.',
+//     vacuumBundleStatus: 'Vacuum status in this bundle',
+//     vacuumRequired: 'Vacuum required',
+//     vacuumNotRequired: 'Vacuum not required',
+//     currentBundleDate: 'Current bundle date',
+//     originalAssignee: 'Original assignee',
+//     currentAssignee: 'Current assignee',
+//     lastVacuumDone: 'Last vacuum done',
+//     notDoneYet: 'Not done yet',
+//     reasonLabel: 'Reason',
+//     openParts: 'Open parts',
+//     doneParts: 'Done parts',
+//     allPartsOpen: 'All parts are still open',
+//     allPartsDone: 'All parts are already done',
+//     choresOverview: 'Chores overview',
+//     pendingOverdue: 'Open chores',
+//     upcomingSevenDays: 'Scheduled in the next 7 days',
+//     noPendingOverdue: 'No open chores',
+//     noUpcomingSevenDays: 'No chores scheduled in the next 7 days',
+//     oneChore: '1 chore',
+//     manyChores: n => `${n} chores`,
+//     assignedShort: 'Assigned',
+//     pointsDetails: 'Points details',
+//     earnedDetails: 'Earned points',
+//     penaltyDetails: 'Penalty details',
+//     noEarnedDetails: 'No earned points in this period',
+//     noPenaltyDetails: 'No penalties in this period',
+//     coveredFor: person => `Covered for ${person}`,
+//     completedBy: person => `Completed by ${person}`,
+//     penaltyReason: 'Someone else completed this overdue chore',
+//     vacuumRecentlyDoneForMopHelp:
+//       date => `Vacuuming was completed on ${date}. If mopping is done within 5 days of that vacuuming, vacuuming is not mandatory again and mopping points are not reduced.`,
+//     vacuumNotMandatoryThisMop:
+//       'Vacuuming is not mandatory for this mopping because it was completed recently.',
+//     missedVacuumBy:
+//       person => `${person} missed the original vacuum duty.`,
+//     moppingComesFirst:
+//       'Standalone vacuuming is skipped because mopping already includes vacuuming.',
+//     onVacationUntil: (person, date) => `${person} is on vacation until ${date}.`,
+//     nextVacationFromUntil: (from, until) => `Next vacation: ${from} → ${until}`,
+//     late: n => `Open for ${n} day${n === 1 ? '' : 's'}`,
+//     dueIn: n => `Scheduled in ${n} day${n === 1 ? '' : 's'}`,
+//     taskNames: {
+//       vacuum: 'Vacuum the whole flat',
+//       deep_water: 'Mop the whole flat',
+//       bath_toilet_basin: 'Clean bathtub, toilet and wash basin',
+//       gas_stove: 'Clean gas stove',
+//       bio_bin: 'Clean bio waste bin',
+//       yellow_bin: 'Clean yellow bin',
+//       black_bin: 'Clean black bin',
+//       paper_bin: 'Clean paper bin',
+//       driveway_backyard: 'Clean driveway and backyard'
+//     }
+//   },
+
+//   de: {
+//     editExistingChore: 'Bestehende Aufgabe bearbeiten',
+//     editExistingChoreHelp: 'Nutze das, wenn du nur eine vorhandene Aufgabe ändern möchtest.',
+//     addNewChoreTitle: 'Neue Aufgabe hinzufügen',
+//     addNewChoreHelp: 'Nutze das, wenn du eine komplett neue Aufgabe erstellen möchtest.',
+//     splitBigChoreTitle: 'Große Aufgabe aufteilen',
+//     splitBigChoreHelp: 'Nutze das, wenn eine Aufgabe zu groß ist und in kleinere Aufgaben aufgeteilt werden soll.',
+//     chooseChore: 'Aufgabe auswählen',
+//     choreName: 'Aufgabenname',
+//     choreNameExample: 'Beispiel: Kühlschrank reinigen',
+//     repeatEvery: 'Wiederholen alle',
+//     customDays: 'Eigene Anzahl Tage',
+//     difficultySimple: 'Schwierigkeit',
+//     customPoints: 'Eigene Punkte',
+//     advancedParts: 'Erweitert: Bereiche / Teile bearbeiten',
+//     hideAdvancedParts: 'Erweiterte Teile ausblenden',
+//     saveChanges: 'Änderungen speichern',
+//     archiveThisChore: 'Diese Aufgabe archivieren',
+//     addNewChoreButton: 'Neue Aufgabe hinzufügen',
+//     splitIntoSmallerChores: 'Neue kleinere Aufgaben',
+//     splitExample: 'Beispiel: Teile „Badewanne, Toilette und Waschbecken reinigen“ in „Toilette und Badewanne reinigen“ und „Waschbecken reinigen“ auf.',
+//     smallerChoreName: 'Name der kleineren Aufgabe',
+//     addSmallerChore: 'Weitere kleinere Aufgabe hinzufügen',
+//     taskArchivedDone: 'Aufgabe archiviert.',
+//     taskSplitDone: 'Aufgabe aufgeteilt.',
+//     taskAddedDone: 'Aufgabe hinzugefügt.',
+//     taskUpdatedDone: 'Aufgabe aktualisiert.',
+//     adminTasks: 'Aufgaben-Einstellungen',
+//     adminTasksHelp: 'Häufigkeit ändern, Aufgaben hinzufügen, Schwierigkeit festlegen oder eine Aufgabe in mehrere Aufgaben aufteilen.',
+//     taskFrequencyDays: 'Häufigkeit in Tagen',
+//     taskDifficulty: 'Relative Schwierigkeit',
+//     difficultyNumber: 'Schwierigkeitspunkte',
+//     difficultyMode: 'Schwierigkeitsmodus',
+//     difficultyManual: 'Manuelle Punkte',
+//     difficultyEasierThan: 'Einfacher als',
+//     difficultyHarderThan: 'Schwerer als',
+//     difficultyBetween: 'Zwischen zwei Aufgaben',
+//     easierThanTask: 'Einfacher als Aufgabe',
+//     harderThanTask: 'Schwerer als Aufgabe',
+//     addChore: 'Aufgabe hinzufügen',
+//     updateChore: 'Aufgabe aktualisieren',
+//     archiveChore: 'Aufgabe archivieren',
+//     splitChore: 'Aufgabe aufteilen',
+//     originalChore: 'Ursprüngliche Aufgabe',
+//     newSplitChores: 'Neue Aufgaben nach Aufteilung',
+//     archiveOriginalChore: 'Ursprüngliche Aufgabe nach Aufteilung archivieren',
+//     subtaskName: 'Teilname',
+//     subtaskWeight: 'Teilgewicht',
+//     addPart: 'Teil hinzufügen',
+//     removePart: 'Teil entfernen',
+//     taskType: 'Aufgabentyp',
+//     scheduledTask: 'Geplant',
+//     onDemandTask: 'Bei Bedarf',
+//     celebrationTitle: 'Super gemacht!',
+//     celebrationSubtitle: person => `${person}, deine Aufgabe wurde gespeichert.`,
+//     pointsEarnedNow: 'Jetzt verdiente Punkte',
+//     totalPointsNow: 'Aktuelle Gesamtpunkte',
+//     celebrationClose: 'Cool!',
+//     originalDueDate: 'Ursprünglich geplant ab',
+//     processing: 'Wird verarbeitet…',
+//     savedDone: 'Gespeichert.',
+//     deletedDone: 'Gelöscht.',
+//     addedDone: 'Hinzugefügt.',
+//     updatedDone: 'Aktualisiert.',
+//     emailUpdatedDone: 'E-Mail aktualisiert.',
+//     vacationAddedDone: 'Urlaub gespeichert.',
+//     vacationDeletedDone: 'Urlaub gelöscht.',
+//     binUpdatedDone: 'Tonnenstatus aktualisiert.',
+//     choreSavedDone: 'Aufgabe gespeichert.',
+//     badge: 'WG-Putzplan',
+//     title: 'Putzplan',
+//     subtitle: 'Ein fairer Putzplan für die WG, mit Erinnerungen, Punkten, Historie und Abwesenheiten.',
+//     fairnessPolicyLink: 'Fairness-Regeln lesen',
+//     navigation: 'Navigation',
+//     dashboard: 'Übersicht',
+//     nextTasks: 'Geplante Aufgaben',
+//     nextTasksHelp: 'Alle Aufgaben, inklusive zukünftiger, offener, überfälliger und bedarfsabhängiger Aufgaben.',
+//     markDone: 'Als erledigt eintragen',
+//     markDoneHelp: 'Wähle Aufgabe und Datum. Der Eintrag wird unter deinem Profil gespeichert.',
+//     recentLog: 'Letzte Aktivitäten',
+//     recentLogHelp: 'Zuletzt erledigte Aufgaben in der aktuellen Periode.',
+//     scores: 'Punkte',
+//     scoresHelp: 'Schwierigkeitspunkte zeigen den Aufwand. Erarbeitete Punkte zeigen erledigte Arbeit in dieser Periode.',
+//     totalScore: 'Gesamtpunkte',
+//     positiveScore: 'Arbeitspunkte',
+//     negativeScore: 'Von anderen übernommen',
+//     taskScores: 'Punkte nach Aufgabe',
+//     task: 'Aufgabe',
+//     dateDone: 'Erledigt am',
+//     note: 'Notiz',
+//     optional: 'Optional',
+//     saveCompleted: 'Erledigte Aufgabe speichern',
+//     saving: 'Speichert…',
+//     saved: 'Erfolgreich gespeichert.',
+//     lastDone: 'Zuletzt erledigt',
+//     noRecord: 'Noch kein Eintrag',
+//     nextDate: 'Geplant ab',
+//     nextPerson: 'Zuständig',
+//     status: 'Status',
+//     whenFull: 'Wenn voll',
+//     notScheduled: 'Noch nicht geplant',
+//     addFirstRecord: 'Ersten Eintrag hinzufügen',
+//     needsCleaning: 'Muss gereinigt werden',
+//     onDemand: 'Bei Bedarf',
+//     binFull: 'Tonne ist voll / muss gereinigt werden',
+//     linkedDeep: 'An diesem Datum mit Nasswischen kombiniert.',
+//     deepIncludesVacuum: 'Diese Aufgabe enthält Staubsaugen am selben Tag.',
+//     didVacuumQuestion: 'Hast du auch staubgesaugt?',
+//     didVacuumHelp: 'Vor dem Nasswischen sollte normalerweise staubgesaugt werden. Ohne Staubsaugen gibt es weniger Punkte.',
+//     yesVacuumDone: 'Ja, Staubsaugen wurde auch erledigt',
+//     noVacuumDone: 'Nein, nur Nasswischen wurde erledigt',
+//     by: 'von',
+//     loading: 'Lädt…',
+//     loadError: 'App-Daten konnten nicht geladen werden.',
+//     saveError: 'Konnte nicht speichern. Bitte erneut versuchen.',
+//     futureDateError: 'Zukünftige Daten sind nicht erlaubt.',
+//     auto: 'Auto',
+//     german: 'Deutsch',
+//     english: 'Englisch',
+//     language: 'Sprache',
+//     languageHelp: 'Auto nutzt die Gerätesprache.',
+//     dueToday: 'Ab heute geplant',
+//     menu: 'Menü',
+//     close: 'Schließen',
+//     jumpTo: 'Springen zu',
+//     selectPlaceholder: 'Auswählen',
+//     whoAreYou: 'Wer bist du?',
+//     chooseProfile: 'Wähle dein Profil auf diesem Gerät.',
+//     continueAs: 'Weiter als',
+//     switchUser: 'Benutzer wechseln',
+//     yourTask: 'Deine Aufgabe',
+//     markingAs: 'Dies wird gespeichert als',
+//     noUserSelected: 'Bitte wähle zuerst dein Profil aus.',
+//     quickMarkDone: 'Aufgabe als erledigt eintragen',
+//     openTask: 'Aufgabe öffnen',
+//     cancel: 'Abbrechen',
+//     profile: 'Profil',
+//     yourPendingTasks: 'Deine offenen Aufgaben',
+//     onePendingTask: '1 offene Aufgabe',
+//     manyPendingTasks: n => `${n} offene Aufgaben`,
+//     noPendingTasks: 'Keine offenen Aufgaben',
+//     subtasks: 'Bereiche / Teile',
+//     selectAll: 'Alle auswählen',
+//     partialTask: 'Entferne alles, was nicht erledigt wurde.',
+//     pendingParts: 'Noch offen',
+//     emailTitle: 'E-Mail erforderlich',
+//     emailInfo: 'Diese E-Mail wird für Erinnerungen, überfällige Aufgaben, Punkte-Updates und Meilenstein-Nachrichten verwendet.',
+//     emailAddress: 'E-Mail-Adresse',
+//     saveAndContinue: 'Speichern und weiter',
+//     changeEmail: 'E-Mail ändern',
+//     emailSaved: 'E-Mail erfolgreich gespeichert.',
+//     invalidEmail: 'Bitte gib eine gültige E-Mail-Adresse ein.',
+//     admin: 'Admin',
+//     adminPanel: 'Adminbereich',
+//     adminHelp: 'Aktive Mitbewohner verwalten. Wenn Mitbewohner hinzukommen oder ausziehen, startet eine neue faire Punkteperiode.',
+//     userName: 'Name',
+//     addUser: 'Mitbewohner hinzufügen',
+//     updateUser: 'E-Mail ändern',
+//     deleteUser: 'Löschen',
+//     activeUsers: 'Aktive Mitbewohner',
+//     history: 'Historie',
+//     previousPeriods: 'Frühere Perioden',
+//     historyHelp: 'Wenn Mitbewohner wechseln, wird die aktuelle Periode geschlossen. Aktivitäten, Punkte und Meilensteine bleiben hier erhalten.',
+//     periodLogs: 'Aktivitäten',
+//     periodScores: 'Punkte',
+//     periodMilestones: 'Meilensteine',
+//     noPeriodLogs: 'Keine Aktivitäten in dieser Periode',
+//     noPeriodMilestones: 'Keine Meilensteine in dieser Periode',
+//     showDetails: 'Details anzeigen',
+//     hideDetails: 'Details ausblenden',
+//     baseScore: 'Schwierigkeitspunkte',
+//     earnedScore: 'Erarbeitete Punkte',
+//     singleTask: 'Einzelaufgabe',
+//     activePeriod: 'Aktuelle Punkteperiode',
+//     noEmail: 'Noch keine E-Mail hinterlegt',
+//     adminPin: 'Admin-PIN',
+//     adminPinHelp: 'Gib die Admin-PIN ein, um diese Aktion zu bestätigen.',
+//     adminPinForVacationHelp: 'Die Admin-PIN ist erforderlich, um Urlaubszeiten für andere Mitbewohner zu speichern oder zu löschen.',
+//     confirm: 'Bestätigen',
+//     away: 'Urlaub',
+//     awayHelp: 'Trage Urlaub oder Abwesenheit ein. In dieser Zeit bekommst du keine geplanten Aufgaben zugewiesen.',
+//     awayFrom: 'Abwesend von',
+//     awayUntil: 'Abwesend bis',
+//     reason: 'Grund',
+//     partiallyCompleted: 'Teilweise erledigt',
+//     completedParts: 'Erledigt',
+//     addAway: 'Urlaub speichern',
+//     yourAwayDates: 'Deine gespeicherten Urlaubszeiten',
+//     noAwayDates: 'Kein Urlaub gespeichert',
+//     noAwayPlanned: 'Kein Urlaub geplant',
+//     vacationQuickHelp: 'Trage hier deine Urlaubszeiten ein, damit Aufgaben während deiner Abwesenheit fair verteilt werden.',
+//     manageVacation: 'Urlaub verwalten',
+//     currentVacation: 'Aktuell abwesend',
+//     nextVacation: 'Nächster Urlaub',
+//     deleteAway: 'Urlaub löschen',
+//     vacationForUser: 'Urlaub für Mitbewohner',
+//     selectFlatmate: 'Mitbewohner auswählen',
+//     saveVacationForUser: 'Urlaub für Mitbewohner speichern',
+//     allVacationDates: 'Alle Urlaubszeiten',
+//     person: 'Person',
+//     usefulLinks: 'Was kannst du noch machen?',
+//     usefulLinksHelp: 'Über die Seitenleiste findest du Erledigt-Einträge, Punkte, Historie und Admin-Einstellungen.',
+//     dueChoresShort: 'Jetzt offen',
+//     pointsShort: 'Deine Punkte',
+//     awayShort: 'Urlaub',
+//     peopleOnVacationToday: 'Heute im Urlaub',
+//     noOneOnVacationToday: 'Heute ist niemand im Urlaub',
+//     vacuumMovedToMopping:
+//       'Staubsaugen war überfällig und wurde auf den Nasswisch-Termin verschoben.',
+//     vacuumRecentlyDoneForMop: 'Staubsaugen wurde kürzlich erledigt.',
+//     vacuumBundleStatus: 'Staubsaug-Status in diesem Bündel',
+//     vacuumRequired: 'Staubsaugen erforderlich',
+//     vacuumNotRequired: 'Staubsaugen nicht erforderlich',
+//     currentBundleDate: 'Aktueller Bündel-Termin',
+//     originalAssignee: 'Ursprünglich zuständig',
+//     currentAssignee: 'Aktuell zuständig',
+//     lastVacuumDone: 'Zuletzt staubgesaugt',
+//     notDoneYet: 'Noch nicht erledigt',
+//     reasonLabel: 'Grund',
+//     openParts: 'Offene Teile',
+//     doneParts: 'Erledigte Teile',
+//     allPartsOpen: 'Alle Teile sind noch offen',
+//     allPartsDone: 'Alle Teile sind bereits erledigt',
+//     choresOverview: 'Aufgabenübersicht',
+//     pendingOverdue: 'Offene Aufgaben',
+//     upcomingSevenDays: 'In den nächsten 7 Tagen geplant',
+//     noPendingOverdue: 'Keine offenen Aufgaben',
+//     noUpcomingSevenDays: 'Keine Aufgaben in den nächsten 7 Tagen geplant',
+//     oneChore: '1 Aufgabe',
+//     manyChores: n => `${n} Aufgaben`,
+//     assignedShort: 'Zuständig',
+//     pointsDetails: 'Punkte-Details',
+//     earnedDetails: 'Erarbeitete Punkte',
+//     penaltyDetails: 'Abzug-Details',
+//     noEarnedDetails: 'Keine erarbeiteten Punkte in dieser Periode',
+//     noPenaltyDetails: 'Keine Abzüge in dieser Periode',
+//     coveredFor: person => `Übernommen für ${person}`,
+//     completedBy: person => `Erledigt von ${person}`,
+//     penaltyReason: 'Jemand anderes hat diese überfällige Aufgabe erledigt',
+//     vacuumRecentlyDoneForMopHelp:
+//       date => `Staubsaugen wurde am ${date} erledigt. Wenn Nasswischen innerhalb von 5 Tagen danach erledigt wird, ist erneutes Staubsaugen nicht verpflichtend und die Punkte fürs Nasswischen werden nicht reduziert.`,
+//     vacuumNotMandatoryThisMop:
+//       'Staubsaugen ist für dieses Nasswischen nicht verpflichtend, weil es kürzlich erledigt wurde.',
+//     missedVacuumBy:
+//       person => `${person} hat die ursprüngliche Staubsaug-Aufgabe verpasst.`,
+//     moppingComesFirst:
+//       'Separates Staubsaugen wird übersprungen, weil Nasswischen bereits Staubsaugen enthält.',
+//     onVacationUntil: (person, date) => `${person} ist bis ${date} im Urlaub.`,
+//     nextVacationFromUntil: (from, until) => `Nächster Urlaub: ${from} → ${until}`,
+//     late: n => `Seit ${n} Tag${n === 1 ? '' : 'en'} offen`,
+//     dueIn: n => `In ${n} Tag${n === 1 ? '' : 'en'} geplant`,
+//     taskNames: {
+//       vacuum: 'Gesamte Wohnung staubsaugen',
+//       deep_water: 'Gesamte Wohnung nass wischen',
+//       bath_toilet_basin: 'Badewanne, Toilette und Waschbecken reinigen',
+//       gas_stove: 'Gasherd reinigen',
+//       bio_bin: 'Biotonne reinigen',
+//       yellow_bin: 'Gelbe Tonne reinigen',
+//       black_bin: 'Restmülltonne reinigen',
+//       paper_bin: 'Papiertonne reinigen',
+//       driveway_backyard: 'Einfahrt und Hinterhof reinigen'
+//     }
+//   }
+// };
+
+// function getLanguageFromSetting(setting) {
+//   if (setting === 'en' || setting === 'de') return setting;
+
+//   const browserLanguages = navigator.languages?.length
+//     ? navigator.languages
+//     : [navigator.language || ''];
+
+//   const firstKnown = browserLanguages
+//     .map(lang => lang.toLowerCase())
+//     .find(lang => lang.startsWith('en') || lang.startsWith('de'));
+
+//   if (firstKnown?.startsWith('en')) return 'en';
+//   if (firstKnown?.startsWith('de')) return 'de';
+
+//   return 'de';
+// }
+
+// function addDays(date, days) {
+//   const parts = parseIsoDateParts(date);
+//   if (!parts) return null;
+
+//   const d = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + Number(days || 0)));
+//   return d.toISOString().slice(0, 10);
+// }
+
+// function diffDays(from, to) {
+//   const aParts = parseIsoDateParts(from);
+//   const bParts = parseIsoDateParts(to);
+//   if (!aParts || !bParts) return null;
+
+//   const a = Date.UTC(aParts.year, aParts.month - 1, aParts.day);
+//   const b = Date.UTC(bParts.year, bParts.month - 1, bParts.day);
+//   const diff = Math.round((b - a) / 86400000);
+
+//   return Number.isNaN(diff) ? null : diff;
+// }
+
+// function fmt(date, fallback = 'Not scheduled yet', lang = 'de') {
+//   if (!date) return fallback;
+
+//   const parts = parseIsoDateParts(date);
+//   if (!parts) return fallback;
+
+//   const locale = lang === 'de' ? 'de-DE' : 'en-GB';
+//   const displayDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12));
+
+//   return new Intl.DateTimeFormat(locale, {
+//     timeZone: APP_TIME_ZONE,
+//     day: '2-digit',
+//     month: 'short',
+//     year: 'numeric'
+//   }).format(displayDate);
+// }
+
+// function formatNumber(value, lang = 'de', fractionDigits = 2) {
+//   const locale = lang === 'de' ? 'de-DE' : 'en-GB';
+
+//   return new Intl.NumberFormat(locale, {
+//     minimumFractionDigits: fractionDigits,
+//     maximumFractionDigits: fractionDigits
+//   }).format(Number(value || 0));
+// }
+
+// function getPenaltyForCoveredOverdueLog(log, fallbackTask = null) {
+//   const creditWeight = Number(log?.creditWeight || 0);
+//   const completionRatio = Number(log?.completionRatio || 1);
+//   const fallbackBase = Number(fallbackTask?.baseWeight || 1);
+
+//   if (log?.completionType === 'completed_by_other_late') {
+//     return creditWeight > 0 ? creditWeight / 1.25 : fallbackBase * completionRatio;
+//   }
+
+//   if (log?.completionType === 'auto_included_overdue_for_other') {
+//     return creditWeight > 0 ? creditWeight / 1.5 : fallbackBase * completionRatio;
+//   }
+
+//   return fallbackBase * completionRatio;
+// }
+
+// function isCoveredOverdueLog(log) {
+//   const assignedPerson = normalizeName(log?.assignedPerson);
+//   const actualPerson = normalizeName(log?.actualPerson || log?.person);
+
+//   return (
+//     log?.taskType !== 'on_demand' &&
+//     assignedPerson &&
+//     actualPerson &&
+//     assignedPerson !== actualPerson &&
+//     (
+//       log?.completionType === 'completed_by_other_late' ||
+//       log?.completionType === 'auto_included_overdue_for_other'
+//     )
+//   );
+// }
+
+// function normalizeName(name) {
+//   return name === 'Neveen' ? 'Naveen' : String(name || '').trim();
+// }
+
+// function isValidEmail(email) {
+//   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+// }
+
+// function getBaseWeight(task) {
+//   return Number(task?.baseWeight || 1);
+// }
+
+// function isHeavyTask(task) {
+//   return HEAVY_TASK_IDS.has(task?.id) || getBaseWeight(task) >= 2;
+// }
+
+// function isPersonUnavailable(absences, person, date) {
+//   if (!person || !date) return false;
+
+//   return (absences || []).some(absence =>
+//     normalizeName(absence.person) === normalizeName(person) &&
+//     absence.startDate <= date &&
+//     absence.endDate >= date
+//   );
+// }
+
+// function availablePeopleForDate(people, absences, date) {
+//   const normalized = (people || []).map(normalizeName);
+
+//   if (!date) return normalized;
+
+//   const available = normalized.filter(
+//     person => !isPersonUnavailable(absences, person, date)
+//   );
+
+//   return available.length ? available : normalized;
+// }
+
+// function lastLog(logs, taskId) {
+//   return (logs || [])
+//     .filter(log => log.taskId === taskId && !log.isDummy)
+//     .sort((a, b) => {
+//       if (b.date !== a.date) return b.date.localeCompare(a.date);
+//       return (b.createdAt || '').localeCompare(a.createdAt || '');
+//     })[0];
+// }
+
+// function lastGroupLog(logs, task) {
+//   const ids = task.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task.id];
+
+//   return (logs || [])
+//     .filter(log => ids.includes(log.taskId) && !log.isDummy)
+//     .sort((a, b) => {
+//       if (b.date !== a.date) return b.date.localeCompare(a.date);
+//       return (b.createdAt || '').localeCompare(a.createdAt || '');
+//     })[0];
+// }
+
+// function getDueDateFromLastLog(task, last) {
+//   if (!last) return null;
+
+//   if (last.nextDueDate) return last.nextDueDate;
+
+//   if (task.type === 'scheduled' && task.intervalDays) {
+//     return addDays(last.date, task.intervalDays);
+//   }
+
+//   return null;
+// }
+
+// function getCycleCompletionFromLogs(logs, task, dueDate) {
+//   const subtasks = task?.subtasks || [];
+
+//   if (!subtasks.length || !dueDate) {
+//     return {
+//       completed: [],
+//       pending: [],
+//       ratio: 1,
+//       isOpen: false
+//     };
+//   }
+
+//   const cycleId = `${task.id}:${dueDate}`;
+//   const completedIds = new Set();
+
+//   for (const log of logs || []) {
+//     if (log.isDummy) continue;
+//     if (log.taskId !== task.id) continue;
+//     if (log.cycleId !== cycleId) continue;
+
+//     for (const subtask of log.completedSubtasks || []) {
+//       completedIds.add(subtask.id);
+//     }
+//   }
+
+//   const completed = subtasks.filter(subtask => completedIds.has(subtask.id));
+//   const pending = subtasks.filter(subtask => !completedIds.has(subtask.id));
+
+//   const totalWeight = subtasks.reduce(
+//     (sum, subtask) => sum + Number(subtask.weight || 1),
+//     0
+//   );
+
+//   const completedWeight = completed.reduce(
+//     (sum, subtask) => sum + Number(subtask.weight || 1),
+//     0
+//   );
+
+//   const ratio = totalWeight > 0 ? completedWeight / totalWeight : 1;
+
+//   return {
+//     completed,
+//     pending,
+//     ratio,
+//     isOpen: pending.length > 0 && ratio < 1
+//   };
+// }
+
+// function getOpenCycleAssignedPerson({
+//   logs,
+//   task,
+//   dueDate,
+//   absences = [],
+//   date = TODAY
+// }) {
+//   if (!task || task.type !== 'scheduled' || !dueDate) return '';
+
+//   const completion = getCycleCompletionFromLogs(logs, task, dueDate);
+//   if (!completion.isOpen) return '';
+
+//   const cycleId = `${task.id}:${dueDate}`;
+
+//   const cycleLogs = (logs || [])
+//     .filter(log => !log.isDummy && log.taskId === task.id && log.cycleId === cycleId)
+//     .sort((a, b) => {
+//       if ((a.createdAt || '') !== (b.createdAt || '')) {
+//         return (a.createdAt || '').localeCompare(b.createdAt || '');
+//       }
+
+//       return (a.date || '').localeCompare(b.date || '');
+//     });
+
+//   const assignedPerson = normalizeName(
+//     cycleLogs.find(log => normalizeName(log.assignedPerson))?.assignedPerson
+//   );
+
+//   if (!assignedPerson) return '';
+
+//   if (isPersonUnavailable(absences, assignedPerson, date)) {
+//     return '';
+//   }
+
+//   return assignedPerson;
+// }
+
+// function getRawTaskDueDate(state, taskId) {
+//   const task = (state.tasks || []).find(item => item.id === taskId);
+//   if (!task) return null;
+
+//   const last = lastLog(state.logs || [], taskId);
+//   return getDueDateFromLastLog(task, last);
+// }
+
+// function shouldBundleFloorTasks(vacuumDueDate, deepDueDate) {
+//   if (!vacuumDueDate || !deepDueDate) return false;
+
+//   const vacuumToDeepGap = diffDays(vacuumDueDate, deepDueDate);
+//   const deepToVacuumGap = diffDays(deepDueDate, vacuumDueDate);
+
+//   if (vacuumToDeepGap === 0) return true;
+
+//   if (
+//     vacuumToDeepGap !== null &&
+//     vacuumToDeepGap > 0 &&
+//     vacuumToDeepGap <= FLOOR_BUNDLE_WINDOW_DAYS
+//   ) {
+//     return true;
+//   }
+
+//   if (
+//     deepToVacuumGap !== null &&
+//     deepToVacuumGap > 0 &&
+//     deepToVacuumGap < FLOOR_MIN_GAP_DAYS
+//   ) {
+//     return true;
+//   }
+
+//   return false;
+// }
+
+// function getMinimumNextFloorDate(doneDate) {
+//   return addDays(doneDate, FLOOR_MIN_GAP_DAYS);
+// }
+
+// function rotatedRank(person, people, taskId) {
+//   const normalizedPeople = people.map(normalizeName);
+//   const offset = TASK_TIE_OFFSETS[taskId] ?? 0;
+//   const rotated = [
+//     ...normalizedPeople.slice(offset),
+//     ...normalizedPeople.slice(0, offset)
+//   ];
+
+//   const index = rotated.indexOf(normalizeName(person));
+//   return index === -1 ? 999 : index;
+// }
+
+// function calculateScores(people, logs, task, activePeriodId = null) {
+//   const normalizedPeople = people.map(normalizeName);
+//   const taskIds = task.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task.id];
+
+//   const scores = Object.fromEntries(normalizedPeople.map(person => [person, 0]));
+//   const lastDates = Object.fromEntries(
+//     normalizedPeople.map(person => [person, '1900-01-01'])
+//   );
+
+//   for (const log of logs || []) {
+//     if (log.isDummy) continue;
+//     if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
+//     if (!taskIds.includes(log.taskId)) continue;
+
+//     const actualPerson = normalizeName(log.actualPerson || log.person);
+//     const assignedPerson = normalizeName(log.assignedPerson);
+//     const weight = Number(log.creditWeight ?? 1);
+
+//     if (actualPerson) {
+//       scores[actualPerson] = (scores[actualPerson] || 0) + weight;
+
+//       if (log.date > (lastDates[actualPerson] || '1900-01-01')) {
+//         lastDates[actualPerson] = log.date;
+//       }
+//     }
+
+//     const wasOverdueForSomeoneElse =
+//       log.taskType !== 'on_demand' &&
+//       assignedPerson &&
+//       actualPerson &&
+//       assignedPerson !== actualPerson &&
+//       (
+//         log.completionType === 'completed_by_other_late' ||
+//         log.completionType === 'auto_included_overdue_for_other'
+//       );
+
+//     if (wasOverdueForSomeoneElse) {
+//       const penalty = getPenaltyForCoveredOverdueLog(log, task);
+//       scores[assignedPerson] = (scores[assignedPerson] || 0) - penalty;
+//     }
+//   }
+
+//   return { scores, lastDates, normalizedPeople };
+// }
+
+// function personFairnessScore({
+//   person,
+//   people,
+//   logs,
+//   task,
+//   activePeriodId,
+//   plannedLoad = {}
+// }) {
+//   const { scores } = calculateScores(people, logs, task, activePeriodId);
+
+//   const normalizedPerson = normalizeName(person);
+//   const baseWeight = getBaseWeight(task);
+//   const heavy = isHeavyTask(task);
+
+//   let score =
+//     Number(scores[normalizedPerson] || 0) +
+//     Number(plannedLoad[normalizedPerson] || 0);
+
+//   const exactLast = lastLog(logs || [], task.id);
+//   const exactLastPerson = normalizeName(exactLast?.actualPerson || exactLast?.person);
+
+//   if (exactLastPerson && exactLastPerson === normalizedPerson) {
+//     score += heavy ? baseWeight * 4 : baseWeight * 0.75;
+//   }
+
+//   const groupLast = lastGroupLog(logs || [], task);
+//   const groupLastPerson = normalizeName(groupLast?.actualPerson || groupLast?.person);
+
+//   if (
+//     groupLastPerson &&
+//     groupLastPerson === normalizedPerson &&
+//     groupLast?.taskId !== task.id
+//   ) {
+//     score += heavy ? baseWeight * 1.5 : baseWeight * 0.5;
+//   }
+
+//   return score;
+// }
+
+// function fairPerson(people, logs, task, activePeriodId = null, plannedLoad = {}) {
+//   const { lastDates, normalizedPeople } = calculateScores(
+//     people,
+//     logs,
+//     task,
+//     activePeriodId
+//   );
+
+//   return [...normalizedPeople].sort((a, b) => {
+//     const aScore = personFairnessScore({
+//       person: a,
+//       people: normalizedPeople,
+//       logs,
+//       task,
+//       activePeriodId,
+//       plannedLoad
+//     });
+
+//     const bScore = personFairnessScore({
+//       person: b,
+//       people: normalizedPeople,
+//       logs,
+//       task,
+//       activePeriodId,
+//       plannedLoad
+//     });
+
+//     if (aScore !== bScore) return aScore - bScore;
+
+//     if ((lastDates[a] || '1900-01-01') !== (lastDates[b] || '1900-01-01')) {
+//       return (lastDates[a] || '1900-01-01').localeCompare(
+//         lastDates[b] || '1900-01-01'
+//       );
+//     }
+
+//     return (
+//       rotatedRank(a, normalizedPeople, task.id) -
+//       rotatedRank(b, normalizedPeople, task.id)
+//     );
+//   })[0];
+// }
+
+// function fairPersonForDate(
+//   people,
+//   logs,
+//   task,
+//   activePeriodId,
+//   plannedLoad,
+//   absences,
+//   date
+// ) {
+//   return fairPerson(
+//     availablePeopleForDate(people, absences, date),
+//     logs,
+//     task,
+//     activePeriodId,
+//     plannedLoad
+//   );
+// }
+
+// function fairPersonAvoiding(
+//   people,
+//   logs,
+//   task,
+//   avoidPerson,
+//   activePeriodId = null,
+//   plannedLoad = {},
+//   absences = [],
+//   date = null
+// ) {
+//   const avoid = normalizeName(avoidPerson);
+
+//   const candidates = availablePeopleForDate(people, absences, date).filter(
+//     person => normalizeName(person) !== avoid
+//   );
+
+//   if (!candidates.length) return avoid;
+
+//   return fairPerson(candidates, logs, task, activePeriodId, plannedLoad);
+// }
+
+// function status(row, fullBins, t) {
+//   if (row.task.type === 'on_demand') {
+//     return fullBins[row.task.id] ? [t.needsCleaning, 'bad'] : [t.onDemand, 'plain'];
+//   }
+
+//   if (!row.dueDate) return [t.addFirstRecord, 'plain'];
+
+//   const d = diffDays(TODAY, row.dueDate);
+
+//   if (d === null) return [t.addFirstRecord, 'plain'];
+//   if (d < 0) return [t.late(Math.abs(d)), 'bad'];
+//   if (d === 0) return [t.dueToday, 'warn'];
+//   if (d <= 3) return [t.dueIn(d), 'warn'];
+
+//   return [t.dueIn(d), 'good'];
+// }
+
+// function shouldBundleVacuumWithDeep(vacuumRow, deepRow) {
+//   if (!vacuumRow || !deepRow || !vacuumRow.dueDate || !deepRow.dueDate) {
+//     return false;
+//   }
+
+//   const vacuumToDeepGap = diffDays(vacuumRow.dueDate, deepRow.dueDate);
+//   const deepToVacuumGap = diffDays(deepRow.dueDate, vacuumRow.dueDate);
+
+//   if (vacuumToDeepGap === 0) return true;
+
+//   // Vacuum is due before mopping and mopping is close enough.
+//   // Example: vacuum due 29 Apr, mopping due 03 May.
+//   if (
+//     vacuumToDeepGap !== null &&
+//     vacuumToDeepGap > 0 &&
+//     vacuumToDeepGap <= FLOOR_BUNDLE_WINDOW_DAYS
+//   ) {
+//     return true;
+//   }
+
+//   // Mopping is due before vacuum, and standalone vacuum would be pointless soon after.
+//   // Example: mopping due 09 May, vacuum due 13 May.
+//   if (
+//     deepToVacuumGap !== null &&
+//     deepToVacuumGap > 0 &&
+//     deepToVacuumGap < FLOOR_MIN_GAP_DAYS
+//   ) {
+//     return true;
+//   }
+
+//   return false;
+// }
+
+// function FancySelect({ label, value, onChange, options, placeholder, className = '' }) {
+//   const [open, setOpen] = useState(false);
+//   const ref = useRef(null);
+//   const triggerRef = useRef(null);
+//   const selectingRef = useRef(false);
+//   const pointerStartRef = useRef(null);
+
+//   useEffect(() => {
+//     function handlePointerDownOutside(event) {
+//       if (!ref.current?.contains(event.target)) {
+//         setOpen(false);
+//       }
+//     }
+
+//     function handleEscape(event) {
+//       if (event.key === 'Escape') {
+//         setOpen(false);
+//         triggerRef.current?.blur();
+//       }
+//     }
+
+//     document.addEventListener('pointerdown', handlePointerDownOutside);
+//     document.addEventListener('keydown', handleEscape);
+
+//     return () => {
+//       document.removeEventListener('pointerdown', handlePointerDownOutside);
+//       document.removeEventListener('keydown', handleEscape);
+//     };
+//   }, []);
+
+//   const selected = options.find(item => item.value === value);
+
+//   function selectOption(nextValue) {
+//     if (selectingRef.current) return;
+
+//     selectingRef.current = true;
+//     setOpen(false);
+//     triggerRef.current?.blur();
+
+//     window.setTimeout(() => {
+//       onChange(nextValue);
+//       selectingRef.current = false;
+//     }, 0);
+//   }
+
+//   return (
+//     <label className={`fancy-field ${className}`}>
+//       {label && <span className="field-label">{label}</span>}
+
+//       <div className={`fancy-select ${open ? 'open' : ''}`} ref={ref}>
+//         <button
+//           ref={triggerRef}
+//           type="button"
+//           className="fancy-trigger"
+//           onClick={event => {
+//             event.preventDefault();
+//             setOpen(current => !current);
+//           }}
+//           aria-expanded={open}
+//           aria-haspopup="listbox"
+//         >
+//           <span className="fancy-value">{selected?.label || placeholder}</span>
+//           <ChevronDown size={18} className="fancy-chevron" />
+//         </button>
+
+//         {open && (
+//           <div
+//             className="fancy-menu"
+//             role="listbox"
+//             onPointerDown={event => {
+//               event.stopPropagation();
+//             }}
+//           >
+//             {options.map(option => (
+//               <button
+//                 type="button"
+//                 role="option"
+//                 aria-selected={option.value === value}
+//                 key={String(option.value)}
+//                 className={`fancy-option ${option.value === value ? 'active' : ''}`}
+//                 onPointerDown={event => {
+//                   pointerStartRef.current = {
+//                     x: event.clientX,
+//                     y: event.clientY
+//                   };
+//                 }}
+//                 onPointerUp={event => {
+//                   const start = pointerStartRef.current;
+//                   pointerStartRef.current = null;
+
+//                   if (!start) return;
+
+//                   const movedX = Math.abs(event.clientX - start.x);
+//                   const movedY = Math.abs(event.clientY - start.y);
+
+//                   // If user dragged vertically/horizontally, treat it as scroll, not selection.
+//                   if (movedX > 8 || movedY > 8) return;
+
+//                   event.preventDefault();
+//                   event.stopPropagation();
+//                   selectOption(option.value);
+//                 }}
+//                 onClick={event => {
+//                   event.preventDefault();
+//                   event.stopPropagation();
+//                 }}
+//               >
+//                 <span>{option.label}</span>
+//                 {option.value === value && <Check size={16} />}
+//               </button>
+//             ))}
+//           </div>
+//         )}
+//       </div>
+//     </label>
+//   );
+// }
+
+// function App() {
+//   const [languageSetting, setLanguageSetting] = useState(
+//     localStorage.getItem('flatclean_lang') || 'auto'
+//   );
+
+//   const lang = getLanguageFromSetting(languageSetting);
+//   const t = translations[lang];
+//   const formatPoints = value => formatNumber(value, lang, 2);
+
+//   const [activePage, setActivePage] = useState('dashboard');
+//   const [currentUser, setCurrentUser] = useState(
+//     localStorage.getItem('flatclean_user') || ''
+//   );
+
+//   const [pendingUser, setPendingUser] = useState('');
+//   const [emailDraft, setEmailDraft] = useState('');
+//   const [emailMode, setEmailMode] = useState(false);
+//   const [emailSaving, setEmailSaving] = useState(false);
+
+//   const [data, setData] = useState(null);
+//   const [loading, setLoading] = useState(true);
+//   const [saving, setSaving] = useState(false);
+//   const [success, setSuccess] = useState('');
+//   const [error, setError] = useState('');
+//   const [menuOpen, setMenuOpen] = useState(false);
+
+//   const [modalTask, setModalTask] = useState(null);
+//   const [includeVacuumWithDeep, setIncludeVacuumWithDeep] = useState(true);
+//   const [selectedSubtasks, setSelectedSubtasks] = useState([]);
+
+//   const [openScoreTasks, setOpenScoreTasks] = useState({});
+//   const [openHistoryPeriods, setOpenHistoryPeriods] = useState({});
+
+//   const [adminForm, setAdminForm] = useState({ name: '', email: '' });
+//   const [adminSaving, setAdminSaving] = useState(false);
+//   const [adminModal, setAdminModal] = useState(null);
+//   const [adminPin, setAdminPin] = useState('');
+
+//   const [awayModalOpen, setAwayModalOpen] = useState(false);
+
+//   const [awayForm, setAwayForm] = useState({
+//     startDate: TODAY,
+//     endDate: TODAY,
+//     reason: ''
+//   });
+
+//   const [adminAwayForm, setAdminAwayForm] = useState({
+//     person: '',
+//     startDate: TODAY,
+//     endDate: TODAY,
+//     reason: ''
+//   });
+
+//   const [form, setForm] = useState({
+//     taskId: 'gas_stove',
+//     date: TODAY,
+//     note: '',
+//     assignedPerson: ''
+//   });
+
+//   const [taskAdminForm, setTaskAdminForm] = useState({
+//     id: '',
+//     name: '',
+//     type: 'scheduled',
+//     intervalDays: 14,
+//     frequencyPreset: 14,
+//     difficultyPreset: 1,
+//     baseWeight: 1,
+//     showAdvancedParts: false,
+//     subtasks: []
+//   });
+
+//   const [splitTaskForm, setSplitTaskForm] = useState({
+//     originalTaskId: '',
+//     archiveOriginal: true,
+//     newTasks: [
+//       { name: '', intervalDays: 14, frequencyPreset: 14, baseWeight: 1, difficultyPreset: 1, subtasks: [] },
+//       { name: '', intervalDays: 14, frequencyPreset: 14, baseWeight: 1, difficultyPreset: 1, subtasks: [] }
+//     ]
+//   });
+
+//   const [openPersonScores, setOpenPersonScores] = useState({});
+//   const [busyAction, setBusyAction] = useState('');
+//   const [celebration, setCelebration] = useState(null);
+
+//   useEffect(() => {
+//     setError('');
+//     setSuccess('');
+//   }, [activePage]);
+
+//   const languageOptions = [
+//     { value: 'auto', label: t.auto },
+//     { value: 'de', label: t.german },
+//     { value: 'en', label: t.english }
+//   ];
+
+//   function taskLabel(task) {
+//     return t.taskNames[task.id] || task.name || task.id;
+//   }
+
+//   function getProfile(person) {
+//     return (data?.flatmateProfiles || []).find(
+//       profile => normalizeName(profile.name) === normalizeName(person)
+//     );
+//   }
+
+//   function getSubtaskName(subtask) {
+//     return lang === 'de' ? subtask.nameDe : subtask.nameEn;
+//   }
+
+//   function getTaskSubtasks(taskId) {
+//     return data?.tasks?.find(task => task.id === taskId)?.subtasks || [];
+//   }
+
+//   function sortedTasksByDifficulty() {
+//     return [...(data?.tasks || [])].sort(
+//       (a, b) => Number(a.baseWeight || 1) - Number(b.baseWeight || 1)
+//     );
+//   }
+
+//   function difficultyTaskOptions() {
+//     return sortedTasksByDifficulty().map(task => ({
+//       value: task.id,
+//       label: `${taskLabel(task)} (${formatPoints(task.baseWeight || 1)})`
+//     }));
+//   }
+
+//   function calculateDifficultyFromForm(formValue) {
+//     if (formValue.difficultyPreset === 'custom') {
+//       return Number(formValue.baseWeight || 1);
+//     }
+
+//     return Number(formValue.difficultyPreset || formValue.baseWeight || 1);
+//   }
+
+//   function addTaskPart() {
+//     setTaskAdminForm(current => ({
+//       ...current,
+//       subtasks: [
+//         ...current.subtasks,
+//         { name: '', weight: 1 }
+//       ]
+//     }));
+//   }
+
+//   function updateTaskPart(index, patch) {
+//     setTaskAdminForm(current => ({
+//       ...current,
+//       subtasks: current.subtasks.map((item, itemIndex) =>
+//         itemIndex === index ? { ...item, ...patch } : item
+//       )
+//     }));
+//   }
+
+//   function removeTaskPart(index) {
+//     setTaskAdminForm(current => ({
+//       ...current,
+//       subtasks: current.subtasks.filter((_, itemIndex) => itemIndex !== index)
+//     }));
+//   }
+
+//   function loadTaskIntoAdminForm(taskId) {
+//     const task = (data?.tasks || []).find(item => item.id === taskId);
+//     if (!task) return;
+
+//     const intervalDays = Number(task.intervalDays || 14);
+//     const baseWeight = Number(task.baseWeight || 1);
+
+//     const frequencyPreset = FREQUENCY_PRESETS.some(item => item.value === intervalDays)
+//       ? intervalDays
+//       : 'custom';
+
+//     const difficultyPreset = DIFFICULTY_PRESETS.some(item => item.value === baseWeight)
+//       ? baseWeight
+//       : 'custom';
+
+//     setTaskAdminForm({
+//       id: task.id,
+//       name: task.name || taskLabel(task),
+//       type: task.type || 'scheduled',
+//       intervalDays,
+//       frequencyPreset,
+//       difficultyPreset,
+//       baseWeight,
+//       showAdvancedParts: false,
+//       subtasks: (task.subtasks || []).map(subtask => ({
+//         name: lang === 'de' ? subtask.nameDe : subtask.nameEn,
+//         nameEn: subtask.nameEn,
+//         nameDe: subtask.nameDe,
+//         weight: Number(subtask.weight || 1)
+//       }))
+//     });
+//   }
+
+//   function saveTaskAdminForm(action) {
+//     const baseWeight = calculateDifficultyFromForm(taskAdminForm);
+
+//     openAdminModal(
+//       action,
+//       {
+//         action,
+
+//         // Important:
+//         // For add, let backend generate a new id from the new name.
+//         // For update, keep the selected existing id.
+//         id: action === 'add' ? '' : taskAdminForm.id,
+
+//         name: taskAdminForm.name,
+//         type: taskAdminForm.type,
+//         intervalDays: taskAdminForm.type === 'scheduled'
+//           ? Number(taskAdminForm.intervalDays || 14)
+//           : null,
+//         baseWeight,
+//         subtasks: taskAdminForm.subtasks
+//           .filter(item => String(item.name || item.nameEn || item.nameDe || '').trim())
+//           .map(item => ({
+//             name: item.name || item.nameEn || item.nameDe,
+//             nameEn: item.nameEn || item.name,
+//             nameDe: item.nameDe || item.name,
+//             weight: Number(item.weight || 1)
+//           }))
+//       },
+//       '/api/admin-tasks'
+//     );
+//   }
+
+//   function archiveTaskFromAdmin() {
+//     if (!taskAdminForm.id) return;
+
+//     openAdminModal(
+//       'archive',
+//       {
+//         action: 'archive',
+//         id: taskAdminForm.id
+//       },
+//       '/api/admin-tasks'
+//     );
+//   }
+
+//   function updateSplitTask(index, patch) {
+//     setSplitTaskForm(current => ({
+//       ...current,
+//       newTasks: current.newTasks.map((item, itemIndex) =>
+//         itemIndex === index ? { ...item, ...patch } : item
+//       )
+//     }));
+//   }
+
+//   function addSplitTaskRow() {
+//     setSplitTaskForm(current => ({
+//       ...current,
+//       newTasks: [
+//         ...current.newTasks,
+//         {
+//           name: '',
+//           intervalDays: 14,
+//           frequencyPreset: 14,
+//           baseWeight: 1,
+//           difficultyPreset: 1,
+//           subtasks: []
+//         }
+//       ]
+//     }));
+//   }
+
+//   function removeSplitTaskRow(index) {
+//     setSplitTaskForm(current => ({
+//       ...current,
+//       newTasks: current.newTasks.length <= 2
+//         ? current.newTasks
+//         : current.newTasks.filter((_, itemIndex) => itemIndex !== index)
+//     }));
+//   }
+
+//   function submitSplitTask() {
+//     openAdminModal(
+//       'split',
+//       {
+//         action: 'split',
+//         originalTaskId: splitTaskForm.originalTaskId,
+//         archiveOriginal: splitTaskForm.archiveOriginal,
+//         newTasks: splitTaskForm.newTasks
+//           .filter(item => String(item.name || '').trim())
+//           .map(item => ({
+//             name: item.name,
+//             type: 'scheduled',
+//             intervalDays: Number(item.intervalDays || 14),
+//             baseWeight: Number(item.baseWeight || 1),
+//             subtasks: item.subtasks || []
+//           }))
+//       },
+//       '/api/admin-tasks'
+//     );
+//   }
+
+//   function isStandaloneVacuumLog(log) {
+//     if (!log || log.isDummy) return false;
+//     if (log.taskId !== 'vacuum') return false;
+
+//     return ![
+//       'auto_included',
+//       'auto_included_overdue_for_other'
+//     ].includes(log.completionType);
+//   }
+
+//   function getRecentStandaloneVacuumForMoppingDate(moppingDate, requiredSubtaskIds = []) {
+//     if (!moppingDate) return null;
+
+//     const requiredIds = new Set(
+//       Array.isArray(requiredSubtaskIds)
+//         ? requiredSubtaskIds.filter(Boolean)
+//         : []
+//     );
+
+//     const recentLogs = (data?.logs || [])
+//       .filter(isStandaloneVacuumLog)
+//       .filter(log => {
+//         const gap = diffDays(log.date, moppingDate);
+//         return gap !== null && gap >= 0 && gap <= FLOOR_BUNDLE_WINDOW_DAYS;
+//       })
+//       .sort((a, b) => {
+//         if (b.date !== a.date) return b.date.localeCompare(a.date);
+//         return (b.createdAt || '').localeCompare(a.createdAt || '');
+//       });
+
+//     if (!requiredIds.size) return recentLogs[0] || null;
+
+//     const coveredIds = new Set();
+
+//     for (const log of recentLogs) {
+//       for (const subtask of log.completedSubtasks || []) {
+//         coveredIds.add(subtask.id);
+//       }
+//     }
+
+//     const allRequiredCovered = [...requiredIds].every(id => coveredIds.has(id));
+
+//     return allRequiredCovered ? recentLogs[0] || null : null;
+//   }
+
+//   function getAllSubtaskIds(taskId) {
+//     return getTaskSubtasks(taskId).map(subtask => subtask.id);
+//   }
+
+//   function setAllSubtasksForTask(taskId) {
+//     const subtasks = getTaskSubtasks(taskId);
+//     setSelectedSubtasks(subtasks.map(subtask => subtask.id));
+//   }
+
+//   function toggleSubtask(subtaskId) {
+//     setSelectedSubtasks(current =>
+//       current.includes(subtaskId)
+//         ? current.filter(id => id !== subtaskId)
+//         : [...current, subtaskId]
+//     );
+//   }
+
+//   function getCycleCompletion(row) {
+//     return getCycleCompletionFromLogs(data?.logs || [], row.task, row.dueDate);
+//   }
+
+//   function getBundledVacuumStatus(row) {
+//     if (!row?.bundledVacuumRow) return null;
+
+//     const vacuumRow = row.bundledVacuumRow;
+//     const vacuumCompletion = getCycleCompletionFromLogs(
+//       data?.logs || [],
+//       vacuumRow.task,
+//       vacuumRow.originalDueDate || vacuumRow.dueDate
+//     );
+
+//     const recentVacuum = getRecentStandaloneVacuumForMoppingDate(
+//       row.dueDate,
+//       getAllSubtaskIds('vacuum')
+//     );
+
+//     const originalDueDate = vacuumRow.originalDueDate || vacuumRow.dueDate;
+//     const daysFromOriginalVacuumDueToMop =
+//       originalDueDate && row.dueDate
+//         ? diffDays(originalDueDate, row.dueDate)
+//         : null;
+
+//     const isOverdueBundle =
+//       !!vacuumRow.bundledBecauseOverdue;
+
+//     const isMoppingFirstBundle =
+//       !!vacuumRow.bundledBecauseMoppingComesFirst;
+
+//     const isSameDayBundle =
+//       originalDueDate === row.dueDate;
+
+//     let vacuumRequired = true;
+//     let reason = t.deepIncludesVacuum;
+
+//     if (recentVacuum) {
+//       vacuumRequired = false;
+//       reason = t.vacuumNotMandatoryThisMop;
+//     } else if (isOverdueBundle) {
+//       vacuumRequired = true;
+//       reason = t.vacuumMovedToMopping;
+//     } else if (isMoppingFirstBundle) {
+//       vacuumRequired = true;
+//       reason = t.moppingComesFirst;
+//     } else if (isSameDayBundle) {
+//       vacuumRequired = true;
+//       reason = t.linkedDeep;
+//     }
+
+//     return {
+//       vacuumRequired,
+//       reason,
+//       originalDueDate,
+//       originalPerson: normalizeName(vacuumRow.originalPerson),
+//       currentPerson: normalizeName(row.person),
+//       lastDoneDate: vacuumRow.last?.date || vacuumRow.last?.doneDate || null,
+//       lastDoneBy: normalizeName(
+//         vacuumRow.last?.actualPerson ||
+//         vacuumRow.last?.person ||
+//         ''
+//       ),
+//       completedParts: vacuumCompletion.completed || [],
+//       pendingParts: vacuumCompletion.pending || [],
+//       completionRatio: vacuumCompletion.ratio || 0,
+//       daysFromOriginalVacuumDueToMop
+//     };
+//   }
+
+//   function getMyDueRows(allRows) {
+//     return allRows.filter(row => {
+//       const isMine = normalizeName(row.person) === normalizeName(currentUser);
+//       if (!isMine) return false;
+
+//       if (row.task.type === 'on_demand') return !!data?.fullBins?.[row.task.id];
+
+//       return !!row.dueDate && row.dueDate <= TODAY;
+//     });
+//   }
+
+//   function chooseCurrentUser(person) {
+//     const normalized = normalizeName(person);
+//     const profile = getProfile(normalized);
+
+//     if (!profile?.email) {
+//       setPendingUser(normalized);
+//       setEmailDraft('');
+//       setEmailMode(true);
+//       return;
+//     }
+
+//     localStorage.setItem('flatclean_user', normalized);
+//     setCurrentUser(normalized);
+//   }
+
+//   function switchCurrentUser() {
+//     localStorage.removeItem('flatclean_user');
+//     setCurrentUser('');
+//     setPendingUser('');
+//     setModalTask(null);
+//   }
+
+//   function startChangeEmail() {
+//     const profile = getProfile(currentUser);
+//     setPendingUser(currentUser);
+//     setEmailDraft(profile?.email || '');
+//     setEmailMode(true);
+//   }
+
+//   function cancelEmail() {
+//     setEmailMode(false);
+//     setPendingUser('');
+//     setEmailDraft('');
+//     setError('');
+//   }
+
+//   function changeLanguage(value) {
+//     localStorage.setItem('flatclean_lang', value);
+//     setLanguageSetting(value);
+//   }
+
+//   function jumpTo(page) {
+//     setError('');
+//     setSuccess('');
+//     setActivePage(page);
+//     window.scrollTo({ top: 0, behavior: 'smooth' });
+//     setMenuOpen(false);
+//   }
+
+//   function clearSuccessSoon() {
+//     window.setTimeout(() => {
+//       setSuccess('');
+//     }, 2800);
+//   }
+
+//   function getPersonTotalFromState(state, person) {
+//     return Number(
+//       state?.scores?.byPerson?.find(
+//         row => normalizeName(row.person) === normalizeName(person)
+//       )?.total || 0
+//     );
+//   }
+
+//   function showCelebration({ person, pointsEarned, totalPoints }) {
+//     setCelebration({
+//       person: normalizeName(person),
+//       pointsEarned: Number(pointsEarned || 0),
+//       totalPoints: Number(totalPoints || 0)
+//     });
+
+//     window.setTimeout(() => {
+//       setCelebration(null);
+//     }, 4200);
+//   }
+
+//   function openTaskModal(row) {
+//     setError('');
+//     setSuccess('');
+//     setModalTask(row);
+
+//     setForm(current => ({
+//       ...current,
+//       taskId: row.task.id,
+//       date: TODAY,
+//       note: '',
+//       assignedPerson: normalizeName(row.person)
+//     }));
+
+//     const subtasks = row.task.subtasks || [];
+//     setSelectedSubtasks(subtasks.map(subtask => subtask.id));
+
+//     if (row.task.id === 'deep_water') {
+//       const recentVacuum = getRecentStandaloneVacuumForMoppingDate(TODAY);
+//       setIncludeVacuumWithDeep(!recentVacuum);
+//     }
+//   }
+
+//   function closeTaskModal() {
+//     if (!saving) setModalTask(null);
+//   }
+
+//   function normalizeApiData(json) {
+//     json.flatmates = (json.flatmates || []).map(normalizeName);
+
+//     json.flatmateProfiles = (json.flatmateProfiles || []).map(profile => ({
+//       ...profile,
+//       name: normalizeName(profile.name)
+//     }));
+
+//     json.logs = (json.logs || []).map(log => ({
+//       ...log,
+//       person: normalizeName(log.person),
+//       actualPerson: normalizeName(log.actualPerson || log.person),
+//       assignedPerson: normalizeName(log.assignedPerson),
+//       completedSubtasks: log.completedSubtasks || [],
+//       isDummy: !!log.isDummy
+//     }));
+
+//     json.currentLogs = (json.currentLogs || []).map(log => ({
+//       ...log,
+//       person: normalizeName(log.person),
+//       actualPerson: normalizeName(log.actualPerson || log.person),
+//       assignedPerson: normalizeName(log.assignedPerson),
+//       completedSubtasks: log.completedSubtasks || [],
+//       isDummy: !!log.isDummy
+//     }));
+
+//     json.tasks = (json.tasks || []).map(task => ({
+//       ...task,
+//       subtasks: task.subtasks || []
+//     }));
+
+//     json.scoringPeriods = json.scoringPeriods || [];
+//     json.periodHistory = json.periodHistory || [];
+
+//     json.absences = (json.absences || []).map(absence => ({
+//       ...absence,
+//       person: normalizeName(absence.person)
+//     }));
+
+//     return json;
+//   }
+
+//   async function load() {
+//     try {
+//       setError('');
+//       const res = await fetch('/api/state');
+
+//       if (!res.ok) throw new Error(t.loadError);
+
+//       const json = normalizeApiData(await res.json());
+//       setData(json);
+
+//       if (!json.tasks?.some(task => task.id === form.taskId)) {
+//         const firstTaskId = json.tasks?.[0]?.id || '';
+//         setForm(current => ({ ...current, taskId: firstTaskId }));
+//       }
+//     } catch (e) {
+//       setError(e.message || t.loadError);
+//     } finally {
+//       setLoading(false);
+//     }
+//   }
+
+//   useEffect(() => {
+//     load();
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, []);
+
+//   async function apiPost(url, body, extraHeaders = {}) {
+//     const res = await fetch(url, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         ...extraHeaders
+//       },
+//       body: JSON.stringify(body)
+//     });
+
+//     const json = await res.json().catch(() => ({}));
+
+//     if (!res.ok) throw new Error(json.error || t.saveError);
+
+//     const state = json.state ? normalizeApiData(json.state) : normalizeApiData(json);
+//     setData(state);
+//     return state;
+//   }
+
+//   async function saveEmail() {
+//     try {
+//       setError('');
+
+//       if (!isValidEmail(emailDraft)) {
+//         setError(t.invalidEmail);
+//         return;
+//       }
+
+//       setEmailSaving(true);
+
+//       await apiPost('/api/profile', {
+//         person: pendingUser,
+//         email: emailDraft.trim()
+//       });
+
+//       localStorage.setItem('flatclean_user', normalizeName(pendingUser));
+//       setCurrentUser(normalizeName(pendingUser));
+//       setPendingUser('');
+//       setEmailMode(false);
+//       setEmailDraft('');
+//       setSuccess(t.emailUpdatedDone);
+//       clearSuccessSoon();
+//     } catch (e) {
+//       setError(e.message || t.saveError);
+//     } finally {
+//       setEmailSaving(false);
+//     }
+//   }
+
+//   function openAdminModal(action, payload, endpoint = '/api/admin-users') {
+//     setError('');
+//     setSuccess('');
+//     setAdminPin('');
+//     setAdminModal({ action, payload, endpoint });
+//   }
+
+//   function closeAdminModal() {
+//     if (!adminSaving) {
+//       setAdminModal(null);
+//       setAdminPin('');
+//     }
+//   }
+
+//   async function confirmAdminAction() {
+//     if (!adminModal) return;
+
+//     try {
+//       setError('');
+//       setAdminSaving(true);
+
+//       const endpoint = adminModal.endpoint || '/api/admin-users';
+
+//       const res = await fetch(endpoint, {
+//         method: 'POST',
+//         headers: {
+//           'Content-Type': 'application/json',
+//           'x-admin-pin': adminPin
+//         },
+//         body: JSON.stringify({
+//           ...adminModal.payload,
+//           admin: endpoint === '/api/availability' ? true : adminModal.payload?.admin
+//         })
+//       });
+
+//       const json = await res.json().catch(() => ({}));
+
+//       if (!res.ok) {
+//         throw new Error(json.error || t.saveError);
+//       }
+
+//       const normalized = normalizeApiData(json);
+//       setData(normalized);
+
+//       if (endpoint === '/api/admin-users') {
+//         setAdminForm({ name: '', email: '' });
+
+//         const stillExists = normalized.flatmates.some(
+//           person => normalizeName(person) === normalizeName(currentUser)
+//         );
+
+//         const currentProfile = normalized.flatmateProfiles.find(
+//           profile => normalizeName(profile.name) === normalizeName(currentUser)
+//         );
+
+//         if (!stillExists || !currentProfile?.email) {
+//           localStorage.removeItem('flatclean_user');
+//           setCurrentUser('');
+//         }
+//       }
+
+//       if (endpoint === '/api/availability' && adminModal.action === 'admin_vacation_add') {
+//         const savedPerson = adminModal.payload?.person || normalized.flatmates?.[0] || '';
+
+//         setAdminAwayForm({
+//           person: savedPerson,
+//           startDate: TODAY,
+//           endDate: TODAY,
+//           reason: ''
+//         });
+//       }
+
+//       setAdminModal(null);
+//       setAdminPin('');
+//       if (adminModal.endpoint === '/api/availability') {
+//         setSuccess(
+//           adminModal.action === 'admin_vacation_delete'
+//             ? t.vacationDeletedDone
+//             : t.vacationAddedDone
+//         );
+//       } else if (adminModal.endpoint === '/api/admin-tasks') {
+//         if (adminModal.action === 'add') {
+//           setSuccess(t.taskAddedDone);
+//         } else if (adminModal.action === 'update') {
+//           setSuccess(t.taskUpdatedDone);
+//         } else if (adminModal.action === 'archive') {
+//           setSuccess(t.taskArchivedDone);
+//         } else if (adminModal.action === 'split') {
+//           setSuccess(t.taskSplitDone);
+//         } else {
+//           setSuccess(t.savedDone);
+//         }
+//       } else if (adminModal.action === 'delete') {
+//         setSuccess(t.deletedDone);
+//       } else if (adminModal.action === 'add') {
+//         setSuccess(t.addedDone);
+//       } else if (adminModal.action === 'update') {
+//         setSuccess(t.updatedDone);
+//       } else {
+//         setSuccess(t.savedDone);
+//       }
+//       clearSuccessSoon();
+//     } catch (e) {
+//       setError(e.message || t.saveError);
+//     } finally {
+//       setAdminSaving(false);
+//     }
+//   }
+
+//   async function saveAwayDates() {
+//     try {
+//       setError('');
+//       setSaving(true);
+
+//       await apiPost('/api/availability', {
+//         action: 'add',
+//         person: currentUser,
+//         ...awayForm
+//       });
+
+//       setAwayForm({
+//         startDate: TODAY,
+//         endDate: TODAY,
+//         reason: ''
+//       });
+
+//       setSuccess(t.vacationAddedDone);
+//       clearSuccessSoon();
+//     } catch (e) {
+//       setError(e.message || t.saveError);
+//     } finally {
+//       setSaving(false);
+//     }
+//   }
+
+//   async function deleteAwayDate(id) {
+//     try {
+//       setError('');
+//       setSaving(true);
+
+//       await apiPost('/api/availability', {
+//         action: 'delete',
+//         person: currentUser,
+//         id
+//       });
+
+//       setSuccess(t.vacationDeletedDone);
+//       clearSuccessSoon();
+//     } catch (e) {
+//       setError(e.message || t.saveError);
+//     } finally {
+//       setSaving(false);
+//     }
+//   }
+
+//   async function saveAdminAwayDates() {
+//     const person = adminAwayForm.person || data?.flatmates?.[0] || '';
+
+//     if (!person) {
+//       setError(t.selectFlatmate);
+//       return;
+//     }
+
+//     openAdminModal(
+//       'admin_vacation_add',
+//       {
+//         action: 'add',
+//         admin: true,
+//         person,
+//         startDate: adminAwayForm.startDate,
+//         endDate: adminAwayForm.endDate,
+//         reason: adminAwayForm.reason
+//       },
+//       '/api/availability'
+//     );
+//   }
+
+//   async function deleteAdminAwayDate(id, person) {
+//     openAdminModal(
+//       'admin_vacation_delete',
+//       {
+//         action: 'delete',
+//         admin: true,
+//         person,
+//         id
+//       },
+//       '/api/availability'
+//     );
+//   }
+
+//   const taskById = useMemo(
+//     () => Object.fromEntries(((data?.allTasks || data?.tasks || [])).map(task => [task.id, task])),
+//     [data]
+//   );
+
+//   const activePeriodId =
+//     data?.activeScoringPeriod?.id ||
+//     data?.scores?.activePeriod?.id ||
+//     null;
+
+//   const allLogsForScheduling = data?.logs || [];
+
+//   const rows = useMemo(() => {
+//     if (!data) return [];
+
+//     const base = data.tasks.map(task => {
+//       const last = lastLog(allLogsForScheduling, task.id);
+//       const dueDate = getDueDateFromLastLog(task, last);
+
+//       return {
+//         task,
+//         last,
+//         dueDate,
+//         person: null,
+//         bundledIntoDeep: false,
+//         bundledVacuumRow: null
+//       };
+//     });
+
+//     const plannedLoad = Object.fromEntries(
+//       (data.flatmates || []).map(person => [normalizeName(person), 0])
+//     );
+
+//     const deep = base.find(row => row.task.id === 'deep_water');
+//     const vacuum = base.find(row => row.task.id === 'vacuum');
+
+//     if (deep && vacuum && shouldBundleVacuumWithDeep(vacuum, deep)) {
+//       const originalVacuumPerson =
+//         getOpenCycleAssignedPerson({
+//           logs: allLogsForScheduling,
+//           task: vacuum.task,
+//           dueDate: vacuum.dueDate,
+//           absences: data.absences,
+//           date: TODAY
+//         }) ||
+//         fairPersonForDate(
+//           data.flatmates,
+//           allLogsForScheduling,
+//           vacuum.task,
+//           activePeriodId,
+//           plannedLoad,
+//           data.absences,
+//           vacuum.dueDate
+//         );
+
+//       const combinedTask = {
+//         ...deep.task,
+//         id: 'deep_water',
+//         baseWeight: getBaseWeight(deep.task) + getBaseWeight(vacuum.task),
+//         taskGroup: 'floor'
+//       };
+
+//       const floorPerson = fairPersonForDate(
+//         data.flatmates,
+//         allLogsForScheduling,
+//         combinedTask,
+//         activePeriodId,
+//         plannedLoad,
+//         data.absences,
+//         deep.dueDate
+//       );
+
+//       const vacuumWasBeforeMopping =
+//         vacuum.dueDate &&
+//         deep.dueDate &&
+//         vacuum.dueDate <= deep.dueDate;
+
+//       const vacuumWasOverdueBeforeMopping =
+//         vacuumWasBeforeMopping &&
+//         vacuum.dueDate < TODAY &&
+//         vacuum.dueDate < deep.dueDate;
+
+//       deep.person = floorPerson;
+//       deep.bundledVacuumRow = {
+//         ...vacuum,
+//         originalDueDate: vacuum.dueDate,
+//         originalPerson: originalVacuumPerson,
+//         dueDate: deep.dueDate,
+//         person: floorPerson,
+//         bundledBecauseOverdue: vacuumWasOverdueBeforeMopping,
+//         bundledBecauseMoppingComesFirst:
+//           deep.dueDate && vacuum.dueDate && deep.dueDate < vacuum.dueDate
+//       };
+
+//       vacuum.person = floorPerson;
+//       vacuum.dueDate = deep.dueDate;
+//       vacuum.bundledIntoDeep = true;
+
+//       plannedLoad[floorPerson] =
+//         Number(plannedLoad[floorPerson] || 0) +
+//         getBaseWeight(deep.task) +
+//         getBaseWeight(vacuum.task);
+//     }
+
+//     const assignmentOrder = [...base]
+//       .filter(row => !row.bundledIntoDeep)
+//       .sort((a, b) => {
+//         if (a.task.type !== b.task.type) {
+//           return a.task.type === 'scheduled' ? -1 : 1;
+//         }
+
+//         return (a.dueDate || '9999-12-31').localeCompare(
+//           b.dueDate || '9999-12-31'
+//         );
+//       });
+
+//     for (const row of assignmentOrder) {
+//       if (row.person) continue;
+
+//       const assignmentDate = row.task.type === 'scheduled' ? row.dueDate : null;
+
+//       const openCycleAssignedPerson = getOpenCycleAssignedPerson({
+//         logs: allLogsForScheduling,
+//         task: row.task,
+//         dueDate: row.dueDate,
+//         absences: data.absences,
+//         date: TODAY
+//       });
+
+//       row.person = openCycleAssignedPerson || fairPersonForDate(
+//         data.flatmates,
+//         allLogsForScheduling,
+//         row.task,
+//         activePeriodId,
+//         plannedLoad,
+//         data.absences,
+//         assignmentDate
+//       );
+
+//       plannedLoad[row.person] =
+//         Number(plannedLoad[row.person] || 0) + getBaseWeight(row.task);
+//     }
+
+//     if (
+//       deep &&
+//       vacuum &&
+//       !vacuum.bundledIntoDeep &&
+//       deep.person &&
+//       vacuum.person === deep.person
+//     ) {
+//       vacuum.person = fairPersonAvoiding(
+//         data.flatmates,
+//         allLogsForScheduling,
+//         vacuum.task,
+//         deep.person,
+//         activePeriodId,
+//         plannedLoad,
+//         data.absences,
+//         vacuum.dueDate
+//       );
+//     }
+
+//     const activeUser = normalizeName(currentUser);
+
+//     return base
+//       .filter(row => !row.bundledIntoDeep)
+//       .sort((a, b) => {
+//         const aMine = normalizeName(a.person) === activeUser;
+//         const bMine = normalizeName(b.person) === activeUser;
+
+//         if (aMine !== bMine) return aMine ? -1 : 1;
+
+//         if (a.task.type !== b.task.type) {
+//           return a.task.type === 'scheduled' ? -1 : 1;
+//         }
+
+//         return (a.dueDate || '9999-12-31').localeCompare(
+//           b.dueDate || '9999-12-31'
+//         );
+//       });
+//   }, [data, currentUser, activePeriodId, allLogsForScheduling]);
+
+//   const myChoreOverview = useMemo(() => {
+//     const mine = rows.filter(row =>
+//       normalizeName(row.person) === normalizeName(currentUser)
+//     );
+
+//     const pendingOverdue = mine
+//       .filter(row => {
+//         if (row.task.type === 'on_demand') return !!data?.fullBins?.[row.task.id];
+//         return row.dueDate && row.dueDate <= TODAY;
+//       })
+//       .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+
+//     const upcomingSevenDays = mine
+//       .filter(row => {
+//         if (row.task.type !== 'scheduled') return false;
+//         if (!row.dueDate) return false;
+
+//         const days = diffDays(TODAY, row.dueDate);
+//         return days !== null && days > 0 && days <= 7;
+//       })
+//       .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+
+//     return {
+//       pendingOverdue,
+//       upcomingSevenDays
+//     };
+//   }, [rows, currentUser, data]);
+
+//   const myRows = useMemo(() => {
+//     return getMyDueRows(rows);
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [rows, currentUser, data]);
+
+//   const myPendingLabel = useMemo(() => {
+//     if (!myRows.length) return t.noPendingTasks;
+//     if (myRows.length === 1) return t.onePendingTask;
+//     return t.manyPendingTasks(myRows.length);
+//   }, [myRows, t]);
+
+//   const currentTaskSubtasks = getTaskSubtasks(form.taskId);
+
+//   const hasValidCurrentUser =
+//     !!currentUser &&
+//     !!data?.flatmates?.some(person => normalizeName(person) === normalizeName(currentUser));
+
+//   const currentUserProfile = getProfile(currentUser);
+
+//   const currentUserScore = data?.scores?.byPerson?.find(
+//     row => normalizeName(row.person) === normalizeName(currentUser)
+//   );
+
+//   const scoreDetailsByPerson = useMemo(() => {
+//     if (!data) return {};
+
+//     const details = Object.fromEntries(
+//       (data.flatmates || []).map(person => [
+//         normalizeName(person),
+//         {
+//           earned: [],
+//           penalties: []
+//         }
+//       ])
+//     );
+
+//     for (const log of data.currentLogs || []) {
+//       if (log.isDummy) continue;
+
+//       const task = taskById[log.taskId] || { id: log.taskId, baseWeight: 1 };
+//       const actualPerson = normalizeName(log.actualPerson || log.person);
+//       const assignedPerson = normalizeName(log.assignedPerson);
+//       const points = Number(log.creditWeight || 0);
+
+//       if (!details[actualPerson]) {
+//         details[actualPerson] = { earned: [], penalties: [] };
+//       }
+
+//       if (points > 0) {
+//         const coveredForSomeone = isCoveredOverdueLog(log);
+
+//         details[actualPerson].earned.push({
+//           id: `${log.id}-earned`,
+//           taskId: log.taskId,
+//           task,
+//           date: log.date,
+//           points,
+//           note: log.note,
+//           completionType: log.completionType,
+//           otherPerson: coveredForSomeone ? assignedPerson : ''
+//         });
+//       }
+
+//       if (isCoveredOverdueLog(log)) {
+//         const penalty = getPenaltyForCoveredOverdueLog(log, task);
+
+//         if (!details[assignedPerson]) {
+//           details[assignedPerson] = { earned: [], penalties: [] };
+//         }
+
+//         details[assignedPerson].penalties.push({
+//           id: `${log.id}-penalty`,
+//           taskId: log.taskId,
+//           task,
+//           date: log.date,
+//           points: penalty,
+//           completedBy: actualPerson,
+//           note: log.note,
+//           completionType: log.completionType
+//         });
+//       }
+//     }
+
+//     for (const person of Object.keys(details)) {
+//       details[person].earned.sort((a, b) => b.date.localeCompare(a.date));
+//       details[person].penalties.sort((a, b) => b.date.localeCompare(a.date));
+//     }
+
+//     return details;
+//   }, [data, taskById]);
+
+//   const myAbsences = (data?.absences || [])
+//     .filter(absence => normalizeName(absence.person) === normalizeName(currentUser))
+//     .sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+//   const activeAbsence =
+//     myAbsences.find(absence => absence.startDate <= TODAY && absence.endDate >= TODAY) ||
+//     null;
+
+//   const upcomingAbsence =
+//     myAbsences.find(absence => absence.startDate > TODAY) ||
+//     null;
+
+//   const activeAbsencesToday = (data?.absences || [])
+//   .filter(absence => absence.startDate <= TODAY && absence.endDate >= TODAY)
+//   .sort((a, b) => {
+//     if (a.endDate !== b.endDate) return a.endDate.localeCompare(b.endDate);
+//     return normalizeName(a.person).localeCompare(normalizeName(b.person));
+//   });
+
+//   const otherActiveAbsencesToday = activeAbsencesToday.filter(
+//     absence => normalizeName(absence.person) !== normalizeName(currentUser)
+//   );
+
+//   useEffect(() => {
+//     if (!data || !currentUser) return;
+
+//     const profile = (data.flatmateProfiles || []).find(
+//       item => normalizeName(item.name) === normalizeName(currentUser)
+//     );
+
+//     if (!profile || !profile.email) {
+//       localStorage.removeItem('flatclean_user');
+//       setCurrentUser('');
+//       setPendingUser('');
+//       setEmailMode(false);
+//     }
+//   }, [data, currentUser]);
+
+//     function frequencyOptions() {
+//     return FREQUENCY_PRESETS.map(item => ({
+//       value: item.value,
+//       label: presetLabel(item, lang)
+//     }));
+//   }
+
+//   function difficultyOptions() {
+//     return DIFFICULTY_PRESETS.map(item => ({
+//       value: item.value,
+//       label: presetLabel(item, lang)
+//     }));
+//   }
+
+//   function setTaskFrequency(value) {
+//     setTaskAdminForm(current => ({
+//       ...current,
+//       frequencyPreset: value,
+//       intervalDays: value === 'custom' ? current.intervalDays : Number(value)
+//     }));
+//   }
+
+//   function setTaskDifficulty(value) {
+//     setTaskAdminForm(current => ({
+//       ...current,
+//       difficultyPreset: value,
+//       baseWeight: value === 'custom' ? current.baseWeight : Number(value)
+//     }));
+//   }
+
+//   function setSplitTaskFrequency(index, value) {
+//     updateSplitTask(index, {
+//       frequencyPreset: value,
+//       intervalDays: value === 'custom'
+//         ? splitTaskForm.newTasks[index]?.intervalDays || 14
+//         : Number(value)
+//     });
+//   }
+
+//   function setSplitTaskDifficulty(index, value) {
+//     updateSplitTask(index, {
+//       difficultyPreset: value,
+//       baseWeight: value === 'custom'
+//         ? splitTaskForm.newTasks[index]?.baseWeight || 1
+//         : Number(value)
+//     });
+//   }
+
+//   function resetTaskAdminFormForAdd() {
+//     setTaskAdminForm({
+//       id: '',
+//       name: '',
+//       type: 'scheduled',
+//       intervalDays: 14,
+//       frequencyPreset: 14,
+//       difficultyPreset: 1,
+//       baseWeight: 1,
+//       showAdvancedParts: false,
+//       subtasks: []
+//     });
+//   }
+
+//   function renderAdvancedPartsEditor() {
+//     return (
+//       <div className="subtask-box admin-advanced-box">
+//         <div className="subtask-head">
+//           <div>
+//             <b>{t.subtasks}</b>
+//             <p>{t.partialTask}</p>
+//           </div>
+
+//           <button type="button" className="mini-action" onClick={addTaskPart}>
+//             {t.addPart}
+//           </button>
+//         </div>
+
+//         <div className="admin-task-parts">
+//           {taskAdminForm.subtasks.map((part, index) => (
+//             <div className="admin-task-part-row" key={`part-${index}`}>
+//               <input
+//                 value={part.name}
+//                 onChange={event => updateTaskPart(index, { name: event.target.value })}
+//                 placeholder={t.subtaskName}
+//               />
+
+//               <input
+//                 type="number"
+//                 min="0.25"
+//                 step="0.25"
+//                 value={part.weight}
+//                 onChange={event => updateTaskPart(index, { weight: event.target.value })}
+//                 placeholder={t.subtaskWeight}
+//               />
+
+//               <button
+//                 type="button"
+//                 className="danger-action"
+//                 onClick={() => removeTaskPart(index)}
+//               >
+//                 {t.removePart}
+//               </button>
+//             </div>
+//           ))}
+
+//           {!taskAdminForm.subtasks.length && (
+//             <div className="empty-state">{t.noRecord}</div>
+//           )}
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   async function markDone() {
+//     try {
+//       setError('');
+//       setSuccess('');
+
+//       if (!currentUser) {
+//         setError(t.noUserSelected);
+//         return;
+//       }
+
+//       if (form.date > TODAY) {
+//         setError(t.futureDateError);
+//         return;
+//       }
+
+//       setSaving(true);
+
+//       const isMopping = form.taskId === 'deep_water';
+//       const person = normalizeName(currentUser);
+//       const totalBefore = getPersonTotalFromState(data, person);
+
+//       const selectedRow = rows.find(row => row.task.id === form.taskId);
+
+//       const updatedState = await apiPost('/api/log', {
+//         ...form,
+//         person,
+//         assignedPerson: normalizeName(form.assignedPerson || selectedRow?.person || ''),
+
+//         completedSubtaskIds: selectedSubtasks,
+
+//         // If mopping also includes vacuum, only auto-log vacuum for the same
+//         // areas/parts that were selected for mopping.
+//         alsoLogSubtaskIds: selectedSubtasks,
+
+//         // Recent standalone vacuum no longer blocks the Yes option.
+//         // If user says Yes, vacuum is logged for selected areas.
+//         // If user says No and recent vacuum exists, backend gives no mopping penalty.
+//         includeAlsoLogs: isMopping
+//           ? includeVacuumWithDeep
+//           : true,
+
+//         isDummy: false
+//       });
+
+//       const totalAfter = getPersonTotalFromState(updatedState, person);
+//       const pointsEarned = Math.max(0, totalAfter - totalBefore);
+
+//       setForm(current => ({ ...current, note: '' }));
+//       setModalTask(null);
+//       setSuccess(t.choreSavedDone);
+
+//       showCelebration({
+//         person,
+//         pointsEarned,
+//         totalPoints: totalAfter
+//       });
+
+//       clearSuccessSoon();
+//     } catch (e) {
+//       setError(e.message || t.saveError);
+//     } finally {
+//       setSaving(false);
+//     }
+//   }
+
+//   async function toggleBin(taskId, isFull) {
+//     try {
+//       setError('');
+//       setSuccess('');
+//       setBusyAction(`bin:${taskId}`);
+
+//       await apiPost('/api/bin', { taskId, isFull });
+
+//       setSuccess(t.binUpdatedDone);
+//       clearSuccessSoon();
+//     } catch (e) {
+//       setError(e.message || t.saveError);
+//     } finally {
+//       setBusyAction('');
+//     }
+//   }
+
+//   const navItems = [
+//     { id: 'dashboard', label: t.dashboard, icon: Home },
+//     { id: 'mark', label: t.markDone, icon: CheckCircle2 },
+//     { id: 'activity', label: t.recentLog, icon: History },
+//     { id: 'scores', label: t.scores, icon: Trophy },
+//     { id: 'admin', label: t.admin, icon: Pencil },
+//     { id: 'history', label: t.history, icon: History }
+//   ];
+
+//   const taskOptions = (data?.tasks || []).map(task => ({
+//     value: task.id,
+//     label: taskLabel(task)
+//   }));
+
+//   function renderSubtaskSelector() {
+//     if (!currentTaskSubtasks.length) return null;
+
+//     return (
+//       <div className="subtask-box">
+//         <div className="subtask-head">
+//           <div>
+//             <b>{t.subtasks}</b>
+//             <p>{t.partialTask}</p>
+//           </div>
+
+//           <button
+//             type="button"
+//             className="mini-action"
+//             onClick={() => setAllSubtasksForTask(form.taskId)}
+//           >
+//             {t.selectAll}
+//           </button>
+//         </div>
+
+//         <div className="subtask-grid">
+//           {currentTaskSubtasks.map(subtask => (
+//             <label className="subtask-item" key={subtask.id}>
+//               <input
+//                 type="checkbox"
+//                 checked={selectedSubtasks.includes(subtask.id)}
+//                 onChange={() => toggleSubtask(subtask.id)}
+//               />
+//               <span>{getSubtaskName(subtask)}</span>
+//               <small>{subtask.weight}</small>
+//             </label>
+//           ))}
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   function renderMarkDoneCard() {
+//     return (
+//       <div className="card" id="mark-done">
+//         <div className="card-title-block">
+//           <h2>{t.markDone}</h2>
+//           <p>{t.markDoneHelp}</p>
+//         </div>
+
+//         <div className="form-grid">
+//           <FancySelect
+//             label={t.task}
+//             value={form.taskId}
+//             onChange={value => {
+//               const selectedRow = rows.find(row => row.task.id === value);
+
+//               setForm({
+//                 ...form,
+//                 taskId: value,
+//                 assignedPerson: normalizeName(selectedRow?.person || '')
+//               });
+              
+//               setAllSubtasksForTask(value);
+
+//               if (value === 'deep_water') {
+//                 setIncludeVacuumWithDeep(true);
+//               }
+//             }}
+//             options={taskOptions}
+//             placeholder={t.selectPlaceholder}
+//           />
+
+//           {form.taskId === 'deep_water' && (() => {
+//             const recentVacuum = getRecentStandaloneVacuumForMoppingDate(form.date, selectedSubtasks);
+
+//             if (recentVacuum) {
+//               return (
+//                 <div className="vacuum-question">
+//                   <div>
+//                     <b>{t.vacuumRecentlyDoneForMop}</b>
+//                     <p>
+//                       {t.vacuumRecentlyDoneForMopHelp(
+//                         fmt(recentVacuum.date, '', lang)
+//                       )}
+//                     </p>
+//                     <p>{t.didVacuumHelp}</p>
+//                   </div>
+
+//                   <div className="vacuum-choice-row">
+//                     <button
+//                       type="button"
+//                       className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+//                       onClick={() => setIncludeVacuumWithDeep(true)}
+//                     >
+//                       <CheckCircle2 size={18} />
+//                       {t.yesVacuumDone}
+//                     </button>
+
+//                     <button
+//                       type="button"
+//                       className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+//                       onClick={() => setIncludeVacuumWithDeep(false)}
+//                     >
+//                       <X size={18} />
+//                       {t.noVacuumDone}
+//                     </button>
+//                   </div>
+//                 </div>
+//               );
+//             }
+
+//             return (
+//               <div className="vacuum-question">
+//                 <div>
+//                   <b>{t.didVacuumQuestion}</b>
+//                   <p>{t.didVacuumHelp}</p>
+//                 </div>
+
+//                 <div className="vacuum-choice-row">
+//                   <button
+//                     type="button"
+//                     className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+//                     onClick={() => setIncludeVacuumWithDeep(true)}
+//                   >
+//                     <CheckCircle2 size={18} />
+//                     {t.yesVacuumDone}
+//                   </button>
+
+//                   <button
+//                     type="button"
+//                     className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+//                     onClick={() => setIncludeVacuumWithDeep(false)}
+//                   >
+//                     <X size={18} />
+//                     {t.noVacuumDone}
+//                   </button>
+//                 </div>
+//               </div>
+//             );
+//           })()}
+
+//           {renderSubtaskSelector()}
+
+//           <div className="marking-as">
+//             <span>{t.markingAs}</span>
+//             <b>{normalizeName(currentUser)}</b>
+//           </div>
+
+//           <label>
+//             {t.dateDone}
+//             <input
+//               type="date"
+//               value={form.date}
+//               max={TODAY}
+//               onChange={event => setForm({ ...form, date: event.target.value })}
+//             />
+//           </label>
+
+//           <label>
+//             {t.note}
+//             <input
+//               value={form.note}
+//               onChange={event => setForm({ ...form, note: event.target.value })}
+//               placeholder={t.optional}
+//             />
+//           </label>
+//         </div>
+
+//         <button
+//           className={`primary ${saving ? 'saving' : ''}`}
+//           onClick={markDone}
+//           disabled={saving}
+//         >
+//           {saving ? (
+//             <>
+//               <Loader2 size={20} className="spin" />
+//               {t.processing}
+//             </>
+//           ) : (
+//             <>
+//               <CheckCircle2 size={20} />
+//               {t.saveCompleted}
+//             </>
+//           )}
+//         </button>
+//       </div>
+//     );
+//   }
+
+//   function renderTaskCard(row) {
+//     const [label, tone] = status(row, data.fullBins || {}, t);
+//     const isMine = normalizeName(row.person) === normalizeName(currentUser);
+//     const completion = getCycleCompletion(row);
+//     const recentVacuumForBundledMop =
+//       row.task.id === 'deep_water'
+//         ? getRecentStandaloneVacuumForMoppingDate(
+//             row.dueDate,
+//             getAllSubtaskIds('vacuum')
+//           )
+//         : null;
+
+//     return (
+//       <div
+//         role="button"
+//         tabIndex={0}
+//         className={`task task-clickable ${row.bundledVacuumRow ? 'task-bundled' : ''} ${isMine ? 'task-mine' : ''}`}
+//         key={row.task.id}
+//         onClick={() => openTaskModal(row)}
+//         onKeyDown={event => {
+//           if (event.key === 'Enter' || event.key === ' ') {
+//             event.preventDefault();
+//             openTaskModal(row);
+//           }
+//         }}
+//         aria-label={`${t.openTask}: ${taskLabel(row.task)}`}
+//       >
+//         <div className="task-main">
+//           <div className="task-title-row">
+//             <h3>{taskLabel(row.task)}</h3>
+//             {isMine && <span className="mine-badge">{t.yourTask}</span>}
+//           </div>
+
+//           <p>
+//             {t.lastDone}:{' '}
+//             {row.last
+//               ? `${fmt(row.last.date, '', lang)} ${t.by} ${normalizeName(row.last.actualPerson || row.last.person)}`
+//               : t.noRecord}
+//           </p>
+
+//           {row.last?.isPartial && row.last.completedSubtasks?.length > 0 && (
+//             <div className="pending-subtasks partial-done-subtasks">
+//               <b>{t.partiallyCompleted}</b>
+//               <span>
+//                 {row.last.completedSubtasks
+//                   .map(subtask => {
+//                     const fullSubtask = row.task?.subtasks?.find(
+//                       item => item.id === subtask.id
+//                     );
+
+//                     return fullSubtask ? getSubtaskName(fullSubtask) : subtask.id;
+//                   })
+//                   .join(', ')}
+//               </span>
+//             </div>
+//           )}
+
+//           {completion.isOpen && completion.pending.length > 0 && (
+//             <div className="pending-subtasks">
+//               <b>{t.pendingParts}</b>
+//               <span>
+//                 {completion.pending
+//                   .map(subtask => getSubtaskName(subtask))
+//                   .join(', ')}
+//               </span>
+//             </div>
+//           )}
+
+//           {row.bundledVacuumRow && (
+//             <div className="bundle-pill">
+//               <CheckCircle2 size={16} />
+//               {recentVacuumForBundledMop
+//                 ? t.vacuumNotMandatoryThisMop
+//                 : t.deepIncludesVacuum}
+//             </div>
+//           )}
+
+//           {row.task.type === 'on_demand' && (
+//             <label className="check" onClick={event => event.stopPropagation()}>
+//               <input
+//                 type="checkbox"
+//                 checked={!!data.fullBins?.[row.task.id]}
+//                 disabled={busyAction === `bin:${row.task.id}`}
+//                 onChange={event => toggleBin(row.task.id, event.target.checked)}
+//               />
+
+//               {busyAction === `bin:${row.task.id}` ? (
+//                 <>
+//                   <Loader2 size={16} className="spin" />
+//                   {t.processing}
+//                 </>
+//               ) : (
+//                 t.binFull
+//               )}
+//             </label>
+//           )}
+//         </div>
+
+//         <div className="task-meta">
+//           <div>
+//             <span>{t.nextDate}</span>
+//             <b>
+//               {fmt(
+//                 row.dueDate,
+//                 row.task.type === 'on_demand' ? t.whenFull : t.notScheduled,
+//                 lang
+//               )}
+//             </b>
+//           </div>
+
+//           <div>
+//             <span>{t.nextPerson}</span>
+//             <b>{normalizeName(row.person)}</b>
+//           </div>
+
+//           <div className={tone}>
+//             <span>{t.status}</span>
+//             <b>{label}</b>
+//           </div>
+//         </div>
+
+//         {row.bundledVacuumRow && (() => {
+//           const vacuumStatus = getBundledVacuumStatus(row);
+
+//           return (
+//             <div className="bundled-subtask bundled-vacuum-detail">
+//               <div className="bundle-detail-main">
+//                 <div className="bundle-detail-title">
+//                   <b>{taskLabel(row.bundledVacuumRow.task)}</b>
+
+//                   <span
+//                     className={`bundle-status-pill ${
+//                       vacuumStatus?.vacuumRequired ? 'required' : 'not-required'
+//                     }`}
+//                   >
+//                     {vacuumStatus?.vacuumRequired
+//                       ? t.vacuumRequired
+//                       : t.vacuumNotRequired}
+//                   </span>
+//                 </div>
+
+//                 <span>{vacuumStatus?.reason}</span>
+
+//                 {row.bundledVacuumRow.bundledBecauseOverdue && (
+//                   <small className="missed-duty-note">
+//                     {t.missedVacuumBy(vacuumStatus?.originalPerson)}
+//                   </small>
+//                 )}
+
+//                 <div className="bundle-parts-row">
+//                   <div>
+//                     <small>{t.doneParts}</small>
+//                     <b>
+//                       {vacuumStatus?.completedParts?.length
+//                         ? vacuumStatus.completedParts
+//                             .map(subtask => {
+//                               const fullSubtask = row.bundledVacuumRow.task?.subtasks?.find(
+//                                 item => item.id === subtask.id
+//                               );
+//                               return fullSubtask ? getSubtaskName(fullSubtask) : subtask.id;
+//                             })
+//                             .join(', ')
+//                         : t.noRecord}
+//                     </b>
+//                   </div>
+
+//                   <div>
+//                     <small>{t.openParts}</small>
+//                     <b>
+//                       {vacuumStatus?.pendingParts?.length
+//                         ? vacuumStatus.pendingParts
+//                             .map(subtask => getSubtaskName(subtask))
+//                             .join(', ')
+//                         : t.allPartsDone}
+//                     </b>
+//                   </div>
+//                 </div>
+//               </div>
+
+//               <div className="bundle-detail-card">
+//                 <span>{t.originalDueDate}</span>
+//                 <b>{fmt(vacuumStatus?.originalDueDate, '', lang)}</b>
+//               </div>
+
+//               <div className="bundle-detail-card">
+//                 <span>{t.currentBundleDate}</span>
+//                 <b>{fmt(row.dueDate, '', lang)}</b>
+//               </div>
+
+//               <div className="bundle-detail-card">
+//                 <span>{t.originalAssignee}</span>
+//                 <b>{vacuumStatus?.originalPerson || t.noRecord}</b>
+//               </div>
+
+//               <div className="bundle-detail-card">
+//                 <span>{t.currentAssignee}</span>
+//                 <b>{vacuumStatus?.currentPerson || t.noRecord}</b>
+//               </div>
+
+//               <div className="bundle-detail-card">
+//                 <span>{t.lastVacuumDone}</span>
+//                 <b>
+//                   {vacuumStatus?.lastDoneDate
+//                     ? `${fmt(vacuumStatus.lastDoneDate, '', lang)} ${t.by} ${vacuumStatus.lastDoneBy}`
+//                     : t.notDoneYet}
+//                 </b>
+//               </div>
+//             </div>
+//           );
+//         })()}
+//       </div>
+//     );
+//   }
+
+//   function renderEmailGate() {
+//     return (
+//       <main className="page user-picker-page">
+//         <section className="user-picker-card email-card">
+//           <div className="eyebrow">
+//             <Mail size={16} />
+//             {t.emailTitle}
+//           </div>
+
+//           <h1>{pendingUser || currentUser}</h1>
+//           <p className="sub">{t.emailInfo}</p>
+
+//           {error && (
+//             <div className="notice bad">
+//               <AlertTriangle size={20} />
+//               {error}
+//             </div>
+//           )}
+
+//           <label>
+//             {t.emailAddress}
+//             <input
+//               type="email"
+//               value={emailDraft}
+//               onChange={event => setEmailDraft(event.target.value)}
+//               placeholder="name@example.com"
+//               autoFocus
+//             />
+//           </label>
+
+//           <div className="email-actions">
+//             <button
+//               type="button"
+//               className="secondary-action"
+//               onClick={cancelEmail}
+//               disabled={emailSaving}
+//             >
+//               {t.cancel}
+//             </button>
+
+//             <button
+//               type="button"
+//               className="primary"
+//               onClick={saveEmail}
+//               disabled={emailSaving}
+//             >
+//               {emailSaving ? (
+//                 <>
+//                   <Loader2 size={20} className="spin" />
+//                   {t.processing}
+//                 </>
+//               ) : (
+//                 <>
+//                   <CheckCircle2 size={20} />
+//                   {t.saveAndContinue}
+//                 </>
+//               )}
+//             </button>
+//           </div>
+//         </section>
+//       </main>
+//     );
+//   }
+
+//   function renderChoreOverviewList(items, emptyText, mode) {
+//     if (!items.length) {
+//       return <div className="overview-empty-line">{emptyText}</div>;
+//     }
+
+//     return (
+//       <div className="overview-chore-list">
+//         {items.slice(0, 5).map(row => {
+//           const days = row.dueDate ? diffDays(TODAY, row.dueDate) : null;
+
+//           let timeText = '';
+
+//           if (row.task.type === 'on_demand') {
+//             timeText = t.onDemand;
+//           } else if (days === 0) {
+//             timeText = t.dueToday;
+//           } else if (days < 0) {
+//             timeText = t.late(Math.abs(days));
+//           } else {
+//             timeText = t.dueIn(days);
+//           }
+
+//           return (
+//             <div className={`overview-chore-line ${mode}`} key={`${mode}-${row.task.id}`}>
+//               <span>{taskLabel(row.task)}</span>
+//               <small>{timeText}</small>
+//             </div>
+//           );
+//         })}
+//       </div>
+//     );
+//   }
+
+//   function renderPersonScoreDetails(person) {
+//     const details = scoreDetailsByPerson[normalizeName(person)] || {
+//       earned: [],
+//       penalties: []
+//     };
+
+//     return (
+//       <div className="person-score-detail">
+//         <div className="person-score-column">
+//           <h4>{t.earnedDetails}</h4>
+
+//           {details.earned.length ? (
+//             details.earned.map(item => (
+//               <div className="score-detail-row earned" key={item.id}>
+//                 <div>
+//                   <b>{taskLabel(item.task)}</b>
+//                   <span>
+//                     {fmt(item.date, '', lang)}
+//                     {item.otherPerson ? ` · ${t.coveredFor(item.otherPerson)}` : ''}
+//                   </span>
+//                   {item.note && <small>{item.note}</small>}
+//                 </div>
+
+//                 <strong>+{formatPoints(item.points)}</strong>
+//               </div>
+//             ))
+//           ) : (
+//             <div className="overview-empty-line">{t.noEarnedDetails}</div>
+//           )}
+//         </div>
+
+//         <div className="person-score-column">
+//           <h4>{t.penaltyDetails}</h4>
+
+//           {details.penalties.length ? (
+//             details.penalties.map(item => (
+//               <div className="score-detail-row penalty" key={item.id}>
+//                 <div>
+//                   <b>{taskLabel(item.task)}</b>
+//                   <span>
+//                     {fmt(item.date, '', lang)} · {t.completedBy(item.completedBy)}
+//                   </span>
+//                   <small>{t.penaltyReason}</small>
+//                 </div>
+
+//                 <strong>-{formatPoints(item.points)}</strong>
+//               </div>
+//             ))
+//           ) : (
+//             <div className="overview-empty-line">{t.noPenaltyDetails}</div>
+//           )}
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   function renderDashboardPage() {
+//     return (
+//       <>
+//         <section className="compact-dashboard-grid">
+//           <div className="mini-dashboard-card important chores-overview-card">
+//             <span>{t.choresOverview}</span>
+
+//             <div className="overview-count-row">
+//               <div>
+//                 <small>{t.pendingOverdue}</small>
+//                 <strong>
+//                   {myChoreOverview.pendingOverdue.length === 1
+//                     ? t.oneChore
+//                     : t.manyChores(myChoreOverview.pendingOverdue.length)}
+//                 </strong>
+//               </div>
+
+//               <div className="overview-count-upcoming">
+//                 <small>{t.upcomingSevenDays}</small>
+//                 <strong>
+//                   {myChoreOverview.upcomingSevenDays.length === 1
+//                     ? t.oneChore
+//                     : t.manyChores(myChoreOverview.upcomingSevenDays.length)}
+//                 </strong>
+//               </div>
+//             </div>
+
+//             <div className="overview-mini-section">
+//               <b>{t.pendingOverdue}</b>
+//               {renderChoreOverviewList(
+//                 myChoreOverview.pendingOverdue,
+//                 t.noPendingOverdue,
+//                 'pending'
+//               )}
+//             </div>
+
+//             <div className="overview-mini-section">
+//               <b>{t.upcomingSevenDays}</b>
+//               {renderChoreOverviewList(
+//                 myChoreOverview.upcomingSevenDays,
+//                 t.noUpcomingSevenDays,
+//                 'upcoming'
+//               )}
+//             </div>
+//           </div>
+
+//           <div className="mini-dashboard-card points-summary-card">
+//             <span>{t.pointsShort}</span>
+//             <strong>{formatPoints(currentUserScore?.total || 0)}</strong>
+//           </div>
+
+//           <div className="mini-dashboard-card vacation-summary-card">
+//             <span>{t.awayShort}</span>
+
+//             <strong>
+//               {activeAbsence
+//                 ? `${fmt(activeAbsence.startDate, '', lang)} → ${fmt(activeAbsence.endDate, '', lang)}`
+//                 : upcomingAbsence
+//                   ? `${fmt(upcomingAbsence.startDate, '', lang)} → ${fmt(upcomingAbsence.endDate, '', lang)}`
+//                   : t.noAwayPlanned}
+//             </strong>
+
+//             <small>
+//               {activeAbsence?.reason || upcomingAbsence?.reason || t.vacationQuickHelp}
+//             </small>
+
+//             {otherActiveAbsencesToday.length > 0 && (
+//               <div className="today-vacation-box">
+//                 <span>{t.peopleOnVacationToday}</span>
+
+//                 <div className="today-vacation-list">
+//                   {otherActiveAbsencesToday.map(absence => (
+//                     <div className="today-vacation-row" key={absence.id}>
+//                       <b>
+//                         {t.onVacationUntil(
+//                           normalizeName(absence.person),
+//                           fmt(absence.endDate, '', lang)
+//                         )}
+//                       </b>
+//                       {absence.reason && <small>{absence.reason}</small>}
+//                     </div>
+//                   ))}
+//                 </div>
+//               </div>
+//             )}
+
+//             <button
+//               type="button"
+//               className="secondary-action compact-card-action"
+//               onClick={() => setAwayModalOpen(true)}
+//             >
+//               <Plane size={16} />
+//               {t.manageVacation}
+//             </button>
+//           </div>
+//         </section>
+
+//         <section className="card compact-main-card">
+//           <div className="card-head">
+//             <div>
+//               <h2>{t.nextTasks}</h2>
+//               <p>{t.nextTasksHelp}</p>
+//             </div>
+//           </div>
+
+//           <div className="task-list">
+//             {rows.map(renderTaskCard)}
+//           </div>
+//         </section>
+
+//         <section className="card feature-info-card">
+//           <h2>{t.usefulLinks}</h2>
+//           <p>{t.usefulLinksHelp}</p>
+
+//           <div className="feature-grid">
+//             {navItems
+//               .filter(item => item.id !== 'dashboard')
+//               .map(item => {
+//                 const Icon = item.icon;
+
+//                 return (
+//                   <button
+//                     key={item.id}
+//                     type="button"
+//                     onClick={() => jumpTo(item.id)}
+//                   >
+//                     <Icon size={18} />
+//                     {item.label}
+//                   </button>
+//                 );
+//               })}
+//           </div>
+//         </section>
+//       </>
+//     );
+//   }
+
+//   function renderActivityPage() {
+//     return (
+//       <section className="card">
+//         <div className="card-title-block">
+//           <h2>{t.recentLog}</h2>
+//           <p>{t.recentLogHelp}</p>
+//         </div>
+
+//         <div className="log-list full-log-list">
+//           {(data.currentLogs || []).slice(0, 80).map(log => (
+//             <div className="log" key={log.id}>
+//               <b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b>
+//               <span>
+//                 <CalendarDays size={14} />
+//                 {fmt(log.date, '', lang)} {t.by}{' '}
+//                 {normalizeName(log.actualPerson || log.person)}
+//               </span>
+//               {log.isPartial && log.completedSubtasks?.length > 0 ? (
+//               <small>
+//                 {t.partiallyCompleted}: {log.completedSubtasks
+//                   .map(subtask => {
+//                     const task = taskById[log.taskId];
+//                     const fullSubtask = task?.subtasks?.find(item => item.id === subtask.id);
+//                     return fullSubtask ? getSubtaskName(fullSubtask) : subtask.id;
+//                   })
+//                   .join(', ')}
+//               </small>
+//             ) : (
+//               log.note && <small>{log.note}</small>
+//             )}
+//             </div>
+//           ))}
+//         </div>
+//       </section>
+//     );
+//   }
+
+//   function renderScoresPage() {
+//     return (
+//       <section className="card score-card">
+//         <div className="card-head">
+//           <div>
+//             <h2>{t.scores}</h2>
+//             <p>{t.scoresHelp}</p>
+//             {data.activeScoringPeriod && (
+//               <p>
+//                 {t.activePeriod}: <b>{data.activeScoringPeriod.name}</b>
+//               </p>
+//             )}
+//           </div>
+//         </div>
+
+//         <div className="score-grid score-grid-detailed">
+//           {(data.scores?.byPerson || []).map(row => {
+//             const open = !!openPersonScores[row.person];
+
+//             return (
+//               <div className="score-person-card score-person-card-detailed" key={row.person}>
+//                 <button
+//                   type="button"
+//                   className="score-person-button"
+//                   onClick={() =>
+//                     setOpenPersonScores(current => ({
+//                       ...current,
+//                       [row.person]: !current[row.person]
+//                     }))
+//                   }
+//                 >
+//                   <div className="score-person-head">
+//                     <span className="dashboard-avatar">{row.person.slice(0, 1)}</span>
+//                     <div>
+//                       <b>{row.person}</b>
+//                       <strong>{formatPoints(row.total || 0)}</strong>
+//                     </div>
+//                   </div>
+
+//                   <div className="score-split">
+//                     <span>
+//                       {t.positiveScore}
+//                       <b>{formatPoints(row.positive || 0)}</b>
+//                     </span>
+//                     <span>
+//                       {t.negativeScore}
+//                       <b>{formatPoints(row.negative || 0)}</b>
+//                     </span>
+//                   </div>
+
+//                   <small className="score-detail-toggle">
+//                     {open ? t.hideDetails : t.showDetails}
+//                   </small>
+//                 </button>
+
+//                 {open && renderPersonScoreDetails(row.person)}
+//               </div>
+//             );
+//           })}
+//         </div>
+
+//         <h3 className="score-subtitle">{t.taskScores}</h3>
+
+//         <div className="task-score-table">
+//           {(data.scores?.byTask || []).map(row => {
+//             const open = !!openScoreTasks[row.taskId];
+
+//             return (
+//               <div className="task-score-accordion" key={row.taskId}>
+//                 <button
+//                   type="button"
+//                   className="task-score-row"
+//                   onClick={() =>
+//                     setOpenScoreTasks(current => ({
+//                       ...current,
+//                       [row.taskId]: !current[row.taskId]
+//                     }))
+//                   }
+//                 >
+//                   <span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span>
+
+//                   <span className="score-pair">
+//                     <small>{t.baseScore}</small>
+//                     <b>{formatPoints(row.baseWeight || 0)}</b>
+//                   </span>
+
+//                   <span className="score-pair">
+//                     <small>{t.earnedScore}</small>
+//                     <b>{formatPoints(row.earnedTotal || 0)}</b>
+//                   </span>
+
+//                   <small>{open ? t.hideDetails : t.showDetails}</small>
+//                 </button>
+
+//                 {open && (
+//                   <div className="task-score-detail">
+//                     {(row.subtasks || []).length > 0 ? (
+//                       row.subtasks.map(subtask => (
+//                         <div className="subtask-score-row" key={subtask.id}>
+//                           <span>{getSubtaskName(subtask)}</span>
+//                           <small>weight {subtask.weight}</small>
+//                           <b>{formatPoints(subtask.earnedTotal || 0)}</b>
+//                         </div>
+//                       ))
+//                     ) : (
+//                       <div className="subtask-score-row">
+//                         <span>{taskLabel(taskById[row.taskId] || { id: row.taskId })}</span>
+//                         <small>{t.singleTask}</small>
+//                         <b>{formatPoints(row.earnedTotal || 0)}</b>
+//                       </div>
+//                     )}
+//                   </div>
+//                 )}
+//               </div>
+//             );
+//           })}
+//         </div>
+//       </section>
+//     );
+//   }
+
+//   function renderAdminPage() {
+//     const adminAwayPerson =
+//       adminAwayForm.person ||
+//       data.flatmates?.[0] ||
+//       '';
+
+//     const allAbsences = (data.absences || [])
+//       .slice()
+//       .sort((a, b) => {
+//         if (a.startDate !== b.startDate) {
+//           return a.startDate.localeCompare(b.startDate);
+//         }
+
+//         return normalizeName(a.person).localeCompare(normalizeName(b.person));
+//       });
+
+//     return (
+//       <section className="card admin-card">
+//         <div className="card-head">
+//           <div>
+//             <h2>{t.adminPanel}</h2>
+//             <p>{t.adminHelp}</p>
+//           </div>
+//         </div>
+
+//         <div className="admin-section-block task-admin-section simple-task-admin-section">
+//           <h3>{t.adminTasks}</h3>
+//           <p className="admin-section-help">{t.adminTasksHelp}</p>
+
+//           <div className="simple-admin-card">
+//             <div className="simple-admin-card-head">
+//               <div>
+//                 <h3>{t.editExistingChore}</h3>
+//                 <p>{t.editExistingChoreHelp}</p>
+//               </div>
+//             </div>
+
+//             <div className="admin-grid two">
+//               <FancySelect
+//                 label={t.chooseChore}
+//                 value={taskAdminForm.id}
+//                 onChange={loadTaskIntoAdminForm}
+//                 options={(data.tasks || []).map(task => ({
+//                   value: task.id,
+//                   label: taskLabel(task)
+//                 }))}
+//                 placeholder={t.selectPlaceholder}
+//               />
+
+//               <label>
+//                 {t.choreName}
+//                 <input
+//                   value={taskAdminForm.name}
+//                   onChange={event =>
+//                     setTaskAdminForm({
+//                       ...taskAdminForm,
+//                       name: event.target.value
+//                     })
+//                   }
+//                   placeholder={t.choreNameExample}
+//                 />
+//               </label>
+
+//               <FancySelect
+//                 label={t.taskType}
+//                 value={taskAdminForm.type}
+//                 onChange={value =>
+//                   setTaskAdminForm({
+//                     ...taskAdminForm,
+//                     type: value
+//                   })
+//                 }
+//                 options={[
+//                   { value: 'scheduled', label: t.scheduledTask },
+//                   { value: 'on_demand', label: t.onDemandTask }
+//                 ]}
+//                 placeholder={t.scheduledTask}
+//               />
+
+//               {taskAdminForm.type === 'scheduled' && (
+//                 <FancySelect
+//                   label={t.repeatEvery}
+//                   value={taskAdminForm.frequencyPreset}
+//                   onChange={setTaskFrequency}
+//                   options={frequencyOptions()}
+//                   placeholder={t.repeatEvery}
+//                 />
+//               )}
+
+//               {taskAdminForm.type === 'scheduled' && taskAdminForm.frequencyPreset === 'custom' && (
+//                 <label>
+//                   {t.customDays}
+//                   <input
+//                     type="number"
+//                     min="1"
+//                     max="3650"
+//                     value={taskAdminForm.intervalDays}
+//                     onChange={event =>
+//                       setTaskAdminForm({
+//                         ...taskAdminForm,
+//                         intervalDays: event.target.value
+//                       })
+//                     }
+//                   />
+//                 </label>
+//               )}
+
+//               <FancySelect
+//                 label={t.difficultySimple}
+//                 value={taskAdminForm.difficultyPreset}
+//                 onChange={setTaskDifficulty}
+//                 options={difficultyOptions()}
+//                 placeholder={t.difficultySimple}
+//               />
+
+//               {taskAdminForm.difficultyPreset === 'custom' && (
+//                 <label>
+//                   {t.customPoints}
+//                   <input
+//                     type="number"
+//                     min="0.25"
+//                     step="0.25"
+//                     value={taskAdminForm.baseWeight}
+//                     onChange={event =>
+//                       setTaskAdminForm({
+//                         ...taskAdminForm,
+//                         baseWeight: event.target.value
+//                       })
+//                     }
+//                   />
+//                 </label>
+//               )}
+//             </div>
+
+//             <button
+//               type="button"
+//               className="advanced-toggle-button"
+//               onClick={() =>
+//                 setTaskAdminForm(current => ({
+//                   ...current,
+//                   showAdvancedParts: !current.showAdvancedParts
+//                 }))
+//               }
+//             >
+//               {taskAdminForm.showAdvancedParts ? t.hideAdvancedParts : t.advancedParts}
+//             </button>
+
+//             {taskAdminForm.showAdvancedParts && renderAdvancedPartsEditor()}
+
+//             <div className="admin-actions simple-admin-actions">
+//               <button
+//                 type="button"
+//                 disabled={adminSaving || !taskAdminForm.id}
+//                 onClick={() => saveTaskAdminForm('update')}
+//               >
+//                 {adminSaving ? (
+//                   <>
+//                     <Loader2 size={16} className="spin" />
+//                     {t.processing}
+//                   </>
+//                 ) : (
+//                   t.saveChanges
+//                 )}
+//               </button>
+
+//               <button
+//                 type="button"
+//                 className="danger-action"
+//                 disabled={adminSaving || !taskAdminForm.id}
+//                 onClick={archiveTaskFromAdmin}
+//               >
+//                 {adminSaving ? (
+//                   <>
+//                     <Loader2 size={16} className="spin" />
+//                     {t.processing}
+//                   </>
+//                 ) : (
+//                   t.archiveThisChore
+//                 )}
+//               </button>
+//             </div>
+//           </div>
+
+//           <div className="simple-admin-card">
+//             <div className="simple-admin-card-head">
+//               <div>
+//                 <h3>{t.addNewChoreTitle}</h3>
+//                 <p>{t.addNewChoreHelp}</p>
+//               </div>
+
+//               <button type="button" className="mini-action" onClick={resetTaskAdminFormForAdd}>
+//                 {t.cancel}
+//               </button>
+//             </div>
+
+//             <div className="admin-grid two">
+//               <label>
+//                 {t.choreName}
+//                 <input
+//                   value={!taskAdminForm.id ? taskAdminForm.name : ''}
+//                   onChange={event =>
+//                     setTaskAdminForm(current => ({
+//                       ...current,
+//                       id: '',
+//                       name: event.target.value
+//                     }))
+//                   }
+//                   placeholder={t.choreNameExample}
+//                 />
+//               </label>
+
+//               <FancySelect
+//                 label={t.taskType}
+//                 value={!taskAdminForm.id ? taskAdminForm.type : 'scheduled'}
+//                 onChange={value =>
+//                   setTaskAdminForm(current => ({
+//                     ...current,
+//                     id: '',
+//                     type: value
+//                   }))
+//                 }
+//                 options={[
+//                   { value: 'scheduled', label: t.scheduledTask },
+//                   { value: 'on_demand', label: t.onDemandTask }
+//                 ]}
+//                 placeholder={t.scheduledTask}
+//               />
+
+//               {(!taskAdminForm.id ? taskAdminForm.type : 'scheduled') === 'scheduled' && (
+//                 <FancySelect
+//                   label={t.repeatEvery}
+//                   value={!taskAdminForm.id ? taskAdminForm.frequencyPreset : 14}
+//                   onChange={value =>
+//                     setTaskAdminForm(current => ({
+//                       ...current,
+//                       id: '',
+//                       frequencyPreset: value,
+//                       intervalDays: value === 'custom' ? current.intervalDays : Number(value)
+//                     }))
+//                   }
+//                   options={frequencyOptions()}
+//                   placeholder={t.repeatEvery}
+//                 />
+//               )}
+
+//               {!taskAdminForm.id &&
+//                 taskAdminForm.type === 'scheduled' &&
+//                 taskAdminForm.frequencyPreset === 'custom' && (
+//                   <label>
+//                     {t.customDays}
+//                     <input
+//                       type="number"
+//                       min="1"
+//                       max="3650"
+//                       value={taskAdminForm.intervalDays}
+//                       onChange={event =>
+//                         setTaskAdminForm({
+//                           ...taskAdminForm,
+//                           intervalDays: event.target.value
+//                         })
+//                       }
+//                     />
+//                   </label>
+//                 )}
+
+//               <FancySelect
+//                 label={t.difficultySimple}
+//                 value={!taskAdminForm.id ? taskAdminForm.difficultyPreset : 1}
+//                 onChange={value =>
+//                   setTaskAdminForm(current => ({
+//                     ...current,
+//                     id: '',
+//                     difficultyPreset: value,
+//                     baseWeight: value === 'custom' ? current.baseWeight : Number(value)
+//                   }))
+//                 }
+//                 options={difficultyOptions()}
+//                 placeholder={t.difficultySimple}
+//               />
+
+//               {!taskAdminForm.id && taskAdminForm.difficultyPreset === 'custom' && (
+//                 <label>
+//                   {t.customPoints}
+//                   <input
+//                     type="number"
+//                     min="0.25"
+//                     step="0.25"
+//                     value={taskAdminForm.baseWeight}
+//                     onChange={event =>
+//                       setTaskAdminForm({
+//                         ...taskAdminForm,
+//                         baseWeight: event.target.value
+//                       })
+//                     }
+//                   />
+//                 </label>
+//               )}
+//             </div>
+
+//             <div className="admin-actions simple-admin-actions">
+//               <button
+//                 type="button"
+//                 disabled={adminSaving || taskAdminForm.id || !taskAdminForm.name.trim()}
+//                 onClick={() => saveTaskAdminForm('add')}
+//               >
+//                 {adminSaving ? (
+//                   <>
+//                     <Loader2 size={16} className="spin" />
+//                     {t.processing}
+//                   </>
+//                 ) : (
+//                   t.addNewChoreButton
+//                 )}
+//               </button>
+//             </div>
+//           </div>
+
+//           <div className="simple-admin-card">
+//             <div className="simple-admin-card-head">
+//               <div>
+//                 <h3>{t.splitBigChoreTitle}</h3>
+//                 <p>{t.splitBigChoreHelp}</p>
+//                 <p className="simple-admin-example">{t.splitExample}</p>
+//               </div>
+//             </div>
+
+//             <div className="admin-grid two">
+//               <FancySelect
+//                 label={t.originalChore}
+//                 value={splitTaskForm.originalTaskId}
+//                 onChange={value =>
+//                   setSplitTaskForm({
+//                     ...splitTaskForm,
+//                     originalTaskId: value
+//                   })
+//                 }
+//                 options={(data.tasks || []).map(task => ({
+//                   value: task.id,
+//                   label: taskLabel(task)
+//                 }))}
+//                 placeholder={t.selectPlaceholder}
+//               />
+
+//               <label className="check admin-check">
+//                 <input
+//                   type="checkbox"
+//                   checked={splitTaskForm.archiveOriginal}
+//                   onChange={event =>
+//                     setSplitTaskForm({
+//                       ...splitTaskForm,
+//                       archiveOriginal: event.target.checked
+//                     })
+//                   }
+//                 />
+//                 {t.archiveOriginalChore}
+//               </label>
+//             </div>
+
+//             <h4 className="simple-admin-subtitle">{t.splitIntoSmallerChores}</h4>
+
+//             <div className="split-task-list simple-split-task-list">
+//               {splitTaskForm.newTasks.map((item, index) => (
+//                 <div className="split-task-row simple-split-task-row" key={`split-${index}`}>
+//                   <input
+//                     value={item.name}
+//                     onChange={event => updateSplitTask(index, { name: event.target.value })}
+//                     placeholder={`${t.smallerChoreName} ${index + 1}`}
+//                   />
+
+//                   <FancySelect
+//                     label=""
+//                     value={item.frequencyPreset}
+//                     onChange={value => setSplitTaskFrequency(index, value)}
+//                     options={frequencyOptions()}
+//                     placeholder={t.repeatEvery}
+//                   />
+
+//                   {item.frequencyPreset === 'custom' && (
+//                     <input
+//                       type="number"
+//                       min="1"
+//                       max="3650"
+//                       value={item.intervalDays}
+//                       onChange={event => updateSplitTask(index, { intervalDays: event.target.value })}
+//                       placeholder={t.customDays}
+//                     />
+//                   )}
+
+//                   <FancySelect
+//                     label=""
+//                     value={item.difficultyPreset}
+//                     onChange={value => setSplitTaskDifficulty(index, value)}
+//                     options={difficultyOptions()}
+//                     placeholder={t.difficultySimple}
+//                   />
+
+//                   {item.difficultyPreset === 'custom' && (
+//                     <input
+//                       type="number"
+//                       min="0.25"
+//                       step="0.25"
+//                       value={item.baseWeight}
+//                       onChange={event => updateSplitTask(index, { baseWeight: event.target.value })}
+//                       placeholder={t.customPoints}
+//                     />
+//                   )}
+
+//                   <button
+//                     type="button"
+//                     className="danger-action"
+//                     onClick={() => removeSplitTaskRow(index)}
+//                   >
+//                     {t.removePart}
+//                   </button>
+//                 </div>
+//               ))}
+//             </div>
+
+//             <div className="admin-actions simple-admin-actions">
+//               <button
+//                 type="button"
+//                 disabled={adminSaving}
+//                 onClick={addSplitTaskRow}
+//               >
+//                 {t.addSmallerChore}
+//               </button>
+
+//               <button
+//                 type="button"
+//                 disabled={adminSaving || !splitTaskForm.originalTaskId}
+//                 onClick={submitSplitTask}
+//               >
+//                 {adminSaving ? (
+//                   <>
+//                     <Loader2 size={16} className="spin" />
+//                     {t.processing}
+//                   </>
+//                 ) : (
+//                   t.splitBigChoreTitle
+//                 )}
+//               </button>
+//             </div>
+//           </div>
+//         </div>
+
+//         <h3>{t.activeUsers}</h3>
+
+//         <div className="admin-user-table">
+//           {(data.flatmateProfiles || []).map(user => (
+//             <div className="admin-user-row" key={user.name}>
+//               <div>
+//                 <b>{normalizeName(user.name)}</b>
+//                 <span>{user.email || t.noEmail}</span>
+//               </div>
+
+//               <button
+//                 type="button"
+//                 className="danger-action"
+//                 disabled={adminSaving}
+//                 onClick={() =>
+//                   openAdminModal('delete', {
+//                     action: 'delete',
+//                     name: user.name,
+//                     email: user.email || ''
+//                   })
+//                 }
+//               >
+//                 {t.deleteUser}
+//               </button>
+//             </div>
+//           ))}
+//         </div>
+
+//         <div className="admin-section-block">
+//           <h3>{t.vacationForUser}</h3>
+//           <p className="admin-section-help">{t.adminPinForVacationHelp}</p>
+
+//           <div className="admin-grid vacation-admin-grid">
+//             <FancySelect
+//               label={t.person}
+//               value={adminAwayPerson}
+//               onChange={value =>
+//                 setAdminAwayForm(current => ({
+//                   ...current,
+//                   person: value
+//                 }))
+//               }
+//               options={(data.flatmates || []).map(person => ({
+//                 value: normalizeName(person),
+//                 label: normalizeName(person)
+//               }))}
+//               placeholder={t.selectFlatmate}
+//             />
+
+//             <label>
+//               {t.awayFrom}
+//               <input
+//                 type="date"
+//                 value={adminAwayForm.startDate}
+//                 min={TODAY}
+//                 onChange={event =>
+//                   setAdminAwayForm({
+//                     ...adminAwayForm,
+//                     startDate: event.target.value,
+//                     endDate:
+//                       adminAwayForm.endDate < event.target.value
+//                         ? event.target.value
+//                         : adminAwayForm.endDate
+//                   })
+//                 }
+//               />
+//             </label>
+
+//             <label>
+//               {t.awayUntil}
+//               <input
+//                 type="date"
+//                 value={adminAwayForm.endDate}
+//                 min={adminAwayForm.startDate || TODAY}
+//                 onChange={event =>
+//                   setAdminAwayForm({
+//                     ...adminAwayForm,
+//                     endDate: event.target.value
+//                   })
+//                 }
+//               />
+//             </label>
+
+//             <label>
+//               {t.reason}
+//               <input
+//                 value={adminAwayForm.reason}
+//                 onChange={event =>
+//                   setAdminAwayForm({
+//                     ...adminAwayForm,
+//                     reason: event.target.value
+//                   })
+//                 }
+//                 placeholder={t.optional}
+//               />
+//             </label>
+//           </div>
+
+//           <div className="admin-actions">
+//             <button
+//               type="button"
+//               disabled={adminSaving}
+//               onClick={saveAdminAwayDates}
+//             >
+//               {adminSaving ? (
+//                 <>
+//                   <Loader2 size={16} className="spin" />
+//                   {t.processing}
+//                 </>
+//               ) : (
+//                 <>
+//                   <Plane size={16} />
+//                   {t.saveVacationForUser}
+//                 </>
+//               )}
+//             </button>
+//           </div>
+
+//           <h3>{t.allVacationDates}</h3>
+
+//           <div className="admin-user-table">
+//             {allAbsences.length ? (
+//               allAbsences.map(absence => (
+//                 <div className="admin-user-row" key={absence.id}>
+//                   <div>
+//                     <b>{normalizeName(absence.person)}</b>
+//                     <span>
+//                       {fmt(absence.startDate, '', lang)} →{' '}
+//                       {fmt(absence.endDate, '', lang)}
+//                     </span>
+//                     {absence.reason && <span>{absence.reason}</span>}
+//                   </div>
+
+//                   <button
+//                     type="button"
+//                     className="danger-action"
+//                     disabled={adminSaving}
+//                     onClick={() => deleteAdminAwayDate(absence.id, absence.person)}
+//                   >
+//                     {adminSaving ? (
+//                       <>
+//                         <Loader2 size={16} className="spin" />
+//                         {t.processing}
+//                       </>
+//                     ) : (
+//                       t.deleteAway
+//                     )}
+//                   </button>
+//                 </div>
+//               ))
+//             ) : (
+//               <div className="empty-state">{t.noAwayDates}</div>
+//             )}
+//           </div>
+//         </div>
+
+//         <h3>{t.addUser}</h3>
+
+//         <div className="admin-grid two">
+//           <label>
+//             {t.userName}
+//             <input
+//               value={adminForm.name}
+//               onChange={event =>
+//                 setAdminForm({ ...adminForm, name: event.target.value })
+//               }
+//               placeholder="Name"
+//             />
+//           </label>
+//         </div>
+
+//         <div className="admin-actions">
+//           <button
+//             disabled={adminSaving}
+//             onClick={() =>
+//               openAdminModal('add', {
+//                 action: 'add',
+//                 name: adminForm.name,
+//                 email: ''
+//               })
+//             }
+//           >
+//             {adminSaving ? (
+//               <>
+//                 <Loader2 size={16} className="spin" />
+//                 {t.processing}
+//               </>
+//             ) : (
+//               t.addUser
+//             )}
+//           </button>
+//         </div>
+
+//         <h3>{t.updateUser}</h3>
+
+//         <div className="admin-grid two">
+//           <label>
+//             {t.userName}
+//             <input
+//               value={adminForm.name}
+//               onChange={event =>
+//                 setAdminForm({ ...adminForm, name: event.target.value })
+//               }
+//               placeholder="Name"
+//             />
+//           </label>
+
+//           <label>
+//             {t.emailAddress}
+//             <input
+//               type="email"
+//               value={adminForm.email}
+//               onChange={event =>
+//                 setAdminForm({ ...adminForm, email: event.target.value })
+//               }
+//               placeholder="name@example.com"
+//             />
+//           </label>
+//         </div>
+
+//         <div className="admin-actions">
+//           <button
+//             disabled={adminSaving}
+//             onClick={() =>
+//               openAdminModal('update', {
+//                 action: 'update',
+//                 name: adminForm.name,
+//                 email: adminForm.email
+//               })
+//             }
+//           >
+//             {adminSaving ? (
+//               <>
+//                 <Loader2 size={16} className="spin" />
+//                 {t.processing}
+//               </>
+//             ) : (
+//               t.updateUser
+//             )}
+//           </button>
+//         </div>
+//       </section>
+//     );
+//   }
+
+//   function renderHistoryPage() {
+//     return (
+//       <section className="card history-card">
+//         <div className="card-head">
+//           <div>
+//             <h2>{t.previousPeriods}</h2>
+//             <p>{t.historyHelp}</p>
+//           </div>
+//         </div>
+
+//         <div className="history-list">
+//           {(data.periodHistory || []).map(period => {
+//             const open = !!openHistoryPeriods[period.id];
+
+//             return (
+//               <div className="history-row period-history-row" key={period.id}>
+//                 <button
+//                   type="button"
+//                   className="history-summary-button"
+//                   onClick={() =>
+//                     setOpenHistoryPeriods(current => ({
+//                       ...current,
+//                       [period.id]: !current[period.id]
+//                     }))
+//                   }
+//                 >
+//                   <span>
+//                     <b>{period.name}</b>
+//                     <small>
+//                       {period.startedAt} → {period.endedAt || 'active'}
+//                     </small>
+//                     <small>{period.reason}</small>
+//                   </span>
+//                   <small>{open ? t.hideDetails : t.showDetails}</small>
+//                 </button>
+
+//                 {open && (
+//                   <div className="period-detail">
+//                     <h3>{t.periodScores}</h3>
+
+//                     <div className="score-grid compact">
+//                       {(period.scores?.byPerson || []).map(row => (
+//                         <div className="score-person-card" key={row.person}>
+//                           <div className="score-person-head">
+//                             <span className="dashboard-avatar">
+//                               {row.person.slice(0, 1)}
+//                             </span>
+//                             <div>
+//                               <b>{row.person}</b>
+//                               <strong>{formatPoints(row.total || 0)}</strong>
+//                             </div>
+//                           </div>
+//                         </div>
+//                       ))}
+//                     </div>
+
+//                     <h3>{t.periodLogs}</h3>
+
+//                     <div className="log-list period-log-list">
+//                       {(period.logs || []).length ? (
+//                         period.logs.map(log => (
+//                           <div className="log" key={log.id}>
+//                             <b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b>
+//                             <span>
+//                               <CalendarDays size={14} />
+//                               {fmt(log.date, '', lang)} {t.by}{' '}
+//                               {normalizeName(log.actualPerson || log.person)}
+//                             </span>
+//                             {log.note && <small>{log.note}</small>}
+//                           </div>
+//                         ))
+//                       ) : (
+//                         <div className="empty-state">{t.noPeriodLogs}</div>
+//                       )}
+//                     </div>
+
+//                     <h3>{t.periodMilestones}</h3>
+
+//                     <div className="milestone-list">
+//                       {(period.milestones || []).length ? (
+//                         period.milestones.map(milestone => (
+//                           <div
+//                             className="milestone-row"
+//                             key={`${milestone.person}-${milestone.milestone}`}
+//                           >
+//                             <b>{milestone.person}</b>
+//                             <span>{milestone.milestone}</span>
+//                           </div>
+//                         ))
+//                       ) : (
+//                         <div className="empty-state">{t.noPeriodMilestones}</div>
+//                       )}
+//                     </div>
+//                   </div>
+//                 )}
+//               </div>
+//             );
+//           })}
+//         </div>
+//       </section>
+//     );
+//   }
+
+//   if (loading) {
+//     return (
+//       <main className="page">
+//         <div className="card loading-card">{t.loading}</div>
+//       </main>
+//     );
+//   }
+
+//   if (!data) {
+//     return (
+//       <main className="page">
+//         <div className="card bad">{error || t.loadError}</div>
+//       </main>
+//     );
+//   }
+
+//   if (emailMode) {
+//     return renderEmailGate();
+//   }
+
+//   if (!hasValidCurrentUser) {
+//     return (
+//       <main className="page user-picker-page">
+//         <section className="user-picker-card">
+//           <div className="eyebrow">
+//             <Sparkles size={16} />
+//             {t.badge}
+//           </div>
+
+//           <h1>{t.whoAreYou}</h1>
+//           <p className="sub">{t.chooseProfile}</p>
+
+//           <div className="profile-grid">
+//             {data.flatmates.map(person => (
+//               <button
+//                 type="button"
+//                 key={person}
+//                 className="profile-card"
+//                 onClick={() => chooseCurrentUser(person)}
+//               >
+//                 <span className="profile-avatar">
+//                   {normalizeName(person).slice(0, 1)}
+//                 </span>
+//                 <span>
+//                   {t.continueAs}
+//                   <b>{normalizeName(person)}</b>
+//                 </span>
+//               </button>
+//             ))}
+//           </div>
+
+//           <div className="profile-language-card">
+//             <div className="dashboard-card dashboard-language-card language-card-top">
+//               <span className="dashboard-label">{t.language}</span>
+//               <p>{t.languageHelp}</p>
+
+//               <FancySelect
+//                 label=""
+//                 value={languageSetting}
+//                 onChange={changeLanguage}
+//                 options={languageOptions}
+//                 placeholder={t.auto}
+//                 className="language-inline"
+//               />
+//             </div>
+//           </div>
+//         </section>
+//       </main>
+//     );
+//   }
+
+//   return (
+//     <>
+//       {!menuOpen && (
+//         <button
+//           className="mobile-menu-button"
+//           onClick={() => setMenuOpen(true)}
+//           aria-label={t.menu}
+//         >
+//           <Menu size={22} />
+//         </button>
+//       )}
+
+//       {menuOpen && (
+//         <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+//       )}
+
+//       <aside className={`nav-panel ${menuOpen ? 'open' : ''}`}>
+//         <div className="nav-head">
+//           <div>
+//             <b>{t.navigation}</b>
+//             <span>{t.jumpTo}</span>
+//           </div>
+
+//           <button
+//             className="icon-button nav-close"
+//             onClick={() => setMenuOpen(false)}
+//             aria-label={t.close}
+//           >
+//             <X size={20} />
+//           </button>
+//         </div>
+
+//         {navItems.map(item => {
+//           const Icon = item.icon;
+
+//           return (
+//             <button
+//               className="nav-link"
+//               key={item.id}
+//               onClick={() => jumpTo(item.id)}
+//             >
+//               <Icon size={18} />
+//               <span>{item.label}</span>
+//             </button>
+//           );
+//         })}
+//       </aside>
+
+//       <main className="page" id="top">
+//         <section className="hero dashboard-hero compact-hero compact-header">
+//           <div className="hero-main">
+//             <button
+//               type="button"
+//               className="hero-home-link"
+//               onClick={() => jumpTo('dashboard')}
+//               aria-label={t.dashboard}
+//             >
+//               <div className="eyebrow">
+//                 <Sparkles size={16} />
+//                 {t.badge}
+//               </div>
+
+//               <h1>{t.title}</h1>
+//             </button>
+
+//             <p className="sub hero-subtitle">
+//               {t.subtitle}{' '}
+//               <a
+//                 href="/docs/flatclean_fairness_policy_detailed.pdf"
+//                 target="_blank"
+//                 rel="noreferrer"
+//                 className="fairness-policy-link"
+//               >
+//                 {t.fairnessPolicyLink}
+//               </a>
+//             </p>
+//           </div>
+
+//           <div className="dashboard-header compact-header-grid">
+//             <div className="dashboard-card dashboard-top-card dashboard-language-card language-card-top">
+//               <span className="dashboard-label">{t.language}</span>
+//               <p className="dashboard-card-help">{t.languageHelp}</p>
+
+//               <FancySelect
+//                 label=""
+//                 value={languageSetting}
+//                 onChange={changeLanguage}
+//                 options={languageOptions}
+//                 placeholder={t.auto}
+//                 className="language-inline"
+//               />
+//             </div>
+
+//             <div className="dashboard-card dashboard-top-card dashboard-user-card">
+//               <span className="dashboard-label">{t.profile}</span>
+
+//               <div className="dashboard-user-row">
+//                 <span className="dashboard-avatar">
+//                   {normalizeName(currentUser).slice(0, 1)}
+//                 </span>
+
+//                 <div>
+//                   <b>{normalizeName(currentUser)}</b>
+//                   <small>{currentUserProfile?.email}</small>
+
+//                   <div className="profile-actions">
+//                     <button type="button" onClick={switchCurrentUser}>
+//                       {t.switchUser}
+//                     </button>
+//                     <button type="button" onClick={startChangeEmail}>
+//                       <Pencil size={13} />
+//                       {t.changeEmail}
+//                     </button>
+//                   </div>
+//                 </div>
+//               </div>
+//             </div>
+//           </div>
+//         </section>
+
+//         {error && (
+//           <div className="notice bad">
+//             <AlertTriangle size={20} />
+//             {error}
+//           </div>
+//         )}
+
+//         {success && (
+//           <div className="notice good success-pop">
+//             <CheckCircle2 size={20} />
+//             {success}
+//           </div>
+//         )}
+
+//         {activePage === 'dashboard' && renderDashboardPage()}
+//         {activePage === 'mark' && renderMarkDoneCard()}
+//         {activePage === 'activity' && renderActivityPage()}
+//         {activePage === 'scores' && renderScoresPage()}
+//         {activePage === 'admin' && renderAdminPage()}
+//         {activePage === 'history' && renderHistoryPage()}
+//       </main>
+
+//       {awayModalOpen && (
+//         <div
+//           className="modal-backdrop"
+//           onClick={() => {
+//             if (!saving) setAwayModalOpen(false);
+//           }}
+//         >
+//           <section
+//             className="task-modal away-modal"
+//             onClick={event => event.stopPropagation()}
+//           >
+//             <div className="modal-head">
+//               <div>
+//                 <span className="modal-kicker">{t.away}</span>
+//                 <h2>{t.yourAwayDates}</h2>
+//                 <p>{t.vacationQuickHelp}</p>
+//               </div>
+
+//               <button
+//                 type="button"
+//                 className="icon-button"
+//                 onClick={() => {
+//                   if (!saving) setAwayModalOpen(false);
+//                 }}
+//                 disabled={saving}
+//                 aria-label={t.close}
+//               >
+//                 <X size={20} />
+//               </button>
+//             </div>
+
+//             <div className="admin-grid one-col">
+//               <label>
+//                 {t.awayFrom}
+//                 <input
+//                   type="date"
+//                   value={awayForm.startDate}
+//                   min={TODAY}
+//                   onChange={event =>
+//                     setAwayForm({
+//                       ...awayForm,
+//                       startDate: event.target.value,
+//                       endDate:
+//                         awayForm.endDate < event.target.value
+//                           ? event.target.value
+//                           : awayForm.endDate
+//                     })
+//                   }
+//                 />
+//               </label>
+
+//               <label>
+//                 {t.awayUntil}
+//                 <input
+//                   type="date"
+//                   value={awayForm.endDate}
+//                   min={awayForm.startDate || TODAY}
+//                   onChange={event =>
+//                     setAwayForm({
+//                       ...awayForm,
+//                       endDate: event.target.value
+//                     })
+//                   }
+//                 />
+//               </label>
+
+//               <label>
+//                 {t.reason}
+//                 <input
+//                   value={awayForm.reason}
+//                   onChange={event =>
+//                     setAwayForm({
+//                       ...awayForm,
+//                       reason: event.target.value
+//                     })
+//                   }
+//                   placeholder={t.optional}
+//                 />
+//               </label>
+//             </div>
+
+//             <div className="modal-actions away-modal-actions">
+//               <button
+//                 type="button"
+//                 className="secondary-action"
+//                 onClick={() => setAwayModalOpen(false)}
+//                 disabled={saving}
+//               >
+//                 {t.cancel}
+//               </button>
+
+//               <button
+//                 type="button"
+//                 className={`primary ${saving ? 'saving' : ''}`}
+//                 onClick={saveAwayDates}
+//                 disabled={saving}
+//               >
+//                 {saving ? (
+//                   <>
+//                     <Loader2 size={16} className="spin" />
+//                     {t.processing}
+//                   </>
+//                 ) : (
+//                   <>
+//                     <Plane size={16} />
+//                     {t.addAway}
+//                   </>
+//                 )}
+//               </button>
+//             </div>
+
+//             <div className="away-list">
+//               {myAbsences.length ? (
+//                 myAbsences.map(item => (
+//                   <div className="away-row" key={item.id}>
+//                     <div>
+//                       <b>
+//                         {fmt(item.startDate, '', lang)} → {fmt(item.endDate, '', lang)}
+//                       </b>
+//                       <span>{item.reason || t.optional}</span>
+//                     </div>
+
+//                     <button
+//                       type="button"
+//                       className={`danger-action ${saving ? 'saving' : ''}`}
+//                       onClick={() => deleteAwayDate(item.id)}
+//                       disabled={saving}
+//                     >
+//                       {saving ? (
+//                         <>
+//                           <Loader2 size={16} className="spin" />
+//                           {t.processing}
+//                         </>
+//                       ) : (
+//                         t.deleteAway
+//                       )}
+//                     </button>
+//                   </div>
+//                 ))
+//               ) : (
+//                 <div className="empty-state">{t.noAwayDates}</div>
+//               )}
+//             </div>
+//           </section>
+//         </div>
+//       )}
+
+//       {adminModal && (
+//         <div className="modal-backdrop" onClick={closeAdminModal}>
+//           <section
+//             className="task-modal admin-pin-modal"
+//             onClick={event => event.stopPropagation()}
+//           >
+//             <div className="modal-head">
+//               <div>
+//                 <span className="modal-kicker">{t.admin}</span>
+//                 <h2>{t.adminPin}</h2>
+//                 <p>
+//                   {adminModal.endpoint === '/api/availability'
+//                     ? t.adminPinForVacationHelp
+//                     : t.adminPinHelp}
+//                 </p>
+//               </div>
+
+//               <button
+//                 type="button"
+//                 className="icon-button"
+//                 onClick={closeAdminModal}
+//                 aria-label={t.close}
+//               >
+//                 <X size={20} />
+//               </button>
+//             </div>
+
+//             <label>
+//               {t.adminPin}
+//               <input
+//                 type="password"
+//                 value={adminPin}
+//                 onChange={event => setAdminPin(event.target.value)}
+//                 autoFocus
+//               />
+//             </label>
+
+//             <div className="modal-actions">
+//               <button
+//                 type="button"
+//                 className="secondary-action"
+//                 onClick={closeAdminModal}
+//                 disabled={adminSaving}
+//               >
+//                 {t.cancel}
+//               </button>
+
+//               <button
+//                 type="button"
+//                 className={`primary ${adminSaving ? 'saving' : ''}`}
+//                 onClick={confirmAdminAction}
+//                 disabled={adminSaving}
+//               >
+//                 {adminSaving ? (
+//                   <>
+//                     <Loader2 size={20} className="spin" />
+//                     {t.processing}
+//                   </>
+//                 ) : (
+//                   <>
+//                     <CheckCircle2 size={20} />
+//                     {t.confirm}
+//                   </>
+//                 )}
+//               </button>
+//             </div>
+//           </section>
+//         </div>
+//       )}
+
+//       {celebration && (
+//         <div
+//           className="celebration-backdrop"
+//           onClick={() => setCelebration(null)}
+//         >
+//           <section
+//             className="celebration-modal"
+//             onClick={event => event.stopPropagation()}
+//           >
+//             <div className="celebration-confetti" aria-hidden="true">
+//               <span />
+//               <span />
+//               <span />
+//               <span />
+//               <span />
+//               <span />
+//               <span />
+//               <span />
+//             </div>
+
+//             <div className="celebration-icon">
+//               <Sparkles size={34} />
+//             </div>
+
+//             <h2>{t.celebrationTitle}</h2>
+//             <p>{t.celebrationSubtitle(celebration.person)}</p>
+
+//             <div className="celebration-points-grid">
+//               <div>
+//                 <span>{t.pointsEarnedNow}</span>
+//                 <strong>+{formatPoints(celebration.pointsEarned)}</strong>
+//               </div>
+
+//               <div>
+//                 <span>{t.totalPointsNow}</span>
+//                 <strong>{formatPoints(celebration.totalPoints)}</strong>
+//               </div>
+//             </div>
+
+//             <button
+//               type="button"
+//               className="primary celebration-button"
+//               onClick={() => setCelebration(null)}
+//             >
+//               <Trophy size={20} />
+//               {t.celebrationClose}
+//             </button>
+//           </section>
+//         </div>
+//       )}
+
+//       {modalTask && (
+//         <div className="modal-backdrop" onClick={closeTaskModal}>
+//           <section
+//             className="task-modal"
+//             onClick={event => event.stopPropagation()}
+//           >
+//             <div className="modal-head">
+//               <div>
+//                 <span className="modal-kicker">{t.quickMarkDone}</span>
+//                 <h2>{taskLabel(modalTask.task)}</h2>
+//                 <p>
+//                   {t.markingAs} <b>{normalizeName(currentUser)}</b>
+//                 </p>
+//               </div>
+
+//               <button
+//                 type="button"
+//                 className="icon-button"
+//                 onClick={closeTaskModal}
+//                 aria-label={t.close}
+//               >
+//                 <X size={20} />
+//               </button>
+//             </div>
+
+//             {modalTask.task.id === 'deep_water' && (() => {
+//               const recentVacuum = getRecentStandaloneVacuumForMoppingDate(form.date, selectedSubtasks);
+
+//               if (recentVacuum) {
+//                 return (
+//                   <div className="vacuum-question">
+//                     <div>
+//                       <b>{t.vacuumRecentlyDoneForMop}</b>
+//                       <p>
+//                         {t.vacuumRecentlyDoneForMopHelp(
+//                           fmt(recentVacuum.date, '', lang)
+//                         )}
+//                       </p>
+//                       <p>{t.didVacuumHelp}</p>
+//                     </div>
+
+//                     <div className="vacuum-choice-row">
+//                       <button
+//                         type="button"
+//                         className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+//                         onClick={() => setIncludeVacuumWithDeep(true)}
+//                       >
+//                         <CheckCircle2 size={18} />
+//                         {t.yesVacuumDone}
+//                       </button>
+
+//                       <button
+//                         type="button"
+//                         className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+//                         onClick={() => setIncludeVacuumWithDeep(false)}
+//                       >
+//                         <X size={18} />
+//                         {t.noVacuumDone}
+//                       </button>
+//                     </div>
+//                   </div>
+//                 );
+//               }
+
+//               return (
+//                 <div className="vacuum-question">
+//                   <div>
+//                     <b>{t.didVacuumQuestion}</b>
+//                     <p>{t.didVacuumHelp}</p>
+//                   </div>
+
+//                   <div className="vacuum-choice-row">
+//                     <button
+//                       type="button"
+//                       className={`choice-button ${includeVacuumWithDeep ? 'active' : ''}`}
+//                       onClick={() => setIncludeVacuumWithDeep(true)}
+//                     >
+//                       <CheckCircle2 size={18} />
+//                       {t.yesVacuumDone}
+//                     </button>
+
+//                     <button
+//                       type="button"
+//                       className={`choice-button ${!includeVacuumWithDeep ? 'active muted' : ''}`}
+//                       onClick={() => setIncludeVacuumWithDeep(false)}
+//                     >
+//                       <X size={18} />
+//                       {t.noVacuumDone}
+//                     </button>
+//                   </div>
+//                 </div>
+//               );
+//             })()}
+
+//             {renderSubtaskSelector()}
+
+//             <div className="modal-grid">
+//               <label>
+//                 {t.dateDone}
+//                 <input
+//                   type="date"
+//                   value={form.date}
+//                   max={TODAY}
+//                   onChange={event => setForm({ ...form, date: event.target.value })}
+//                 />
+//               </label>
+
+//               <label>
+//                 {t.note}
+//                 <input
+//                   value={form.note}
+//                   onChange={event => setForm({ ...form, note: event.target.value })}
+//                   placeholder={t.optional}
+//                 />
+//               </label>
+//             </div>
+
+//             <div className="modal-actions">
+//               <button
+//                 type="button"
+//                 className="secondary-action"
+//                 onClick={closeTaskModal}
+//                 disabled={saving}
+//               >
+//                 {t.cancel}
+//               </button>
+
+//               <button
+//                 className={`primary ${saving ? 'saving' : ''}`}
+//                 onClick={markDone}
+//                 disabled={saving}
+//               >
+//                 {saving ? (
+//                   <>
+//                     <Loader2 size={20} className="spin" />
+//                     {t.processing}
+//                   </>
+//                 ) : (
+//                   <>
+//                     <CheckCircle2 size={20} />
+//                     {t.saveCompleted}
+//                   </>
+//                 )}
+//               </button>
+//             </div>
+//           </section>
+//         </div>
+//       )}
+//     </>
+//   );
+// }
+
+// createRoot(document.getElementById('root')).render(<App />);
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -41,7 +4963,6 @@ function parseIsoDateParts(date) {
   };
 }
 
-const TODAY = todayIso();
 
 const FLOOR_MIN_GAP_DAYS = 10;
 const FLOOR_BUNDLE_WINDOW_DAYS = 5;
@@ -836,7 +5757,7 @@ function getOpenCycleAssignedPerson({
   task,
   dueDate,
   absences = [],
-  date = TODAY
+  date = todayIso()
 }) {
   if (!task || task.type !== 'scheduled' || !dueDate) return '';
 
@@ -1091,7 +6012,7 @@ function status(row, fullBins, t) {
 
   if (!row.dueDate) return [t.addFirstRecord, 'plain'];
 
-  const d = diffDays(TODAY, row.dueDate);
+  const d = diffDays(todayIso(), row.dueDate);
 
   if (d === null) return [t.addFirstRecord, 'plain'];
   if (d < 0) return [t.late(Math.abs(d)), 'bad'];
@@ -1293,21 +6214,21 @@ function App() {
   const [awayModalOpen, setAwayModalOpen] = useState(false);
 
   const [awayForm, setAwayForm] = useState({
-    startDate: TODAY,
-    endDate: TODAY,
+    startDate: todayIso(),
+    endDate: todayIso(),
     reason: ''
   });
 
   const [adminAwayForm, setAdminAwayForm] = useState({
     person: '',
-    startDate: TODAY,
-    endDate: TODAY,
+    startDate: todayIso(),
+    endDate: todayIso(),
     reason: ''
   });
 
   const [form, setForm] = useState({
     taskId: 'gas_stove',
-    date: TODAY,
+    date: todayIso(),
     note: '',
     assignedPerson: ''
   });
@@ -1686,7 +6607,7 @@ function App() {
 
       if (row.task.type === 'on_demand') return !!data?.fullBins?.[row.task.id];
 
-      return !!row.dueDate && row.dueDate <= TODAY;
+      return !!row.dueDate && row.dueDate <= todayIso();
     });
   }
 
@@ -1773,7 +6694,7 @@ function App() {
     setForm(current => ({
       ...current,
       taskId: row.task.id,
-      date: TODAY,
+      date: todayIso(),
       note: '',
       assignedPerson: normalizeName(row.person)
     }));
@@ -1782,7 +6703,7 @@ function App() {
     setSelectedSubtasks(subtasks.map(subtask => subtask.id));
 
     if (row.task.id === 'deep_water') {
-      const recentVacuum = getRecentStandaloneVacuumForMoppingDate(TODAY);
+      const recentVacuum = getRecentStandaloneVacuumForMoppingDate(todayIso());
       setIncludeVacuumWithDeep(!recentVacuum);
     }
   }
@@ -1974,8 +6895,8 @@ function App() {
 
         setAdminAwayForm({
           person: savedPerson,
-          startDate: TODAY,
-          endDate: TODAY,
+          startDate: todayIso(),
+          endDate: todayIso(),
           reason: ''
         });
       }
@@ -2029,8 +6950,8 @@ function App() {
       });
 
       setAwayForm({
-        startDate: TODAY,
-        endDate: TODAY,
+        startDate: todayIso(),
+        endDate: todayIso(),
         reason: ''
       });
 
@@ -2141,7 +7062,7 @@ function App() {
           task: vacuum.task,
           dueDate: vacuum.dueDate,
           absences: data.absences,
-          date: TODAY
+          date: todayIso()
         }) ||
         fairPersonForDate(
           data.flatmates,
@@ -2177,7 +7098,7 @@ function App() {
 
       const vacuumWasOverdueBeforeMopping =
         vacuumWasBeforeMopping &&
-        vacuum.dueDate < TODAY &&
+        vacuum.dueDate < todayIso() &&
         vacuum.dueDate < deep.dueDate;
 
       deep.person = floorPerson;
@@ -2224,7 +7145,7 @@ function App() {
         task: row.task,
         dueDate: row.dueDate,
         absences: data.absences,
-        date: TODAY
+        date: todayIso()
       });
 
       row.person = openCycleAssignedPerson || fairPersonForDate(
@@ -2288,7 +7209,7 @@ function App() {
     const pendingOverdue = mine
       .filter(row => {
         if (row.task.type === 'on_demand') return !!data?.fullBins?.[row.task.id];
-        return row.dueDate && row.dueDate <= TODAY;
+        return row.dueDate && row.dueDate <= todayIso();
       })
       .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
 
@@ -2297,7 +7218,7 @@ function App() {
         if (row.task.type !== 'scheduled') return false;
         if (!row.dueDate) return false;
 
-        const days = diffDays(TODAY, row.dueDate);
+        const days = diffDays(todayIso(), row.dueDate);
         return days !== null && days > 0 && days <= 7;
       })
       .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
@@ -2404,15 +7325,15 @@ function App() {
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
   const activeAbsence =
-    myAbsences.find(absence => absence.startDate <= TODAY && absence.endDate >= TODAY) ||
+    myAbsences.find(absence => absence.startDate <= todayIso() && absence.endDate >= todayIso()) ||
     null;
 
   const upcomingAbsence =
-    myAbsences.find(absence => absence.startDate > TODAY) ||
+    myAbsences.find(absence => absence.startDate > todayIso()) ||
     null;
 
   const activeAbsencesToday = (data?.absences || [])
-  .filter(absence => absence.startDate <= TODAY && absence.endDate >= TODAY)
+  .filter(absence => absence.startDate <= todayIso() && absence.endDate >= todayIso())
   .sort((a, b) => {
     if (a.endDate !== b.endDate) return a.endDate.localeCompare(b.endDate);
     return normalizeName(a.person).localeCompare(normalizeName(b.person));
@@ -2559,7 +7480,7 @@ function App() {
         return;
       }
 
-      if (form.date > TODAY) {
+      if (form.date > todayIso()) {
         setError(t.futureDateError);
         return;
       }
@@ -2794,7 +7715,7 @@ function App() {
             <input
               type="date"
               value={form.date}
-              max={TODAY}
+              max={todayIso()}
               onChange={event => setForm({ ...form, date: event.target.value })}
             />
           </label>
@@ -3116,7 +8037,7 @@ function App() {
     return (
       <div className="overview-chore-list">
         {items.slice(0, 5).map(row => {
-          const days = row.dueDate ? diffDays(TODAY, row.dueDate) : null;
+          const days = row.dueDate ? diffDays(todayIso(), row.dueDate) : null;
 
           let timeText = '';
 
@@ -3991,7 +8912,7 @@ function App() {
               <input
                 type="date"
                 value={adminAwayForm.startDate}
-                min={TODAY}
+                min={todayIso()}
                 onChange={event =>
                   setAdminAwayForm({
                     ...adminAwayForm,
@@ -4010,7 +8931,7 @@ function App() {
               <input
                 type="date"
                 value={adminAwayForm.endDate}
-                min={adminAwayForm.startDate || TODAY}
+                min={adminAwayForm.startDate || todayIso()}
                 onChange={event =>
                   setAdminAwayForm({
                     ...adminAwayForm,
@@ -4535,7 +9456,7 @@ function App() {
                 <input
                   type="date"
                   value={awayForm.startDate}
-                  min={TODAY}
+                  min={todayIso()}
                   onChange={event =>
                     setAwayForm({
                       ...awayForm,
@@ -4554,7 +9475,7 @@ function App() {
                 <input
                   type="date"
                   value={awayForm.endDate}
-                  min={awayForm.startDate || TODAY}
+                  min={awayForm.startDate || todayIso()}
                   onChange={event =>
                     setAwayForm({
                       ...awayForm,
@@ -4868,7 +9789,7 @@ function App() {
                 <input
                   type="date"
                   value={form.date}
-                  max={TODAY}
+                  max={todayIso()}
                   onChange={event => setForm({ ...form, date: event.target.value })}
                 />
               </label>

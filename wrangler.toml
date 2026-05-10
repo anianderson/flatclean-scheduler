@@ -8,6 +8,3 @@ pages_build_output_dir = "dist"
 binding = "DB"
 database_name = "flatclean_db"
 database_id = "047b8f83-65f5-49e4-be72-65972a0347e9"
-
-[vars]
-APP_PIN = "0000"

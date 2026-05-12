@@ -9417,6 +9417,17 @@ function App() {
         {activePage === 'scores' && renderScoresPage()}
         {activePage === 'admin' && renderAdminPage()}
         {activePage === 'history' && renderHistoryPage()}
+
+        <div className="creator-credit">
+          <span>Created and designed with love by</span>
+          <a
+            href="https://www.instagram.com/anianderson7/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Animesh Kumar Aashu
+          </a>
+        </div>
       </main>
 
       {awayModalOpen && (

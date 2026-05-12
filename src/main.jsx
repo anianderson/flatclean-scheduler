@@ -9323,6 +9323,17 @@ function App() {
             </button>
           );
         })}
+
+        <div className="sidebar-credit">
+          <span>Created and designed with love by</span>
+          <a
+            href="https://www.instagram.com/anianderson7/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Animesh Kumar Aashu
+          </a>
+        </div>
       </aside>
 
       <main className="page" id="top">

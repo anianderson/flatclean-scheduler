@@ -14,7 +14,9 @@ import {
   shouldBundleFloorTasks,
   wasPersonUnavailableBetween,
   addDays,
-  todayIso
+  todayIso,
+  isInGracePeriod,
+  isAfterGracePeriod
 } from './_shared.js';
 import { bilingualEmail, sendAndLog } from './email.js';
 
@@ -22,7 +24,14 @@ const ADVANCE_THRESHOLD = 0.7;
 const DEEP_WITHOUT_VACUUM_FACTOR = 0.7;
 const MILESTONES = [5, 10, 25, 50, 75, 100, 125, 150, 175, 200];
 
-function getCompletionType({ task, assignedPerson, actualPerson, scheduledDueDate, actualDoneDate, wasAssignedUnavailable }) {
+function getCompletionType({
+  task,
+  assignedPerson,
+  actualPerson,
+  scheduledDueDate,
+  actualDoneDate,
+  wasAssignedUnavailable
+}) {
   if (task?.type === 'on_demand') return 'on_demand';
   if (!scheduledDueDate) return 'normal';
 
@@ -31,17 +40,37 @@ function getCompletionType({ task, assignedPerson, actualPerson, scheduledDueDat
     actualPerson &&
     normalizeName(assignedPerson) !== normalizeName(actualPerson);
 
-  if (someoneElseDidIt && wasAssignedUnavailable) return 'covered_absence';
+  if (someoneElseDidIt && wasAssignedUnavailable) {
+    return 'covered_absence';
+  }
 
   if (actualDoneDate < scheduledDueDate) {
-    return someoneElseDidIt ? 'completed_by_other_early' : 'early';
+    return someoneElseDidIt
+      ? 'completed_by_other_early'
+      : 'early';
   }
 
   if (actualDoneDate === scheduledDueDate) {
-    return someoneElseDidIt ? 'completed_by_other_on_time' : 'on_time';
+    return someoneElseDidIt
+      ? 'completed_by_other_on_time'
+      : 'on_time';
   }
 
-  return someoneElseDidIt ? 'completed_by_other_late' : 'late';
+  if (isInGracePeriod(scheduledDueDate, actualDoneDate)) {
+    return someoneElseDidIt
+      ? 'completed_by_other_grace'
+      : 'grace';
+  }
+
+  if (isAfterGracePeriod(scheduledDueDate, actualDoneDate)) {
+    return someoneElseDidIt
+      ? 'completed_by_other_late'
+      : 'late';
+  }
+
+  return someoneElseDidIt
+    ? 'completed_by_other_on_time'
+    : 'on_time';
 }
 
 function getCreditWeight(completionType, taskBaseWeight, completionRatio, creditFactor = 1) {
@@ -227,6 +256,7 @@ async function getTaskInfo(state, taskId) {
     people: state.flatmates,
     logs: state.logs,
     task,
+    tasks: state.allTasks || state.tasks || [],
     activePeriodId: activePeriod?.id,
     absences: state.absences,
     date: task.type === 'scheduled' ? dueDate : null
@@ -701,7 +731,7 @@ export async function onRequestPost({ request, env }) {
         extraInfo.task.type !== 'on_demand' &&
         !assignedWasUnavailable &&
         extraInfo.dueDate &&
-        date > extraInfo.dueDate &&
+        isAfterGracePeriod(extraInfo.dueDate, date) &&
         extraInfo.assignedPerson &&
         normalizeName(extraInfo.assignedPerson) !== actualPerson;
 

@@ -761,7 +761,8 @@ import {
   normalizeName,
   readState,
   shouldBundleFloorTasks,
-  todayIso
+  todayIso,
+  GRACE_PERIOD_DAYS
 } from './_shared.js';
 import { bilingualEmail, sendAndLog } from './email.js';
 
@@ -771,7 +772,6 @@ const GROUP_NOTICE_HOUR = 10;
 
 const UPCOMING_WEEK_REMINDER_DAYS = 7;
 const UPCOMING_REMINDER_DAYS = 1;
-const GRACE_PERIOD_DAYS = 3;
 const OVERDUE_FOR_DAYS_NOTICE = 3;
 const WEEK_OVERDUE_DAYS = 7;
 
@@ -882,6 +882,7 @@ function makeTaskRows(state, today) {
       people: state.flatmates,
       logs: state.logs,
       task: vacuum.task,
+      tasks: state.allTasks || state.tasks || [],
       activePeriodId: activePeriod?.id || null,
       plannedLoad,
       absences: state.absences,
@@ -899,6 +900,7 @@ function makeTaskRows(state, today) {
       people: state.flatmates,
       logs: state.logs,
       task: combinedTask,
+      tasks: state.allTasks || state.tasks || [],
       activePeriodId: activePeriod?.id || null,
       plannedLoad,
       absences: state.absences,
@@ -982,6 +984,7 @@ function makeTaskRows(state, today) {
       people: state.flatmates,
       logs: state.logs,
       task: row.task,
+      tasks: state.allTasks || state.tasks || [],
       activePeriodId: activePeriod?.id || null,
       plannedLoad,
       absences: state.absences,

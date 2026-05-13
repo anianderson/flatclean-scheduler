@@ -634,6 +634,12 @@ const HEAVY_TASK_IDS = new Set([
   'vacuum'
 ]);
 
+export const GRACE_PERIOD_DAYS = 3;
+
+export const FAIRNESS_TASK_SPECIFIC_WEIGHT = 0.75;
+export const FAIRNESS_GLOBAL_POINTS_WEIGHT = 0.18;
+export const FAIRNESS_TASK_COUNT_WEIGHT = 0.07;
+
 export const FLOOR_MIN_GAP_DAYS = 10;
 export const FLOOR_BUNDLE_WINDOW_DAYS = 5;
 
@@ -729,6 +735,30 @@ export function diffDays(from, to) {
   const diff = Math.round((b - a) / 86400000);
 
   return Number.isNaN(diff) ? null : diff;
+}
+
+export function daysAfterScheduledDate(scheduledDueDate, actualDate) {
+  if (!scheduledDueDate || !actualDate) return null;
+  return diffDays(scheduledDueDate, actualDate);
+}
+
+export function isInGracePeriod(scheduledDueDate, actualDate) {
+  const daysAfter = daysAfterScheduledDate(scheduledDueDate, actualDate);
+
+  return (
+    daysAfter !== null &&
+    daysAfter > 0 &&
+    daysAfter <= GRACE_PERIOD_DAYS
+  );
+}
+
+export function isAfterGracePeriod(scheduledDueDate, actualDate) {
+  const daysAfter = daysAfterScheduledDate(scheduledDueDate, actualDate);
+
+  return (
+    daysAfter !== null &&
+    daysAfter > GRACE_PERIOD_DAYS
+  );
 }
 
 function getBaseWeight(task) {
@@ -962,8 +992,8 @@ export function calculateScores(people, logs, task, activePeriodId = null) {
         lastDates[actualPerson] = log.date;
       }
     }
-
-    const canApplyPenalty = log.taskType !== 'on_demand';
+    
+    const canApplyPenalty = task?.type !== 'on_demand';
     const wasOverdueForSomeoneElse =
       canApplyPenalty &&
       assignedPerson &&
@@ -983,13 +1013,116 @@ export function calculateScores(people, logs, task, activePeriodId = null) {
   return { scores, lastDates, normalizedPeople };
 }
 
-function personFairnessScore({ person, people, logs, task, activePeriodId, plannedLoad = {} }) {
-  const { scores } = calculateScores(people, logs, task, activePeriodId);
+export function calculateGlobalWorkload(
+  people,
+  logs,
+  tasks = [],
+  activePeriodId = null
+) {
+  const normalizedPeople = (people || []).map(normalizeName);
+  const taskById = Object.fromEntries((tasks || []).map(task => [task.id, task]));
+
+  const workload = Object.fromEntries(
+    normalizedPeople.map(person => [
+      person,
+      {
+        points: 0,
+        taskCount: 0,
+        lastDate: '1900-01-01'
+      }
+    ])
+  );
+
+  for (const log of logs || []) {
+    if (log.isDummy) continue;
+    if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
+
+    const task = taskById[log.taskId] || null;
+    const actualPerson = normalizeName(log.actualPerson || log.person);
+    const assignedPerson = normalizeName(log.assignedPerson);
+    const creditWeight = Number(log.creditWeight || 0);
+    const completionRatio = Number(log.completionRatio || 1);
+
+    if (actualPerson) {
+      if (!workload[actualPerson]) {
+        workload[actualPerson] = {
+          points: 0,
+          taskCount: 0,
+          lastDate: '1900-01-01'
+        };
+      }
+
+      workload[actualPerson].points += creditWeight;
+      workload[actualPerson].taskCount += completionRatio || 1;
+
+      if (log.date > workload[actualPerson].lastDate) {
+        workload[actualPerson].lastDate = log.date;
+      }
+    }
+
+    const someoneElseCoveredOverdue =
+      task?.type !== 'on_demand' &&
+      assignedPerson &&
+      actualPerson &&
+      assignedPerson !== actualPerson &&
+      (
+        log.completionType === 'completed_by_other_late' ||
+        log.completionType === 'auto_included_overdue_for_other'
+      );
+
+    if (someoneElseCoveredOverdue) {
+      if (!workload[assignedPerson]) {
+        workload[assignedPerson] = {
+          points: 0,
+          taskCount: 0,
+          lastDate: '1900-01-01'
+        };
+      }
+
+      const penalty = getPenaltyForCoveredOverdueLog(log, task);
+      workload[assignedPerson].points -= penalty;
+    }
+  }
+
+  return workload;
+}
+
+function personFairnessScore({
+  person,
+  people,
+  logs,
+  task,
+  tasks = [],
+  activePeriodId,
+  plannedLoad = {}
+}) {
   const normalizedPerson = normalizeName(person);
   const baseWeight = getBaseWeight(task);
   const heavy = isHeavyTask(task);
 
-  let score = Number(scores[normalizedPerson] || 0);
+  const { scores: taskSpecificScores } = calculateScores(
+    people,
+    logs,
+    task,
+    activePeriodId
+  );
+
+  const globalWorkload = calculateGlobalWorkload(
+    people,
+    logs,
+    tasks,
+    activePeriodId
+  );
+
+  const taskSpecificScore = Number(taskSpecificScores[normalizedPerson] || 0);
+  const globalPointsScore = Number(globalWorkload[normalizedPerson]?.points || 0);
+  const taskCountScore = Number(globalWorkload[normalizedPerson]?.taskCount || 0);
+
+  let score =
+    taskSpecificScore * FAIRNESS_TASK_SPECIFIC_WEIGHT +
+    globalPointsScore * FAIRNESS_GLOBAL_POINTS_WEIGHT +
+    taskCountScore * FAIRNESS_TASK_COUNT_WEIGHT;
+
   score += Number(plannedLoad[normalizedPerson] || 0);
 
   const exactLast = lastLog(logs || [], task.id);
@@ -1002,19 +1135,47 @@ function personFairnessScore({ person, people, logs, task, activePeriodId, plann
   const groupLast = lastGroupLog(logs || [], task);
   const groupLastPerson = normalizeName(groupLast?.actualPerson || groupLast?.person);
 
-  if (groupLastPerson && groupLastPerson === normalizedPerson && groupLast?.taskId !== task.id) {
+  if (
+    groupLastPerson &&
+    groupLastPerson === normalizedPerson &&
+    groupLast?.taskId !== task.id
+  ) {
     score += heavy ? baseWeight * 1.5 : baseWeight * 0.5;
   }
 
   return score;
 }
 
-export function fairPerson(people, logs, task, activePeriodId = null, plannedLoad = {}) {
+export function fairPerson(
+  people,
+  logs,
+  task,
+  activePeriodId = null,
+  plannedLoad = {},
+  tasks = []
+) {
   const { lastDates, normalizedPeople } = calculateScores(people, logs, task, activePeriodId);
 
   return [...normalizedPeople].sort((a, b) => {
-    const aScore = personFairnessScore({ person: a, people: normalizedPeople, logs, task, activePeriodId, plannedLoad });
-    const bScore = personFairnessScore({ person: b, people: normalizedPeople, logs, task, activePeriodId, plannedLoad });
+    const aScore = personFairnessScore({
+      person: a,
+      people: normalizedPeople,
+      logs,
+      task,
+      tasks,
+      activePeriodId,
+      plannedLoad
+    });
+
+    const bScore = personFairnessScore({
+      person: b,
+      people: normalizedPeople,
+      logs,
+      task,
+      tasks,
+      activePeriodId,
+      plannedLoad
+    });
 
     if (aScore !== bScore) return aScore - bScore;
 
@@ -1026,9 +1187,26 @@ export function fairPerson(people, logs, task, activePeriodId = null, plannedLoa
   })[0];
 }
 
-export function fairPersonForDate({ people, logs, task, activePeriodId = null, plannedLoad = {}, absences = [], date = null }) {
+export function fairPersonForDate({
+  people,
+  logs,
+  task,
+  tasks = [],
+  activePeriodId = null,
+  plannedLoad = {},
+  absences = [],
+  date = null
+}) {
   const available = availablePeopleForDate(people, absences, date);
-  return fairPerson(available, logs, task, activePeriodId, plannedLoad);
+
+  return fairPerson(
+    available,
+    logs,
+    task,
+    activePeriodId,
+    plannedLoad,
+    tasks
+  );
 }
 
 function round(value) {

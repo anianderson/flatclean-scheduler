@@ -1,5 +1,5 @@
-import { json, readState } from './_shared.js';
+import { json, readStateWithAssignments } from './_shared.js';
 
 export async function onRequestGet({ env }) {
-  return json(await readState(env));
+  return json(await readStateWithAssignments(env));
 }

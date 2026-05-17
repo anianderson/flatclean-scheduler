@@ -1,4 +1,4 @@
-import { json, readState, requireAdmin } from './_shared.js';
+import { json, readStateWithAssignments, requireAdmin } from './_shared.js';
 
 function slugify(value) {
   return String(value || '')
@@ -243,7 +243,7 @@ export async function onRequestPost({ request, env }) {
       return json({ error: 'Unknown task admin action.' }, 400);
     }
 
-    return json(await readState(env));
+    return json(await readStateWithAssignments(env));
   } catch (error) {
     return json({ error: error.message || 'Could not update tasks.' }, 400);
   }

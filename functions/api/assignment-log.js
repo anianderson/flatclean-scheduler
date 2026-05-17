@@ -1,4 +1,4 @@
-import { json } from './_shared.js';
+import { json, readStateWithAssignments } from './_shared.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -64,6 +64,8 @@ function mapAssignmentLogRow(row) {
 }
 
 export async function onRequestGet({ request, env }) {
+  await readStateWithAssignments(env);
+
   const url = new URL(request.url);
   const limit = normalizeLimit(url.searchParams.get('limit'));
   const cursor = decodeCursor(url.searchParams.get('cursor'));

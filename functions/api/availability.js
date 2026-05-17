@@ -2,7 +2,7 @@ import {
   isValidDate,
   json,
   normalizeName,
-  readState,
+  readStateWithAssignments,
   requireAdmin,
   todayIso
 } from './_shared.js';
@@ -69,7 +69,7 @@ export async function onRequestPost({ request, env }) {
       .bind(absenceId)
       .run();
 
-    return json(await readState(env));
+    return json(await readStateWithAssignments(env));
   }
 
   if (action !== 'add') {
@@ -101,5 +101,5 @@ export async function onRequestPost({ request, env }) {
     .bind(crypto.randomUUID(), person, startDate, endDate, reason || 'Away')
     .run();
 
-  return json(await readState(env));
+  return json(await readStateWithAssignments(env));
 }

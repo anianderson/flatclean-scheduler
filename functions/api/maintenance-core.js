@@ -4,6 +4,7 @@ import {
   diffDays,
   getEffectiveGraceUntil,
   makeTaskRows,
+  syncAssignmentLogs,
   normalizeName,
   readState,
   todayIso
@@ -87,147 +88,6 @@ async function alreadySent(env, { emailType, taskId, person, referenceDate }) {
     .first();
 
   return !!row;
-}
-
-async function logAssignmentChanges(env, state, rows, today) {
-  try {
-    for (const row of rows) {
-    if (row.task.type !== 'scheduled' || !row.dueDate || !row.person) continue;
-
-    const lastAssignment = await env.DB.prepare(`
-      SELECT assigned_person AS assignedPerson
-      FROM assignment_logs
-      WHERE task_id = ?
-        AND COALESCE(scheduled_due_date, '') = COALESCE(?, '')
-      ORDER BY created_at DESC
-      LIMIT 1
-    `)
-      .bind(row.task.id, row.dueDate)
-      .first();
-
-    if (normalizeName(lastAssignment?.assignedPerson) === normalizeName(row.person)) {
-      continue;
-    }
-
-    const explanation = row.assignmentExplanation || {};
-    const candidates = explanation.candidates || [];
-    const winningCandidate = candidates.find(
-      candidate => normalizeName(candidate.person) === normalizeName(row.person)
-    ) || null;
-    const runnerUpCandidate = candidates.find(
-      candidate => normalizeName(candidate.person) !== normalizeName(row.person)
-    ) || null;
-
-    const scoreGap = winningCandidate && runnerUpCandidate
-      ? Number((Number(runnerUpCandidate.finalScore || 0) - Number(winningCandidate.finalScore || 0)).toFixed(2))
-      : null;
-
-    const assignmentSource = explanation.assignmentSource || 'fairness_policy';
-
-    const reasonSummary = assignmentSource === 'open_partial_cycle'
-      ? `${row.person} stays assigned because this chore cycle is still partly open. The system keeps the original assigned person responsible for the remaining parts unless they are unavailable.`
-      : runnerUpCandidate && winningCandidate
-        ? `${row.person} was assigned because their final fairness score was ${winningCandidate.finalScore}, which is ${scoreGap} lower than the next closest person, ${runnerUpCandidate.person} (${runnerUpCandidate.finalScore}). Lower score means the person is currently the fairest choice for this chore.`
-        : `${row.person} was assigned because they had the lowest fairness score for this chore. The score uses 75% chore-specific fairness, 18% global points fairness, 7% task-count fairness, already-planned workload, repeat-task penalties, and vacation availability.`;
-
-    const historicalStep = explanation.firstCycleHistoricalCreditsApplied
-      ? 'Because this chore is still in its first substantial app cycle, the system applied database-backed pre-app historical credits for this chore only. These credits stop being used after the first substantial app completion.'
-      : null;
-
-    const decisionSteps = assignmentSource === 'open_partial_cycle'
-      ? [
-          'The chore cycle is still open because it has not reached the substantial-completion threshold yet.',
-          explanation.openCycleCompletion
-            ? `Completed so far: ${explanation.openCycleCompletion.completedPercent}%. Threshold: ${explanation.openCycleCompletion.thresholdPercent}%.`
-            : 'The cycle is still below the substantial-completion threshold.',
-          `The system found ${row.person} as the existing assigned person for this open cycle.`,
-          'Because the assigned person is not unavailable today, the chore stays with the same person instead of being freshly reassigned.',
-          'Fairness scores are still stored for transparency, but open-cycle continuity wins in this case.'
-        ]
-      : [
-          'The system first removed flatmates who are unavailable on the scheduled date.',
-          historicalStep,
-          'For every available flatmate, it calculated a task-specific score for this chore.',
-          'It also calculated global points and task-count load across all chores in the current points period.',
-          'It applied the fairness formula: task-specific × 0.75 + global points × 0.18 + task count × 0.07.',
-          'It added already-planned workload from earlier chores in the same scheduling run.',
-          'It added repeat-task penalties only for substantial completions, not for small partial completions.',
-          'The available flatmate with the lowest final score was selected.',
-          'If final scores were equal, the older last-done date and then the fixed rotated tie-break order would decide.'
-        ].filter(Boolean);
-
-    const comparison = winningCandidate && runnerUpCandidate
-      ? {
-          winner: winningCandidate.person,
-          winnerFinalScore: winningCandidate.finalScore,
-          runnerUp: runnerUpCandidate.person,
-          runnerUpFinalScore: runnerUpCandidate.finalScore,
-          scoreGap
-        }
-      : null;
-
-    const details = {
-      taskId: row.task.id,
-      taskName: row.task.name || row.task.id,
-      scheduledDueDate: row.dueDate,
-      assignedPerson: row.person,
-      previousAssignedPerson: lastAssignment?.assignedPerson || null,
-      assignmentSource,
-      reason: explanation.reason || null,
-      reasonSummary,
-      decisionSteps,
-      comparison,
-      policy: explanation.policy || {
-        taskSpecificPercent: '75%',
-        globalPointsPercent: '18%',
-        taskCountPercent: '7%'
-      },
-      formula: explanation.formula || null,
-      tieBreakers: explanation.tieBreakers || [],
-      selectedCandidate: winningCandidate,
-      runnerUpCandidate,
-      candidates,
-      availablePeople: explanation.availablePeople || [],
-      unavailablePeople: explanation.unavailablePeople || [],
-      firstCycleHistoricalCreditsApplied: !!explanation.firstCycleHistoricalCreditsApplied,
-      firstCycleHistoricalCredits: explanation.firstCycleHistoricalCredits || [],
-      substantialCompletionThreshold: explanation.substantialCompletionThreshold || null,
-      openCycleCompletion: explanation.openCycleCompletion || null,
-      bundledVacuum: !!row.bundledVacuumRow,
-      bundledVacuumOriginalPerson: row.bundledVacuumRow?.originalPerson || null,
-      bundledVacuumExplanation: explanation.bundledVacuumExplanation || null,
-      generatedOn: today
-    };
-
-    await env.DB.prepare(`
-      INSERT INTO assignment_logs (
-        id,
-        task_id,
-        task_name,
-        scheduled_due_date,
-        assigned_person,
-        previous_assigned_person,
-        reason_summary,
-        details_json
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-      .bind(
-        crypto.randomUUID(),
-        row.task.id,
-        row.task.name || row.task.id,
-        row.dueDate,
-        row.person,
-        lastAssignment?.assignedPerson || null,
-        reasonSummary,
-        JSON.stringify(details)
-      )
-      .run();
-    }
-  } catch (_error) {
-    // assignment_logs is optional until the new migration has been applied.
-    // Do not fail reminders if the transparency table is missing.
-  }
 }
 
 function classifyReminder(row, today, state) {
@@ -707,7 +567,7 @@ export async function runMaintenance(env, options = {}) {
   const state = await readState(env);
   const rows = makeTaskRows(state, today);
 
-  await logAssignmentChanges(env, state, rows, today);
+  await syncAssignmentLogs(env, state, rows, today);
 
   const dueRows = rows
     .map(row => ({ row, reminder: classifyReminder(row, today, state) }))

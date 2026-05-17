@@ -11,6 +11,7 @@ import {
   lastLog,
   normalizeName,
   readState,
+  readStateWithAssignments,
   shouldBundleFloorTasks,
   wasPersonUnavailableBetween,
   addDays,
@@ -798,5 +799,5 @@ export async function onRequestPost({ request, env }) {
   await sendCompletionEmails(env, stateAfter, completionResults, actualPerson, date);
   await sendMilestoneEmails(env, stateAfter);
 
-  return json(await readState(env));
+  return json(await readStateWithAssignments(env));
 }

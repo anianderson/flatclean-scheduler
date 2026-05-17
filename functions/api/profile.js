@@ -1,4 +1,4 @@
-import { isValidEmail, json, normalizeName, readState } from './_shared.js';
+import { isValidEmail, json, normalizeName, readStateWithAssignments } from './_shared.js';
 
 export async function onRequestPost({ request, env }) {
   const body = await request.json();
@@ -33,5 +33,5 @@ export async function onRequestPost({ request, env }) {
     .bind(email, person, person === 'Naveen' ? 'Neveen' : person)
     .run();
 
-  return json(await readState(env));
+  return json(await readStateWithAssignments(env));
 }

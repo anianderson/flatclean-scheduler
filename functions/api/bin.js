@@ -1,4 +1,4 @@
-import { json, readState } from './_shared.js';
+import { json, readStateWithAssignments } from './_shared.js';
 
 export async function onRequestPost({ request, env }) {
   const body = await request.json();
@@ -19,5 +19,5 @@ export async function onRequestPost({ request, env }) {
     .bind(taskId, isFull ? 1 : 0)
     .run();
 
-  return json(await readState(env));
+  return json(await readStateWithAssignments(env));
 }

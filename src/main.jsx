@@ -1897,6 +1897,37 @@ function App() {
       subtasks: task.subtasks || []
     }));
 
+    json.taskRows = (json.taskRows || []).map(row => ({
+      ...row,
+      person: normalizeName(row.person),
+      task: row.task ? { ...row.task, subtasks: row.task.subtasks || [] } : row.task,
+      last: row.last ? {
+        ...row.last,
+        person: normalizeName(row.last.person),
+        actualPerson: normalizeName(row.last.actualPerson || row.last.person),
+        assignedPerson: normalizeName(row.last.assignedPerson),
+        completedSubtasks: row.last.completedSubtasks || [],
+        isDummy: !!row.last.isDummy
+      } : row.last,
+      bundledVacuumRow: row.bundledVacuumRow ? {
+        ...row.bundledVacuumRow,
+        person: normalizeName(row.bundledVacuumRow.person),
+        originalPerson: normalizeName(row.bundledVacuumRow.originalPerson),
+        task: row.bundledVacuumRow.task ? {
+          ...row.bundledVacuumRow.task,
+          subtasks: row.bundledVacuumRow.task.subtasks || []
+        } : row.bundledVacuumRow.task,
+        last: row.bundledVacuumRow.last ? {
+          ...row.bundledVacuumRow.last,
+          person: normalizeName(row.bundledVacuumRow.last.person),
+          actualPerson: normalizeName(row.bundledVacuumRow.last.actualPerson || row.bundledVacuumRow.last.person),
+          assignedPerson: normalizeName(row.bundledVacuumRow.last.assignedPerson),
+          completedSubtasks: row.bundledVacuumRow.last.completedSubtasks || [],
+          isDummy: !!row.bundledVacuumRow.last.isDummy
+        } : row.bundledVacuumRow.last
+      } : row.bundledVacuumRow
+    }));
+
     json.scoringPeriods = json.scoringPeriods || [];
     json.periodHistory = json.periodHistory || [];
 
@@ -2232,178 +2263,10 @@ function App() {
   const rows = useMemo(() => {
     if (!data) return [];
 
-    const base = data.tasks.map(task => {
-      const last = lastLog(allLogsForScheduling, task.id);
-      const dueDate = getDueDateFromLastLog(task, last);
-
-      return {
-        task,
-        last,
-        dueDate,
-        person: null,
-        bundledIntoDeep: false,
-        bundledVacuumRow: null
-      };
-    });
-
-    const plannedLoad = Object.fromEntries(
-      (data.flatmates || []).map(person => [normalizeName(person), 0])
-    );
-
-    const deep = base.find(row => row.task.id === 'deep_water');
-    const vacuum = base.find(row => row.task.id === 'vacuum');
-
-    if (deep && vacuum && shouldBundleVacuumWithDeep(vacuum, deep)) {
-      const originalVacuumPerson =
-        getOpenCycleAssignedPerson({
-          logs: allLogsForScheduling,
-          task: vacuum.task,
-          dueDate: vacuum.dueDate,
-          absences: data.absences,
-          date: todayIso()
-        }) ||
-        getLoggedAssignedPersonForCycle({
-          assignmentLogs: data.assignmentLogs || [],
-          taskId: vacuum.task.id,
-          scheduledDueDate: vacuum.dueDate,
-          absences: data.absences,
-          date: todayIso()
-        }) ||
-        fairPersonForDate(
-          data.flatmates,
-          allLogsForScheduling,
-          vacuum.task,
-          activePeriodId,
-          plannedLoad,
-          data.absences,
-          vacuum.dueDate
-        );
-
-      const combinedTask = {
-        ...deep.task,
-        id: 'deep_water',
-        baseWeight: getBaseWeight(deep.task) + getBaseWeight(vacuum.task),
-        taskGroup: 'floor'
-      };
-
-      const floorPerson = getLoggedAssignedPersonForCycle({
-        assignmentLogs: data.assignmentLogs || [],
-        taskId: deep.task.id,
-        scheduledDueDate: deep.dueDate,
-        absences: data.absences,
-        date: todayIso()
-      }) || fairPersonForDate(
-        data.flatmates,
-        allLogsForScheduling,
-        combinedTask,
-        activePeriodId,
-        plannedLoad,
-        data.absences,
-        deep.dueDate
-      );
-
-      const vacuumWasBeforeMopping =
-        vacuum.dueDate &&
-        deep.dueDate &&
-        vacuum.dueDate <= deep.dueDate;
-
-      const vacuumWasOverdueBeforeMopping =
-        vacuumWasBeforeMopping &&
-        vacuum.dueDate < todayIso() &&
-        vacuum.dueDate < deep.dueDate;
-
-      deep.person = floorPerson;
-      deep.bundledVacuumRow = {
-        ...vacuum,
-        originalDueDate: vacuum.dueDate,
-        originalPerson: originalVacuumPerson,
-        dueDate: deep.dueDate,
-        person: floorPerson,
-        bundledBecauseOverdue: vacuumWasOverdueBeforeMopping,
-        bundledBecauseMoppingComesFirst:
-          deep.dueDate && vacuum.dueDate && deep.dueDate < vacuum.dueDate
-      };
-
-      vacuum.person = floorPerson;
-      vacuum.dueDate = deep.dueDate;
-      vacuum.bundledIntoDeep = true;
-
-      plannedLoad[floorPerson] =
-        Number(plannedLoad[floorPerson] || 0) +
-        getBaseWeight(deep.task) +
-        getBaseWeight(vacuum.task);
-    }
-
-    const assignmentOrder = [...base]
-      .filter(row => !row.bundledIntoDeep)
-      .sort((a, b) => {
-        if (a.task.type !== b.task.type) {
-          return a.task.type === 'scheduled' ? -1 : 1;
-        }
-
-        return (a.dueDate || '9999-12-31').localeCompare(
-          b.dueDate || '9999-12-31'
-        );
-      });
-
-    for (const row of assignmentOrder) {
-      if (row.person) continue;
-
-      const assignmentDate = row.task.type === 'scheduled' ? row.dueDate : null;
-
-      const openCycleAssignedPerson = getOpenCycleAssignedPerson({
-        logs: allLogsForScheduling,
-        task: row.task,
-        dueDate: row.dueDate,
-        absences: data.absences,
-        date: todayIso()
-      });
-
-      const loggedAssignedPerson = getLoggedAssignedPersonForCycle({
-        assignmentLogs: data.assignmentLogs || [],
-        taskId: row.task.id,
-        scheduledDueDate: row.dueDate,
-        absences: data.absences,
-        date: todayIso()
-      });
-
-      row.person = openCycleAssignedPerson || loggedAssignedPerson || fairPersonForDate(
-        data.flatmates,
-        allLogsForScheduling,
-        row.task,
-        activePeriodId,
-        plannedLoad,
-        data.absences,
-        assignmentDate
-      );
-
-      plannedLoad[row.person] =
-        Number(plannedLoad[row.person] || 0) + getBaseWeight(row.task);
-    }
-
-    if (
-      deep &&
-      vacuum &&
-      !vacuum.bundledIntoDeep &&
-      deep.person &&
-      vacuum.person === deep.person
-    ) {
-      vacuum.person = fairPersonAvoiding(
-        data.flatmates,
-        allLogsForScheduling,
-        vacuum.task,
-        deep.person,
-        activePeriodId,
-        plannedLoad,
-        data.absences,
-        vacuum.dueDate
-      );
-    }
-
     const activeUser = normalizeName(currentUser);
 
-    return base
-      .filter(row => !row.bundledIntoDeep)
+    return [...(data.taskRows || [])]
+      .filter(row => row?.task && !row.bundledIntoDeep)
       .sort((a, b) => {
         const aMine = normalizeName(a.person) === activeUser;
         const bMine = normalizeName(b.person) === activeUser;
@@ -2418,7 +2281,7 @@ function App() {
           b.dueDate || '9999-12-31'
         );
       });
-  }, [data, currentUser, activePeriodId, allLogsForScheduling]);
+  }, [data, currentUser]);
 
   const myChoreOverview = useMemo(() => {
     const mine = rows.filter(row =>

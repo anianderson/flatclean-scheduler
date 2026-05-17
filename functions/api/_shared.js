@@ -1131,6 +1131,14 @@ export function makeTaskRows(state, today = todayIso()) {
       date: today
     });
 
+    const loggedAssignedPerson = getLoggedAssignedPersonForCycle({
+      assignmentLogs: state.assignmentLogs || [],
+      taskId: row.task.id,
+      scheduledDueDate: row.dueDate,
+      absences: state.absences,
+      date: today
+    });
+
     const openCycleCompletion = getCycleCompletionFromLogs(
       state.logs || [],
       row.task,
@@ -1182,6 +1190,176 @@ export function makeTaskRows(state, today = todayIso()) {
   }
 
   return rows.filter(row => !row.bundledIntoDeep);
+}
+
+export async function syncAssignmentLogs(env, state, rows = null, today = todayIso()) {
+  const taskRows = rows || makeTaskRows(state, today);
+
+  try {
+    for (const row of taskRows) {
+      if (row.task.type !== 'scheduled' || !row.dueDate || !row.person) continue;
+
+      const lastAssignment = await env.DB.prepare(`
+        SELECT
+          id,
+          assigned_person AS assignedPerson,
+          details_json AS detailsJson
+        FROM assignment_logs
+        WHERE task_id = ?
+          AND COALESCE(scheduled_due_date, '') = COALESCE(?, '')
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+      `)
+        .bind(row.task.id, row.dueDate)
+        .first();
+
+      const lastAssignedPerson = normalizeName(lastAssignment?.assignedPerson);
+      const currentAssignedPerson = normalizeName(row.person);
+      const existingDetails = (() => {
+        try {
+          return lastAssignment?.detailsJson ? JSON.parse(lastAssignment.detailsJson) : {};
+        } catch (_error) {
+          return {};
+        }
+      })();
+
+      const existingVersion = Number(existingDetails.assignmentLogVersion || 0);
+      const currentSource = row.assignmentExplanation?.assignmentSource || 'fairness_policy';
+
+      if (lastAssignedPerson === currentAssignedPerson && existingVersion >= 2) {
+        continue;
+      }
+
+      const explanation = row.assignmentExplanation || {};
+      const candidates = Array.isArray(explanation.candidates) ? explanation.candidates : [];
+      const winningCandidate = candidates.find(
+        candidate => normalizeName(candidate.person) === currentAssignedPerson
+      ) || null;
+      const runnerUpCandidate = candidates.find(
+        candidate => normalizeName(candidate.person) !== currentAssignedPerson
+      ) || null;
+
+      const scoreGap = winningCandidate && runnerUpCandidate
+        ? round(Number(runnerUpCandidate.finalScore || 0) - Number(winningCandidate.finalScore || 0))
+        : null;
+
+      const reasonSummary = currentSource === 'open_partial_cycle'
+        ? `${currentAssignedPerson} stays assigned because this chore cycle is still partly open. The system keeps the original assigned person responsible for the remaining parts unless they are unavailable.`
+        : currentSource === 'logged_current_assignment' && lastAssignedPerson === currentAssignedPerson
+          ? `${currentAssignedPerson} stays assigned because this chore already has a saved backend assignment for the current scheduled date.`
+          : runnerUpCandidate && winningCandidate
+            ? `${currentAssignedPerson} was assigned because their final fairness score was ${winningCandidate.finalScore}, which is ${scoreGap} lower than the next closest person, ${runnerUpCandidate.person} (${runnerUpCandidate.finalScore}). Lower score means the person is currently the fairest choice for this chore.`
+            : `${currentAssignedPerson} was assigned because they had the lowest backend fairness score for this chore.`;
+
+      const historicalStep = explanation.firstCycleHistoricalCreditsApplied
+        ? 'Because this chore is still in its first substantial app cycle, the system applied database-backed pre-app historical credits for this chore only. These credits stop being used after the first substantial app completion.'
+        : null;
+
+      const decisionSteps = currentSource === 'open_partial_cycle'
+        ? [
+            'The backend checked whether this chore has an unfinished partial cycle.',
+            explanation.openCycleCompletion
+              ? `Completed so far: ${explanation.openCycleCompletion.completedPercent}%. Threshold: ${explanation.openCycleCompletion.thresholdPercent}%.`
+              : 'The cycle is still below the substantial-completion threshold.',
+            `The backend found ${currentAssignedPerson} as the saved assigned person for this open cycle.`,
+            'Because the assigned person is not unavailable, the backend keeps the same person instead of freshly reassigning the remaining parts.',
+            'The frontend only displays this backend assignment.'
+          ]
+        : [
+            'The backend checked the current scheduled date and current chore cycle.',
+            'The backend removed flatmates who are unavailable on the scheduled date.',
+            historicalStep,
+            'The backend calculated task-specific fairness for each available flatmate.',
+            'The backend calculated global points and task-count load across all chores in the current points period.',
+            'The backend applied the fairness formula: task-specific × 0.75 + global points × 0.18 + task count × 0.07.',
+            'The backend added already-planned workload from earlier chores in this same scheduling run.',
+            'The backend added repeat-task penalties only for substantial completions, not for small partial completions.',
+            'The backend selected the available flatmate with the lowest final score.',
+            'The frontend only displays this backend assignment.'
+          ].filter(Boolean);
+
+      const details = {
+        assignmentLogVersion: 2,
+        taskId: row.task.id,
+        taskName: row.task.name || row.task.id,
+        scheduledDueDate: row.dueDate,
+        assignedPerson: currentAssignedPerson,
+        previousAssignedPerson: lastAssignedPerson || null,
+        assignmentSource: currentSource,
+        reason: explanation.reason || null,
+        reasonSummary,
+        decisionSteps,
+        steps: decisionSteps,
+        comparison: winningCandidate && runnerUpCandidate ? {
+          winner: winningCandidate.person,
+          winnerFinalScore: winningCandidate.finalScore,
+          runnerUp: runnerUpCandidate.person,
+          runnerUpFinalScore: runnerUpCandidate.finalScore,
+          scoreGap
+        } : null,
+        selection: winningCandidate && runnerUpCandidate ? {
+          winner: winningCandidate.person,
+          winnerScore: winningCandidate.finalScore,
+          runnerUp: runnerUpCandidate.person,
+          runnerUpScore: runnerUpCandidate.finalScore,
+          scoreDifference: scoreGap
+        } : null,
+        policy: {
+          ...(explanation.policy || {}),
+          formula: explanation.formula || 'final score = task-specific points × 0.75 + global points × 0.18 + task count × 0.07 + already planned load + repeat-task penalties. The lowest final score is assigned.'
+        },
+        formula: explanation.formula || null,
+        tieBreakers: explanation.tieBreakers || [],
+        selectedCandidate: winningCandidate,
+        runnerUpCandidate,
+        candidates,
+        availablePeople: explanation.availablePeople || [],
+        unavailablePeople: explanation.unavailablePeople || [],
+        firstCycleHistoricalCreditsApplied: !!explanation.firstCycleHistoricalCreditsApplied,
+        firstCycleHistoricalCredits: explanation.firstCycleHistoricalCredits || [],
+        substantialCompletionThreshold: explanation.substantialCompletionThreshold || null,
+        openCycleCompletion: explanation.openCycleCompletion || null,
+        partialCycle: explanation.openCycleCompletion || null,
+        bundledVacuum: !!row.bundledVacuumRow,
+        bundledVacuumOriginalPerson: row.bundledVacuumRow?.originalPerson || null,
+        bundledVacuumExplanation: explanation.bundledVacuumExplanation || null,
+        generatedOn: today
+      };
+
+      await env.DB.prepare(`
+        INSERT INTO assignment_logs (
+          id,
+          task_id,
+          task_name,
+          scheduled_due_date,
+          assigned_person,
+          previous_assigned_person,
+          reason_summary,
+          details_json
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+        .bind(
+          crypto.randomUUID(),
+          row.task.id,
+          row.task.name || row.task.id,
+          row.dueDate,
+          currentAssignedPerson,
+          lastAssignedPerson || null,
+          reasonSummary,
+          JSON.stringify(details)
+        )
+        .run();
+    }
+  } catch (_error) {
+    // assignment_logs may not exist in old deployments. Assignment display still works from computed backend rows.
+  }
+}
+
+export async function readStateWithAssignments(env, today = todayIso()) {
+  const state = await readState(env);
+  await syncAssignmentLogs(env, state, state.taskRows || makeTaskRows(state, today), today);
+  return readState(env);
 }
 
 function round(value) {
@@ -1478,6 +1656,7 @@ export async function readState(env) {
   );
   state.scores = buildScoreSummary({ ...state, tasks: allTaskRows });
   state.periodHistory = buildPeriodHistory({ ...state, tasks: allTaskRows });
+  state.taskRows = makeTaskRows(state, todayIso());
 
   return state;
 }

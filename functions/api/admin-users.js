@@ -1,4 +1,4 @@
-import { isValidEmail, json, normalizeName, readState, requireAdmin } from './_shared.js';
+import { isValidEmail, json, normalizeName, readStateWithAssignments, requireAdmin } from './_shared.js';
 
 async function getActivePeriod(env) {
   return env.DB.prepare(`
@@ -112,7 +112,7 @@ export async function onRequestPost({ request, env }) {
 
     await startNewPeriod(env, `Flatmate list changed: ${name} was added.`);
 
-    return json(await readState(env));
+    return json(await readStateWithAssignments(env));
   }
 
   if (action === 'update') {
@@ -139,7 +139,7 @@ export async function onRequestPost({ request, env }) {
       note: `Email address was updated for ${name}.`
     });
 
-    return json(await readState(env));
+    return json(await readStateWithAssignments(env));
   }
 
   if (action === 'delete') {
@@ -163,7 +163,7 @@ export async function onRequestPost({ request, env }) {
 
     await startNewPeriod(env, `Flatmate list changed: ${existing.name} was removed.`);
 
-    return json(await readState(env));
+    return json(await readStateWithAssignments(env));
   }
 
   return json({ error: 'Unknown admin action.' }, 400);

@@ -7,6 +7,7 @@ import {
   makeTaskRows,
   normalizeName,
   readState,
+  readStateWithAssignments,
   todayIso
 } from './_shared.js';
 
@@ -102,7 +103,7 @@ export async function onRequestPost({ request, env }) {
     .run();
 
   return json({
-    state: await readState(env),
+    state: await readStateWithAssignments(env),
     extendedUntil
   });
 }

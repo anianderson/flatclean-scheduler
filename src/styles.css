@@ -3474,3 +3474,19 @@ input[type="date"] {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Assignment details: allow collapsing by clicking anywhere inside expanded details */
+.assignment-detail-panel {
+  cursor: pointer;
+}
+
+.assignment-detail-panel * {
+  cursor: pointer;
+}
+
+.assignment-detail-panel:focus-visible {
+  outline: 3px solid rgba(99, 102, 241, .24);
+  outline-offset: 4px;
+  border-radius: 18px;
+}

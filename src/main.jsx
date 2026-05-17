@@ -4196,18 +4196,68 @@ function App() {
       return normalizeName(candidate?.person || candidate?.name || '');
     }
 
+    function candidateMetricValue(candidate, ...keys) {
+      for (const key of keys) {
+        const value = candidate?.[key];
+        const number = Number(value);
+
+        if (value !== undefined && value !== null && Number.isFinite(number)) {
+          return number;
+        }
+      }
+
+      return 0;
+    }
+
     function candidateScore(candidate) {
+      const weightedTaskSpecific = candidateMetricValue(
+        candidate,
+        'taskSpecificWeighted',
+        'weightedTaskSpecific'
+      );
+
+      const weightedGlobalPoints = candidateMetricValue(
+        candidate,
+        'globalPointsWeighted',
+        'weightedGlobalPoints'
+      );
+
+      const weightedTaskCount = candidateMetricValue(
+        candidate,
+        'taskCountWeighted',
+        'weightedTaskCount'
+      );
+
+      const plannedLoad = candidateMetricValue(candidate, 'plannedLoad');
+      const repeatPenalty =
+        candidateMetricValue(candidate, 'sameTaskRepeatPenalty', 'exactRepeatPenalty') +
+        candidateMetricValue(candidate, 'groupRepeatPenalty');
+
+      const calculatedScore =
+        weightedTaskSpecific +
+        weightedGlobalPoints +
+        weightedTaskCount +
+        plannedLoad +
+        repeatPenalty;
+
+      const hasWeightedParts = [
+        'taskSpecificWeighted',
+        'weightedTaskSpecific',
+        'globalPointsWeighted',
+        'weightedGlobalPoints',
+        'taskCountWeighted',
+        'weightedTaskCount'
+      ].some(key => candidate?.[key] !== undefined && candidate?.[key] !== null);
+
+      if (hasWeightedParts && Number.isFinite(calculatedScore)) {
+        return Number(calculatedScore.toFixed(2));
+      }
+
       return asNumber(candidate?.finalScore ?? candidate?.score ?? candidate?.totalScore, 0);
     }
 
     function scoreLabel(candidate, ...keys) {
-      for (const key of keys) {
-        if (candidate?.[key] !== undefined && candidate?.[key] !== null) {
-          return formatPoints(candidate[key]);
-        }
-      }
-
-      return formatPoints(0);
+      return formatPoints(candidateMetricValue(candidate, ...keys));
     }
 
     function renderCandidateMetric(label, value, detail = '') {
@@ -4298,7 +4348,19 @@ function App() {
                 </button>
 
                 {isOpen && (
-                  <div className="assignment-detail-panel">
+                  <div
+                    className="assignment-detail-panel"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleAssignmentLog(item.id)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        toggleAssignmentLog(item.id);
+                      }
+                    }}
+                    aria-label="Collapse assignment details"
+                  >
                     {item.reasonSummary && (
                       <p className="assignment-reason">{item.reasonSummary}</p>
                     )}
@@ -4372,8 +4434,8 @@ function App() {
                           {sortedCandidates.map(candidate => {
                             const name = candidateName(candidate);
                             const selected = candidate.selected || normalizeName(name) === normalizeName(item.assignedPerson);
-                            const sameTaskPenalty = asNumber(candidate.sameTaskRepeatPenalty, 0);
-                            const groupPenalty = asNumber(candidate.groupRepeatPenalty, 0);
+                            const sameTaskPenalty = candidateMetricValue(candidate, 'sameTaskRepeatPenalty', 'exactRepeatPenalty');
+                            const groupPenalty = candidateMetricValue(candidate, 'groupRepeatPenalty');
 
                             return (
                               <div
@@ -4392,17 +4454,17 @@ function App() {
                                   {renderCandidateMetric(
                                     'Task-specific',
                                     scoreLabel(candidate, 'taskSpecificRaw', 'taskSpecificScore'),
-                                    `× 0.75 = ${scoreLabel(candidate, 'taskSpecificWeighted')}`
+                                    `× 0.75 = ${scoreLabel(candidate, 'taskSpecificWeighted', 'weightedTaskSpecific')}`
                                   )}
                                   {renderCandidateMetric(
                                     'Global points',
                                     scoreLabel(candidate, 'globalPointsRaw', 'globalPointsScore'),
-                                    `× 0.18 = ${scoreLabel(candidate, 'globalPointsWeighted')}`
+                                    `× 0.18 = ${scoreLabel(candidate, 'globalPointsWeighted', 'weightedGlobalPoints')}`
                                   )}
                                   {renderCandidateMetric(
                                     'Task count',
                                     scoreLabel(candidate, 'taskCountRaw', 'taskCountScore'),
-                                    `× 0.07 = ${scoreLabel(candidate, 'taskCountWeighted')}`
+                                    `× 0.07 = ${scoreLabel(candidate, 'taskCountWeighted', 'weightedTaskCount')}`
                                   )}
                                   {renderCandidateMetric(
                                     'Planned load',

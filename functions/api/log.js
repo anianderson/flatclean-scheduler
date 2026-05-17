@@ -18,11 +18,12 @@ import {
   getCycleId,
   getEffectiveGraceUntil,
   isInEffectiveGracePeriod,
-  isAfterEffectiveGracePeriod
+  isAfterEffectiveGracePeriod,
+  SUBSTANTIAL_COMPLETION_THRESHOLD
 } from './_shared.js';
 import { bilingualEmail, sendAndLog } from './email.js';
 
-const ADVANCE_THRESHOLD = 0.7;
+const ADVANCE_THRESHOLD = SUBSTANTIAL_COMPLETION_THRESHOLD;
 const DEEP_WITHOUT_VACUUM_FACTOR = 0.7;
 const MILESTONES = [5, 10, 25, 50, 75, 100, 125, 150, 175, 200];
 

@@ -652,6 +652,13 @@ const translations = {
 };
 
 const GRACE_PERIOD_DAYS = 3;
+const SUBSTANTIAL_COMPLETION_THRESHOLD = 0.7;
+
+const HISTORICAL_ASSIGNMENT_CREDIT_TYPES = new Set([
+  'first_cycle_assignment_credit',
+  'pre_launch_baseline',
+  'baseline_history'
+]);
 
 function getDefaultGraceUntil(scheduledDueDate) {
   return scheduledDueDate ? addDays(scheduledDueDate, GRACE_PERIOD_DAYS) : null;
@@ -836,6 +843,80 @@ function isHeavyTask(task) {
   return HEAVY_TASK_IDS.has(task?.id) || getBaseWeight(task) >= 2;
 }
 
+function isHistoricalAssignmentCreditLog(log) {
+  return HISTORICAL_ASSIGNMENT_CREDIT_TYPES.has(String(log?.completionType || ''));
+}
+
+function isSubstantialCompletionLog(log) {
+  if (!log || log.isDummy) return false;
+  if (isHistoricalAssignmentCreditLog(log)) return false;
+
+  return Number(log.completionRatio || 1) >= SUBSTANTIAL_COMPLETION_THRESHOLD;
+}
+
+function taskIdsForFairnessTask(task) {
+  return task?.taskGroup === 'floor'
+    ? ['vacuum', 'deep_water']
+    : task?.id
+      ? [task.id]
+      : [];
+}
+
+function hasRealSubstantialCompletionForTask(logs, task) {
+  const taskIds = taskIdsForFairnessTask(task);
+
+  return (logs || []).some(log =>
+    taskIds.includes(log.taskId) && isSubstantialCompletionLog(log)
+  );
+}
+
+function getFirstCycleHistoricalCredits(logs, task, people = []) {
+  const taskIds = taskIdsForFairnessTask(task);
+  const allowedPeople = new Set((people || []).map(normalizeName));
+
+  if (!taskIds.length || hasRealSubstantialCompletionForTask(logs, task)) {
+    return [];
+  }
+
+  return (logs || [])
+    .filter(log => taskIds.includes(log.taskId))
+    .filter(isHistoricalAssignmentCreditLog)
+    .map(log => {
+      const person = normalizeName(log.actualPerson || log.person);
+      const creditWeight = Number(log.creditWeight || 0);
+
+      return {
+        person,
+        date: log.date || '',
+        creditWeight
+      };
+    })
+    .filter(log => log.person && (!allowedPeople.size || allowedPeople.has(log.person)))
+    .filter(log => Number(log.creditWeight || 0) > 0);
+}
+
+function lastSubstantialLog(logs, taskId) {
+  return (logs || [])
+    .filter(log => log.taskId === taskId)
+    .filter(isSubstantialCompletionLog)
+    .sort((a, b) => {
+      if (b.date !== a.date) return b.date.localeCompare(a.date);
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    })[0];
+}
+
+function lastSubstantialGroupLog(logs, task) {
+  const ids = task?.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task?.id];
+
+  return (logs || [])
+    .filter(log => ids.includes(log.taskId))
+    .filter(isSubstantialCompletionLog)
+    .sort((a, b) => {
+      if (b.date !== a.date) return b.date.localeCompare(a.date);
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    })[0];
+}
+
 function isPersonUnavailable(absences, person, date) {
   if (!person || !date) return false;
 
@@ -949,6 +1030,7 @@ function getOpenCycleAssignedPerson({
 
   const completion = getCycleCompletionFromLogs(logs, task, dueDate);
   if (!completion.isOpen) return '';
+  if (completion.ratio >= SUBSTANTIAL_COMPLETION_THRESHOLD) return '';
 
   const cycleId = `${task.id}:${dueDate}`;
 
@@ -1027,8 +1109,8 @@ function rotatedRank(person, people, taskId) {
 }
 
 function calculateScores(people, logs, task, activePeriodId = null) {
-  const normalizedPeople = people.map(normalizeName);
-  const taskIds = task.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task.id];
+  const normalizedPeople = (people || []).map(normalizeName);
+  const taskIds = taskIdsForFairnessTask(task);
 
   const scores = Object.fromEntries(normalizedPeople.map(person => [person, 0]));
   const lastDates = Object.fromEntries(
@@ -1036,9 +1118,10 @@ function calculateScores(people, logs, task, activePeriodId = null) {
   );
 
   for (const log of logs || []) {
+    if (isHistoricalAssignmentCreditLog(log)) continue;
     if (log.isDummy) continue;
     if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
-    if (!taskIds.includes(log.taskId)) continue;
+    if (taskIds.length && !taskIds.includes(log.taskId)) continue;
 
     const actualPerson = normalizeName(log.actualPerson || log.person);
     const assignedPerson = normalizeName(log.assignedPerson);
@@ -1047,7 +1130,10 @@ function calculateScores(people, logs, task, activePeriodId = null) {
     if (actualPerson) {
       scores[actualPerson] = (scores[actualPerson] || 0) + weight;
 
-      if (log.date > (lastDates[actualPerson] || '1900-01-01')) {
+      if (
+        isSubstantialCompletionLog(log) &&
+        log.date > (lastDates[actualPerson] || '1900-01-01')
+      ) {
         lastDates[actualPerson] = log.date;
       }
     }
@@ -1065,6 +1151,17 @@ function calculateScores(people, logs, task, activePeriodId = null) {
     if (wasOverdueForSomeoneElse) {
       const penalty = getPenaltyForCoveredOverdueLog(log, task);
       scores[assignedPerson] = (scores[assignedPerson] || 0) - penalty;
+    }
+  }
+
+  for (const credit of getFirstCycleHistoricalCredits(logs, task, normalizedPeople)) {
+    const person = normalizeName(credit.person);
+    const value = Number(credit.creditWeight || 0);
+
+    scores[person] = (scores[person] || 0) + value;
+
+    if (credit.date && credit.date > (lastDates[person] || '1900-01-01')) {
+      lastDates[person] = credit.date;
     }
   }
 
@@ -1088,6 +1185,7 @@ function calculateGlobalWorkload(people, logs, tasks = [], activePeriodId = null
   );
 
   for (const log of logs || []) {
+    if (isHistoricalAssignmentCreditLog(log)) continue;
     if (log.isDummy) continue;
     if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
 
@@ -1175,14 +1273,14 @@ function personFairnessScore({
 
   score += Number(plannedLoad[normalizedPerson] || 0);
 
-  const exactLast = lastLog(logs || [], task.id);
+  const exactLast = lastSubstantialLog(logs || [], task.id);
   const exactLastPerson = normalizeName(exactLast?.actualPerson || exactLast?.person);
 
   if (exactLastPerson && exactLastPerson === normalizedPerson) {
     score += heavy ? baseWeight * 4 : baseWeight * 0.75;
   }
 
-  const groupLast = lastGroupLog(logs || [], task);
+  const groupLast = lastSubstantialGroupLog(logs || [], task);
   const groupLastPerson = normalizeName(groupLast?.actualPerson || groupLast?.person);
 
   if (
@@ -4500,6 +4598,7 @@ function App() {
             const decisionSteps = item.details?.decisionSteps || [];
             const unavailablePeople = item.details?.unavailablePeople || [];
             const availablePeople = item.details?.availablePeople || [];
+            const historicalCredits = item.details?.firstCycleHistoricalCredits || [];
 
             return (
               <article className="assignment-log-card" key={item.id}>
@@ -4547,6 +4646,13 @@ function App() {
                   </div>
                 )}
 
+                {!!historicalCredits.length && (
+                  <div className="assignment-people-box">
+                    <span><b>First-cycle historical credits:</b> {historicalCredits.map(credit => `${credit.person} (${credit.taskId})`).join(', ')}</span>
+                    <span>Used only for this chore's first substantial app cycle. These credits stop applying after a substantial completion.</span>
+                  </div>
+                )}
+
                 {!!decisionSteps.length && (
                   <div className="assignment-steps-box">
                     <b>Decision process</b>
@@ -4563,7 +4669,7 @@ function App() {
                     <b>Selected: {item.assignedPerson}</b>
                     <span>Final score: {formatPoints(selectedCandidate.finalScore)}</span>
                     <small>
-                      {t.policyTaskSpecific}: {formatPoints(selectedCandidate.taskSpecificScore)} × 0.75 = {formatPoints(selectedCandidate.weightedTaskSpecific)} · {t.policyGlobalPoints}: {formatPoints(selectedCandidate.globalPointsScore)} × 0.18 = {formatPoints(selectedCandidate.weightedGlobalPoints)} · {t.policyTaskCount}: {formatPoints(selectedCandidate.taskCountScore)} × 0.07 = {formatPoints(selectedCandidate.weightedTaskCount)} · Planned load: {formatPoints(selectedCandidate.plannedLoad)} · Repeat penalty: {formatPoints(Number(selectedCandidate.exactRepeatPenalty || 0) + Number(selectedCandidate.groupRepeatPenalty || 0))}
+                      {t.policyTaskSpecific}: {formatPoints(selectedCandidate.taskSpecificScore)} × 0.75 = {formatPoints(selectedCandidate.weightedTaskSpecific)} · Historical first-cycle part: {formatPoints(selectedCandidate.historicalTaskCredit || 0)} · {t.policyGlobalPoints}: {formatPoints(selectedCandidate.globalPointsScore)} × 0.18 = {formatPoints(selectedCandidate.weightedGlobalPoints)} · {t.policyTaskCount}: {formatPoints(selectedCandidate.taskCountScore)} × 0.07 = {formatPoints(selectedCandidate.weightedTaskCount)} · Planned load: {formatPoints(selectedCandidate.plannedLoad)} · Repeat penalty: {formatPoints(Number(selectedCandidate.exactRepeatPenalty || 0) + Number(selectedCandidate.groupRepeatPenalty || 0))}
                     </small>
                   </div>
                 )}
@@ -4592,6 +4698,8 @@ function App() {
                         </div>
                         <div className="assignment-candidate-breakdown">
                           <span>Task raw: {formatPoints(candidate.taskSpecificScore)}</span>
+                          <span>Current app task raw: {formatPoints(candidate.currentTaskSpecificScore || 0)}</span>
+                          <span>First-cycle history raw: {formatPoints(candidate.historicalTaskCredit || 0)}</span>
                           <span>Task weighted: {formatPoints(candidate.weightedTaskSpecific)}</span>
                           <span>Global raw: {formatPoints(candidate.globalPointsScore)}</span>
                           <span>Global weighted: {formatPoints(candidate.weightedGlobalPoints)}</span>

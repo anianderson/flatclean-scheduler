@@ -15,8 +15,10 @@ import {
   wasPersonUnavailableBetween,
   addDays,
   todayIso,
-  isInGracePeriod,
-  isAfterGracePeriod
+  getCycleId,
+  getEffectiveGraceUntil,
+  isInEffectiveGracePeriod,
+  isAfterEffectiveGracePeriod
 } from './_shared.js';
 import { bilingualEmail, sendAndLog } from './email.js';
 
@@ -30,7 +32,8 @@ function getCompletionType({
   actualPerson,
   scheduledDueDate,
   actualDoneDate,
-  wasAssignedUnavailable
+  wasAssignedUnavailable,
+  effectiveGraceUntil
 }) {
   if (task?.type === 'on_demand') return 'on_demand';
   if (!scheduledDueDate) return 'normal';
@@ -45,32 +48,22 @@ function getCompletionType({
   }
 
   if (actualDoneDate < scheduledDueDate) {
-    return someoneElseDidIt
-      ? 'completed_by_other_early'
-      : 'early';
+    return someoneElseDidIt ? 'completed_by_other_early' : 'early';
   }
 
   if (actualDoneDate === scheduledDueDate) {
-    return someoneElseDidIt
-      ? 'completed_by_other_on_time'
-      : 'on_time';
+    return someoneElseDidIt ? 'completed_by_other_on_time' : 'on_time';
   }
 
-  if (isInGracePeriod(scheduledDueDate, actualDoneDate)) {
-    return someoneElseDidIt
-      ? 'completed_by_other_grace'
-      : 'grace';
+  if (isInEffectiveGracePeriod({ scheduledDueDate, actualDate: actualDoneDate, effectiveGraceUntil })) {
+    return someoneElseDidIt ? 'completed_by_other_grace' : 'grace';
   }
 
-  if (isAfterGracePeriod(scheduledDueDate, actualDoneDate)) {
-    return someoneElseDidIt
-      ? 'completed_by_other_late'
-      : 'late';
+  if (isAfterEffectiveGracePeriod({ scheduledDueDate, actualDate: actualDoneDate, effectiveGraceUntil })) {
+    return someoneElseDidIt ? 'completed_by_other_late' : 'late';
   }
 
-  return someoneElseDidIt
-    ? 'completed_by_other_on_time'
-    : 'on_time';
+  return someoneElseDidIt ? 'completed_by_other_on_time' : 'on_time';
 }
 
 function getCreditWeight(completionType, taskBaseWeight, completionRatio, creditFactor = 1) {
@@ -276,9 +269,6 @@ function getSelectedSubtasks(task, completedSubtaskIds) {
   return taskSubtasks.filter(subtask => selectedIds.has(subtask.id));
 }
 
-function getCycleId(taskId, scheduledDueDate, actualDoneDate) {
-  return `${taskId}:${scheduledDueDate || actualDoneDate}`;
-}
 
 function getAggregateCompletedSubtaskIds(logs, taskId, cycleId, newSelectedIds) {
   const completed = new Set(newSelectedIds);
@@ -418,13 +408,21 @@ async function completeTask({
     info.dueDate &&
     wasPersonUnavailableBetween(stateBefore.absences, info.assignedPerson, info.dueDate, date);
 
+  const effectiveGraceUntil = getEffectiveGraceUntil({
+    graceExtensions: stateBefore.graceExtensions || [],
+    taskId,
+    cycleId,
+    scheduledDueDate: info.dueDate
+  });
+
   let completionType = forcedCompletionType || getCompletionType({
     task: info.task,
     assignedPerson: info.assignedPerson,
     actualPerson,
     scheduledDueDate: info.dueDate,
     actualDoneDate: date,
-    wasAssignedUnavailable
+    wasAssignedUnavailable,
+    effectiveGraceUntil
   });
 
   if (completion.isPartial && !forcedCompletionType) {
@@ -727,11 +725,23 @@ export async function onRequestPost({ request, env }) {
           date
         );
 
+      const extraCycleId = getCycleId(extraTaskId, extraInfo.dueDate, date);
+      const extraEffectiveGraceUntil = getEffectiveGraceUntil({
+        graceExtensions: updatedState.graceExtensions || [],
+        taskId: extraTaskId,
+        cycleId: extraCycleId,
+        scheduledDueDate: extraInfo.dueDate
+      });
+
       const overdueForSomeoneElse =
         extraInfo.task.type !== 'on_demand' &&
         !assignedWasUnavailable &&
         extraInfo.dueDate &&
-        isAfterGracePeriod(extraInfo.dueDate, date) &&
+        isAfterEffectiveGracePeriod({
+          scheduledDueDate: extraInfo.dueDate,
+          actualDate: date,
+          effectiveGraceUntil: extraEffectiveGraceUntil
+        }) &&
         extraInfo.assignedPerson &&
         normalizeName(extraInfo.assignedPerson) !== actualPerson;
 
@@ -750,6 +760,7 @@ export async function onRequestPost({ request, env }) {
         taskId: extraTaskId,
         actualPerson,
         date,
+        note,
         completedSubtaskIds: bundledSubtaskIds,
         forcedCompletionType: completionType,
         forcedNote: overdueForSomeoneElse

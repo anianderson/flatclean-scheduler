@@ -110,13 +110,53 @@ async function logAssignmentChanges(env, state, rows, today) {
     }
 
     const explanation = row.assignmentExplanation || {};
-    const winningCandidate = (explanation.candidates || []).find(
+    const candidates = explanation.candidates || [];
+    const winningCandidate = candidates.find(
       candidate => normalizeName(candidate.person) === normalizeName(row.person)
-    );
+    ) || null;
+    const runnerUpCandidate = candidates.find(
+      candidate => normalizeName(candidate.person) !== normalizeName(row.person)
+    ) || null;
 
-    const reasonSummary = explanation.assignmentSource === 'open_partial_cycle'
+    const scoreGap = winningCandidate && runnerUpCandidate
+      ? Number((Number(runnerUpCandidate.finalScore || 0) - Number(winningCandidate.finalScore || 0)).toFixed(2))
+      : null;
+
+    const assignmentSource = explanation.assignmentSource || 'fairness_policy';
+
+    const reasonSummary = assignmentSource === 'open_partial_cycle'
       ? `${row.person} stays assigned because this chore cycle is still partly open. The system keeps the original assigned person responsible for the remaining parts unless they are unavailable.`
-      : `${row.person} was assigned because they had the lowest fairness score for this chore. The score uses 75% chore-specific fairness, 18% global points fairness, 7% task-count fairness, already-planned workload, repeat-task penalties, and vacation availability.`;
+      : runnerUpCandidate && winningCandidate
+        ? `${row.person} was assigned because their final fairness score was ${winningCandidate.finalScore}, which is ${scoreGap} lower than the next closest person, ${runnerUpCandidate.person} (${runnerUpCandidate.finalScore}). Lower score means the person is currently the fairest choice for this chore.`
+        : `${row.person} was assigned because they had the lowest fairness score for this chore. The score uses 75% chore-specific fairness, 18% global points fairness, 7% task-count fairness, already-planned workload, repeat-task penalties, and vacation availability.`;
+
+    const decisionSteps = assignmentSource === 'open_partial_cycle'
+      ? [
+          'The chore cycle is still open because not all parts were completed.',
+          `The system found ${row.person} as the existing assigned person for this open cycle.`,
+          'Because the assigned person is not unavailable today, the chore stays with the same person instead of being freshly reassigned.',
+          'Fairness scores are still stored for transparency, but open-cycle continuity wins in this case.'
+        ]
+      : [
+          'The system first removed flatmates who are unavailable on the scheduled date.',
+          'For every available flatmate, it calculated a task-specific score for this chore.',
+          'It also calculated global points and task-count load across all chores in the current points period.',
+          'It applied the fairness formula: task-specific × 0.75 + global points × 0.18 + task count × 0.07.',
+          'It added already-planned workload from earlier chores in the same scheduling run.',
+          'It added repeat-task penalties when someone recently did the same chore or another chore in the same group.',
+          'The available flatmate with the lowest final score was selected.',
+          'If final scores were equal, the older last-done date and then the fixed rotated tie-break order would decide.'
+        ];
+
+    const comparison = winningCandidate && runnerUpCandidate
+      ? {
+          winner: winningCandidate.person,
+          winnerFinalScore: winningCandidate.finalScore,
+          runnerUp: runnerUpCandidate.person,
+          runnerUpFinalScore: runnerUpCandidate.finalScore,
+          scoreGap
+        }
+      : null;
 
     const details = {
       taskId: row.task.id,
@@ -124,8 +164,11 @@ async function logAssignmentChanges(env, state, rows, today) {
       scheduledDueDate: row.dueDate,
       assignedPerson: row.person,
       previousAssignedPerson: lastAssignment?.assignedPerson || null,
-      assignmentSource: explanation.assignmentSource || 'fairness_policy',
+      assignmentSource,
       reason: explanation.reason || null,
+      reasonSummary,
+      decisionSteps,
+      comparison,
       policy: explanation.policy || {
         taskSpecificPercent: '75%',
         globalPointsPercent: '18%',
@@ -133,8 +176,9 @@ async function logAssignmentChanges(env, state, rows, today) {
       },
       formula: explanation.formula || null,
       tieBreakers: explanation.tieBreakers || [],
-      selectedCandidate: winningCandidate || null,
-      candidates: explanation.candidates || [],
+      selectedCandidate: winningCandidate,
+      runnerUpCandidate,
+      candidates,
       availablePeople: explanation.availablePeople || [],
       unavailablePeople: explanation.unavailablePeople || [],
       bundledVacuum: !!row.bundledVacuumRow,

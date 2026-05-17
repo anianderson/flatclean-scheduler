@@ -4494,7 +4494,12 @@ function App() {
           {assignmentLogs.map(item => {
             const policy = item.details?.policy || {};
             const selectedCandidate = item.details?.selectedCandidate || null;
+            const runnerUpCandidate = item.details?.runnerUpCandidate || null;
+            const comparison = item.details?.comparison || null;
             const candidates = item.details?.candidates || [];
+            const decisionSteps = item.details?.decisionSteps || [];
+            const unavailablePeople = item.details?.unavailablePeople || [];
+            const availablePeople = item.details?.availablePeople || [];
 
             return (
               <article className="assignment-log-card" key={item.id}>
@@ -4513,7 +4518,17 @@ function App() {
                   <p>{t.changedFromTo(item.previousAssignedPerson, item.assignedPerson)}</p>
                 )}
 
-                <p>{item.reasonSummary}</p>
+                <p>{item.details?.reasonSummary || item.reasonSummary}</p>
+
+                {comparison && (
+                  <div className="assignment-comparison-box">
+                    <b>Why {comparison.winner} and not {comparison.runnerUp}?</b>
+                    <span>
+                      {comparison.winner}: {formatPoints(comparison.winnerFinalScore)} final score · {comparison.runnerUp}: {formatPoints(comparison.runnerUpFinalScore)} final score
+                    </span>
+                    <small>{comparison.winner} was lower by {formatPoints(comparison.scoreGap)}. Lower score wins because it means this person is currently the fairest choice.</small>
+                  </div>
+                )}
 
                 {item.details?.formula && (
                   <p className="assignment-formula">{item.details.formula}</p>
@@ -4525,27 +4540,80 @@ function App() {
                   <span>{t.policyTaskCount}: {policy.taskCountPercent || '7%'}</span>
                 </div>
 
+                {!!availablePeople.length && (
+                  <div className="assignment-people-box">
+                    <span><b>Available:</b> {availablePeople.join(', ')}</span>
+                    {!!unavailablePeople.length && <span><b>Unavailable:</b> {unavailablePeople.join(', ')}</span>}
+                  </div>
+                )}
+
+                {!!decisionSteps.length && (
+                  <div className="assignment-steps-box">
+                    <b>Decision process</b>
+                    <ol>
+                      {decisionSteps.map((step, index) => (
+                        <li key={`${item.id}-step-${index}`}>{step}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
                 {selectedCandidate && (
                   <div className="assignment-winner-box">
-                    <b>{item.assignedPerson}</b>
+                    <b>Selected: {item.assignedPerson}</b>
                     <span>Final score: {formatPoints(selectedCandidate.finalScore)}</span>
                     <small>
-                      Task {formatPoints(selectedCandidate.weightedTaskSpecific)} + global {formatPoints(selectedCandidate.weightedGlobalPoints)} + count {formatPoints(selectedCandidate.weightedTaskCount)} + planned {formatPoints(selectedCandidate.plannedLoad)} + repeat {formatPoints(Number(selectedCandidate.exactRepeatPenalty || 0) + Number(selectedCandidate.groupRepeatPenalty || 0))}
+                      {t.policyTaskSpecific}: {formatPoints(selectedCandidate.taskSpecificScore)} × 0.75 = {formatPoints(selectedCandidate.weightedTaskSpecific)} · {t.policyGlobalPoints}: {formatPoints(selectedCandidate.globalPointsScore)} × 0.18 = {formatPoints(selectedCandidate.weightedGlobalPoints)} · {t.policyTaskCount}: {formatPoints(selectedCandidate.taskCountScore)} × 0.07 = {formatPoints(selectedCandidate.weightedTaskCount)} · Planned load: {formatPoints(selectedCandidate.plannedLoad)} · Repeat penalty: {formatPoints(Number(selectedCandidate.exactRepeatPenalty || 0) + Number(selectedCandidate.groupRepeatPenalty || 0))}
+                    </small>
+                  </div>
+                )}
+
+                {runnerUpCandidate && (
+                  <div className="assignment-runner-up-box">
+                    <b>Closest alternative: {runnerUpCandidate.person}</b>
+                    <span>Final score: {formatPoints(runnerUpCandidate.finalScore)}</span>
+                    <small>
+                      {runnerUpCandidate.person} was not selected because their final score was higher after the same formula and checks.
                     </small>
                   </div>
                 )}
 
                 {!!candidates.length && (
                   <div className="assignment-candidate-list">
+                    <b>All candidate score breakdowns</b>
                     {candidates.map(candidate => (
                       <div
                         className={`assignment-candidate-row ${normalizeName(candidate.person) === normalizeName(item.assignedPerson) ? 'selected' : ''}`}
                         key={`${item.id}-${candidate.person}`}
                       >
-                        <b>{candidate.person}</b>
-                        <span>{formatPoints(candidate.finalScore)}</span>
+                        <div className="assignment-candidate-top">
+                          <b>{candidate.person}</b>
+                          <span>{formatPoints(candidate.finalScore)}</span>
+                        </div>
+                        <div className="assignment-candidate-breakdown">
+                          <span>Task raw: {formatPoints(candidate.taskSpecificScore)}</span>
+                          <span>Task weighted: {formatPoints(candidate.weightedTaskSpecific)}</span>
+                          <span>Global raw: {formatPoints(candidate.globalPointsScore)}</span>
+                          <span>Global weighted: {formatPoints(candidate.weightedGlobalPoints)}</span>
+                          <span>Task count: {formatPoints(candidate.taskCountScore)}</span>
+                          <span>Count weighted: {formatPoints(candidate.weightedTaskCount)}</span>
+                          <span>Planned load: {formatPoints(candidate.plannedLoad)}</span>
+                          <span>Exact repeat penalty: {formatPoints(candidate.exactRepeatPenalty)}</span>
+                          <span>Group repeat penalty: {formatPoints(candidate.groupRepeatPenalty)}</span>
+                          <span>Last same-task date: {candidate.lastTaskDate && candidate.lastTaskDate !== '1900-01-01' ? fmt(candidate.lastTaskDate, '', lang) : t.noRecord}</span>
+                          <span>Tie rank: {candidate.tieRank}</span>
+                        </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {item.details?.bundledVacuum && (
+                  <div className="assignment-people-box">
+                    <span><b>Bundled vacuum:</b> yes</span>
+                    {item.details?.bundledVacuumOriginalPerson && (
+                      <span><b>Original vacuum assignee:</b> {item.details.bundledVacuumOriginalPerson}</span>
+                    )}
                   </div>
                 )}
               </article>

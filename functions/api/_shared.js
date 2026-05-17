@@ -495,6 +495,36 @@ export function getOpenCycleAssignedPerson({
   return assignedPerson;
 }
 
+export function getLoggedAssignedPersonForCycle({
+  assignmentLogs = [],
+  taskId,
+  scheduledDueDate,
+  absences = [],
+  date = null
+}) {
+  if (!taskId || !scheduledDueDate) return '';
+
+  const latestAssignment = (assignmentLogs || [])
+    .filter(log => log.taskId === taskId && log.scheduledDueDate === scheduledDueDate)
+    .sort((a, b) => {
+      if ((b.createdAt || '') !== (a.createdAt || '')) {
+        return (b.createdAt || '').localeCompare(a.createdAt || '');
+      }
+
+      return (b.id || '').localeCompare(a.id || '');
+    })[0];
+
+  const assignedPerson = normalizeName(latestAssignment?.assignedPerson);
+  if (!assignedPerson) return '';
+
+  const checkDate = date || todayIso();
+  if (isPersonUnavailable(absences, assignedPerson, checkDate)) {
+    return '';
+  }
+
+  return assignedPerson;
+}
+
 export function getRawTaskDueDate(state, taskId) {
   const task = (state.tasks || []).find(item => item.id === taskId);
   if (!task) return null;
@@ -963,6 +993,14 @@ export function makeTaskRows(state, today = todayIso()) {
       date: today
     });
 
+    const loggedVacuumAssignedPerson = getLoggedAssignedPersonForCycle({
+      assignmentLogs: state.assignmentLogs || [],
+      taskId: vacuum.task.id,
+      scheduledDueDate: vacuum.dueDate,
+      absences: state.absences,
+      date: today
+    });
+
     const originalVacuumExplanation = buildFairnessExplanation({
       people: state.flatmates,
       logs: state.logs,
@@ -974,7 +1012,7 @@ export function makeTaskRows(state, today = todayIso()) {
       date: vacuum.dueDate
     });
 
-    const originalVacuumPerson = openVacuumAssignedPerson || originalVacuumExplanation.selectedPerson;
+    const originalVacuumPerson = openVacuumAssignedPerson || loggedVacuumAssignedPerson || originalVacuumExplanation.selectedPerson;
 
     const combinedTask = {
       ...deep.task,
@@ -994,7 +1032,15 @@ export function makeTaskRows(state, today = todayIso()) {
       date: deep.dueDate
     });
 
-    const floorPerson = floorExplanation.selectedPerson;
+    const loggedFloorAssignedPerson = getLoggedAssignedPersonForCycle({
+      assignmentLogs: state.assignmentLogs || [],
+      taskId: deep.task.id,
+      scheduledDueDate: deep.dueDate,
+      absences: state.absences,
+      date: today
+    });
+
+    const floorPerson = loggedFloorAssignedPerson || floorExplanation.selectedPerson;
 
     const vacuumToDeepGap = diffDays(vacuum.dueDate, deep.dueDate);
     const deepToVacuumGap = diffDays(deep.dueDate, vacuum.dueDate);
@@ -1025,7 +1071,11 @@ export function makeTaskRows(state, today = todayIso()) {
     deep.person = floorPerson;
     deep.assignmentExplanation = {
       ...floorExplanation,
-      assignmentSource: 'fairness_policy_floor_bundle',
+      selectedPerson: floorPerson,
+      assignmentSource: loggedFloorAssignedPerson ? 'logged_current_assignment' : 'fairness_policy_floor_bundle',
+      reason: loggedFloorAssignedPerson
+        ? 'This chore already has an assignment log for the current scheduled date, so the system preserves that assignment until the cycle changes or the person is unavailable.'
+        : floorExplanation.reason,
       bundledVacuum: true,
       bundledVacuumOriginalPerson: originalVacuumPerson,
       bundledVacuumExplanation: originalVacuumExplanation,
@@ -1098,7 +1148,7 @@ export function makeTaskRows(state, today = todayIso()) {
       date: assignmentDate
     });
 
-    row.person = openCycleAssignedPerson || explanation.selectedPerson;
+    row.person = openCycleAssignedPerson || loggedAssignedPerson || explanation.selectedPerson;
     row.assignmentExplanation = openCycleAssignedPerson
       ? {
           ...explanation,
@@ -1115,10 +1165,17 @@ export function makeTaskRows(state, today = todayIso()) {
             pendingParts: openCycleCompletion.pending || []
           }
         }
-      : {
-          ...explanation,
-          assignmentSource: 'fairness_policy'
-        };
+      : loggedAssignedPerson
+        ? {
+            ...explanation,
+            selectedPerson: loggedAssignedPerson,
+            assignmentSource: 'logged_current_assignment',
+            reason: 'This chore already has an assignment log for the current scheduled date, so the system preserves that assignment until the cycle changes or the person is unavailable.'
+          }
+        : {
+            ...explanation,
+            assignmentSource: 'fairness_policy'
+          };
 
     plannedLoad[row.person] =
       Number(plannedLoad[row.person] || 0) + Number(row.task.baseWeight || 1);
@@ -1295,7 +1352,8 @@ export async function readState(env) {
     bins,
     flatmateHistory,
     absences,
-    graceExtensions
+    graceExtensions,
+    assignmentLogs
   ] = await Promise.all([
     env.DB.prepare(`SELECT id, name, started_at AS startedAt, ended_at AS endedAt, reason FROM scoring_periods ORDER BY started_at DESC`).all(),
     env.DB.prepare(`SELECT name, email FROM flatmates ORDER BY rowid`).all(),
@@ -1331,6 +1389,20 @@ export async function readState(env) {
         created_at AS createdAt
       FROM grace_extensions
       ORDER BY created_at DESC
+    `).all().catch(() => ({ results: [] })),
+    env.DB.prepare(`
+      SELECT
+        id,
+        task_id AS taskId,
+        task_name AS taskName,
+        scheduled_due_date AS scheduledDueDate,
+        assigned_person AS assignedPerson,
+        previous_assigned_person AS previousAssignedPerson,
+        reason_summary AS reasonSummary,
+        details_json AS detailsJson,
+        created_at AS createdAt
+      FROM assignment_logs
+      ORDER BY created_at DESC, id DESC
     `).all().catch(() => ({ results: [] }))
   ]);
 
@@ -1389,6 +1461,11 @@ export async function readState(env) {
     graceExtensions: (graceExtensions.results || []).map(row => ({
       ...row,
       person: normalizeName(row.person)
+    })),
+    assignmentLogs: (assignmentLogs.results || []).map(row => ({
+      ...row,
+      assignedPerson: normalizeName(row.assignedPerson),
+      previousAssignedPerson: normalizeName(row.previousAssignedPerson)
     })),
     fullBins
   };

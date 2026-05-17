@@ -903,6 +903,35 @@ function getOpenCycleAssignedPerson({
   return assignedPerson;
 }
 
+function getLoggedAssignedPersonForCycle({
+  assignmentLogs = [],
+  taskId,
+  scheduledDueDate,
+  absences = [],
+  date = todayIso()
+}) {
+  if (!taskId || !scheduledDueDate) return '';
+
+  const latestAssignment = (assignmentLogs || [])
+    .filter(log => log.taskId === taskId && log.scheduledDueDate === scheduledDueDate)
+    .sort((a, b) => {
+      if ((b.createdAt || '') !== (a.createdAt || '')) {
+        return (b.createdAt || '').localeCompare(a.createdAt || '');
+      }
+
+      return (b.id || '').localeCompare(a.id || '');
+    })[0];
+
+  const assignedPerson = normalizeName(latestAssignment?.assignedPerson);
+  if (!assignedPerson) return '';
+
+  if (isPersonUnavailable(absences, assignedPerson, date)) {
+    return '';
+  }
+
+  return assignedPerson;
+}
+
 function getRawTaskDueDate(state, taskId) {
   const task = (state.tasks || []).find(item => item.id === taskId);
   if (!task) return null;
@@ -1876,6 +1905,17 @@ function App() {
       person: normalizeName(absence.person)
     }));
 
+    json.graceExtensions = (json.graceExtensions || []).map(extension => ({
+      ...extension,
+      person: normalizeName(extension.person)
+    }));
+
+    json.assignmentLogs = (json.assignmentLogs || []).map(log => ({
+      ...log,
+      assignedPerson: normalizeName(log.assignedPerson),
+      previousAssignedPerson: normalizeName(log.previousAssignedPerson)
+    }));
+
     return json;
   }
 
@@ -2222,6 +2262,13 @@ function App() {
           absences: data.absences,
           date: todayIso()
         }) ||
+        getLoggedAssignedPersonForCycle({
+          assignmentLogs: data.assignmentLogs || [],
+          taskId: vacuum.task.id,
+          scheduledDueDate: vacuum.dueDate,
+          absences: data.absences,
+          date: todayIso()
+        }) ||
         fairPersonForDate(
           data.flatmates,
           allLogsForScheduling,
@@ -2239,7 +2286,13 @@ function App() {
         taskGroup: 'floor'
       };
 
-      const floorPerson = fairPersonForDate(
+      const floorPerson = getLoggedAssignedPersonForCycle({
+        assignmentLogs: data.assignmentLogs || [],
+        taskId: deep.task.id,
+        scheduledDueDate: deep.dueDate,
+        absences: data.absences,
+        date: todayIso()
+      }) || fairPersonForDate(
         data.flatmates,
         allLogsForScheduling,
         combinedTask,
@@ -2306,7 +2359,15 @@ function App() {
         date: todayIso()
       });
 
-      row.person = openCycleAssignedPerson || fairPersonForDate(
+      const loggedAssignedPerson = getLoggedAssignedPersonForCycle({
+        assignmentLogs: data.assignmentLogs || [],
+        taskId: row.task.id,
+        scheduledDueDate: row.dueDate,
+        absences: data.absences,
+        date: todayIso()
+      });
+
+      row.person = openCycleAssignedPerson || loggedAssignedPerson || fairPersonForDate(
         data.flatmates,
         allLogsForScheduling,
         row.task,

@@ -45,10 +45,6 @@ function parseIsoDateParts(date) {
 const FLOOR_MIN_GAP_DAYS = 10;
 const FLOOR_BUNDLE_WINDOW_DAYS = 5;
 
-const FAIRNESS_TASK_SPECIFIC_WEIGHT = 0.75;
-const FAIRNESS_GLOBAL_POINTS_WEIGHT = 0.18;
-const FAIRNESS_TASK_COUNT_WEIGHT = 0.07;
-
 const HEAVY_TASK_IDS = new Set([
   'driveway_backyard',
   'deep_water',
@@ -94,10 +90,6 @@ function presetLabel(item, lang) {
 
 const translations = {
   en: {
-    extendGraceToWeekend: 'Extend grace to weekend',
-    graceExtendedDone: 'Grace period extended to the weekend.',
-    graceUntil: date => `Grace until ${date}`,
-    weekendGraceHelp: date => `This chore’s normal grace period does not include a weekend. You can extend it until ${date}.`,
     assignmentLog: 'Assignment log',
     assignmentTransparencyTitle: 'Assignment transparency',
     assignmentTransparencyHelp: 'See why each chore was assigned or changed, including the fairness formula and candidate scores.',
@@ -106,9 +98,16 @@ const translations = {
     loadMore: 'Load more',
     noAssignmentLogs: 'No assignment logs yet.',
     generatedOn: date => `Generated on ${date}`,
-    policyTaskSpecific: 'Task fairness',
-    policyGlobalPoints: 'Global points',
-    policyTaskCount: 'Task count',
+    finalScore: 'Final score',
+    selected: 'Selected',
+    decisionProcess: 'Decision process',
+    allCandidates: 'All candidates',
+    unavailableFlatmates: 'Unavailable flatmates',
+    firstCycleHistoricalCreditsUsed: 'First-cycle historical credits used',
+    firstCycleHistoricalCreditsHelp: 'These are used only for first-cycle assignment fairness and are not shown as normal activity.',
+    partialCycleCheck: 'Partial cycle check',
+    policyFormula: 'Policy formula',
+    lowerScoreWins: 'Lower score wins because it means this person is currently the fairest choice.',
     editExistingChore: 'Edit existing chore',
     editExistingChoreHelp: 'Use this when you only want to change a chore that already exists.',
     addNewChoreTitle: 'Add new chore',
@@ -372,10 +371,6 @@ const translations = {
   },
 
   de: {
-    extendGraceToWeekend: 'Kulanzzeit bis zum Wochenende verlängern',
-    graceExtendedDone: 'Kulanzzeit bis zum Wochenende verlängert.',
-    graceUntil: date => `Kulanz bis ${date}`,
-    weekendGraceHelp: date => `Die normale Kulanzzeit für diese Aufgabe enthält kein Wochenende. Du kannst sie bis ${date} verlängern.`,
     assignmentLog: 'Zuweisungsprotokoll',
     assignmentTransparencyTitle: 'Transparenz der Zuweisungen',
     assignmentTransparencyHelp: 'Sieh, warum eine Aufgabe zugewiesen oder geändert wurde, inklusive Fairness-Formel und Kandidatenwerten.',
@@ -384,9 +379,16 @@ const translations = {
     loadMore: 'Mehr laden',
     noAssignmentLogs: 'Noch keine Zuweisungsprotokolle.',
     generatedOn: date => `Erstellt am ${date}`,
-    policyTaskSpecific: 'Aufgaben-Fairness',
-    policyGlobalPoints: 'Gesamtpunkte',
-    policyTaskCount: 'Aufgabenanzahl',
+    finalScore: 'Endwert',
+    selected: 'Ausgewählt',
+    decisionProcess: 'Entscheidungsprozess',
+    allCandidates: 'Alle Kandidaten',
+    unavailableFlatmates: 'Nicht verfügbare Mitbewohner',
+    firstCycleHistoricalCreditsUsed: 'Historische Erstzyklus-Credits verwendet',
+    firstCycleHistoricalCreditsHelp: 'Diese werden nur für die Fairness der ersten Zuweisung genutzt und nicht als normale Aktivität angezeigt.',
+    partialCycleCheck: 'Prüfung des Teilzyklus',
+    policyFormula: 'Fairness-Formel',
+    lowerScoreWins: 'Der niedrigere Wert gewinnt, weil diese Person aktuell die fairste Wahl ist.',
     editExistingChore: 'Bestehende Aufgabe bearbeiten',
     editExistingChoreHelp: 'Nutze das, wenn du nur eine vorhandene Aufgabe ändern möchtest.',
     addNewChoreTitle: 'Neue Aufgabe hinzufügen',
@@ -651,87 +653,6 @@ const translations = {
   }
 };
 
-const GRACE_PERIOD_DAYS = 3;
-const SUBSTANTIAL_COMPLETION_THRESHOLD = 0.7;
-
-const HISTORICAL_ASSIGNMENT_CREDIT_TYPES = new Set([
-  'first_cycle_assignment_credit',
-  'pre_launch_baseline',
-  'baseline_history'
-]);
-
-function getDefaultGraceUntil(scheduledDueDate) {
-  return scheduledDueDate ? addDays(scheduledDueDate, GRACE_PERIOD_DAYS) : null;
-}
-
-function getDayOfWeek(date) {
-  const parts = parseIsoDateParts(date);
-  if (!parts) return null;
-  return new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay();
-}
-
-function dateRangeIncludesWeekend(startDate, endDate) {
-  if (!startDate || !endDate) return false;
-
-  let date = startDate;
-  while (date <= endDate) {
-    const day = getDayOfWeek(date);
-    if (day === 0 || day === 6) return true;
-    date = addDays(date, 1);
-  }
-
-  return false;
-}
-
-function getNextWeekendGraceUntil(date) {
-  for (let offset = 0; offset <= 10; offset += 1) {
-    const candidate = addDays(date, offset);
-    const day = getDayOfWeek(candidate);
-
-    if (day === 6) return addDays(candidate, 1);
-    if (day === 0) return candidate;
-  }
-
-  return null;
-}
-
-function getRowCycleId(row) {
-  return `${row.task.id}:${row.dueDate}`;
-}
-
-function getGraceExtensionForRow(row, data) {
-  return (data?.graceExtensions || []).find(extension =>
-    extension.taskId === row.task.id &&
-    extension.scheduledDueDate === row.dueDate &&
-    extension.cycleId === getRowCycleId(row)
-  ) || null;
-}
-
-function getEffectiveGraceUntilForRow(row, data) {
-  const defaultGraceUntil = getDefaultGraceUntil(row.dueDate);
-  const extension = getGraceExtensionForRow(row, data);
-
-  return extension?.extendedUntil && extension.extendedUntil > defaultGraceUntil
-    ? extension.extendedUntil
-    : defaultGraceUntil;
-}
-
-function canExtendWeekendGrace(row, data, currentUser) {
-  if (!row?.dueDate || row.task.type !== 'scheduled') return false;
-  if (normalizeName(row.person) !== normalizeName(currentUser)) return false;
-
-  const defaultGraceUntil = getDefaultGraceUntil(row.dueDate);
-  if (!defaultGraceUntil) return false;
-
-  if (dateRangeIncludesWeekend(row.dueDate, defaultGraceUntil)) return false;
-  if (getGraceExtensionForRow(row, data)) return false;
-
-  const today = todayIso();
-  if (today < row.dueDate || today > defaultGraceUntil) return false;
-
-  return !!getNextWeekendGraceUntil(defaultGraceUntil);
-}
-
 function getLanguageFromSetting(setting) {
   if (setting === 'en' || setting === 'de') return setting;
 
@@ -841,80 +762,6 @@ function getBaseWeight(task) {
 
 function isHeavyTask(task) {
   return HEAVY_TASK_IDS.has(task?.id) || getBaseWeight(task) >= 2;
-}
-
-function isHistoricalAssignmentCreditLog(log) {
-  return HISTORICAL_ASSIGNMENT_CREDIT_TYPES.has(String(log?.completionType || ''));
-}
-
-function isSubstantialCompletionLog(log) {
-  if (!log || log.isDummy) return false;
-  if (isHistoricalAssignmentCreditLog(log)) return false;
-
-  return Number(log.completionRatio || 1) >= SUBSTANTIAL_COMPLETION_THRESHOLD;
-}
-
-function taskIdsForFairnessTask(task) {
-  return task?.taskGroup === 'floor'
-    ? ['vacuum', 'deep_water']
-    : task?.id
-      ? [task.id]
-      : [];
-}
-
-function hasRealSubstantialCompletionForTask(logs, task) {
-  const taskIds = taskIdsForFairnessTask(task);
-
-  return (logs || []).some(log =>
-    taskIds.includes(log.taskId) && isSubstantialCompletionLog(log)
-  );
-}
-
-function getFirstCycleHistoricalCredits(logs, task, people = []) {
-  const taskIds = taskIdsForFairnessTask(task);
-  const allowedPeople = new Set((people || []).map(normalizeName));
-
-  if (!taskIds.length || hasRealSubstantialCompletionForTask(logs, task)) {
-    return [];
-  }
-
-  return (logs || [])
-    .filter(log => taskIds.includes(log.taskId))
-    .filter(isHistoricalAssignmentCreditLog)
-    .map(log => {
-      const person = normalizeName(log.actualPerson || log.person);
-      const creditWeight = Number(log.creditWeight || 0);
-
-      return {
-        person,
-        date: log.date || '',
-        creditWeight
-      };
-    })
-    .filter(log => log.person && (!allowedPeople.size || allowedPeople.has(log.person)))
-    .filter(log => Number(log.creditWeight || 0) > 0);
-}
-
-function lastSubstantialLog(logs, taskId) {
-  return (logs || [])
-    .filter(log => log.taskId === taskId)
-    .filter(isSubstantialCompletionLog)
-    .sort((a, b) => {
-      if (b.date !== a.date) return b.date.localeCompare(a.date);
-      return (b.createdAt || '').localeCompare(a.createdAt || '');
-    })[0];
-}
-
-function lastSubstantialGroupLog(logs, task) {
-  const ids = task?.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task?.id];
-
-  return (logs || [])
-    .filter(log => ids.includes(log.taskId))
-    .filter(isSubstantialCompletionLog)
-    .sort((a, b) => {
-      if (b.date !== a.date) return b.date.localeCompare(a.date);
-      return (b.createdAt || '').localeCompare(a.createdAt || '');
-    })[0];
 }
 
 function isPersonUnavailable(absences, person, date) {
@@ -1030,7 +877,6 @@ function getOpenCycleAssignedPerson({
 
   const completion = getCycleCompletionFromLogs(logs, task, dueDate);
   if (!completion.isOpen) return '';
-  if (completion.ratio >= SUBSTANTIAL_COMPLETION_THRESHOLD) return '';
 
   const cycleId = `${task.id}:${dueDate}`;
 
@@ -1109,8 +955,8 @@ function rotatedRank(person, people, taskId) {
 }
 
 function calculateScores(people, logs, task, activePeriodId = null) {
-  const normalizedPeople = (people || []).map(normalizeName);
-  const taskIds = taskIdsForFairnessTask(task);
+  const normalizedPeople = people.map(normalizeName);
+  const taskIds = task.taskGroup === 'floor' ? ['vacuum', 'deep_water'] : [task.id];
 
   const scores = Object.fromEntries(normalizedPeople.map(person => [person, 0]));
   const lastDates = Object.fromEntries(
@@ -1118,10 +964,9 @@ function calculateScores(people, logs, task, activePeriodId = null) {
   );
 
   for (const log of logs || []) {
-    if (isHistoricalAssignmentCreditLog(log)) continue;
     if (log.isDummy) continue;
     if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
-    if (taskIds.length && !taskIds.includes(log.taskId)) continue;
+    if (!taskIds.includes(log.taskId)) continue;
 
     const actualPerson = normalizeName(log.actualPerson || log.person);
     const assignedPerson = normalizeName(log.assignedPerson);
@@ -1130,10 +975,7 @@ function calculateScores(people, logs, task, activePeriodId = null) {
     if (actualPerson) {
       scores[actualPerson] = (scores[actualPerson] || 0) + weight;
 
-      if (
-        isSubstantialCompletionLog(log) &&
-        log.date > (lastDates[actualPerson] || '1900-01-01')
-      ) {
+      if (log.date > (lastDates[actualPerson] || '1900-01-01')) {
         lastDates[actualPerson] = log.date;
       }
     }
@@ -1154,89 +996,7 @@ function calculateScores(people, logs, task, activePeriodId = null) {
     }
   }
 
-  for (const credit of getFirstCycleHistoricalCredits(logs, task, normalizedPeople)) {
-    const person = normalizeName(credit.person);
-    const value = Number(credit.creditWeight || 0);
-
-    scores[person] = (scores[person] || 0) + value;
-
-    if (credit.date && credit.date > (lastDates[person] || '1900-01-01')) {
-      lastDates[person] = credit.date;
-    }
-  }
-
   return { scores, lastDates, normalizedPeople };
-}
-
-
-function calculateGlobalWorkload(people, logs, tasks = [], activePeriodId = null) {
-  const normalizedPeople = (people || []).map(normalizeName);
-  const taskById = Object.fromEntries((tasks || []).map(task => [task.id, task]));
-
-  const workload = Object.fromEntries(
-    normalizedPeople.map(person => [
-      person,
-      {
-        points: 0,
-        taskCount: 0,
-        lastDate: '1900-01-01'
-      }
-    ])
-  );
-
-  for (const log of logs || []) {
-    if (isHistoricalAssignmentCreditLog(log)) continue;
-    if (log.isDummy) continue;
-    if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
-
-    const task = taskById[log.taskId] || null;
-    const actualPerson = normalizeName(log.actualPerson || log.person);
-    const assignedPerson = normalizeName(log.assignedPerson);
-    const creditWeight = Number(log.creditWeight || 0);
-    const completionRatio = Number(log.completionRatio || 1);
-
-    if (actualPerson) {
-      if (!workload[actualPerson]) {
-        workload[actualPerson] = {
-          points: 0,
-          taskCount: 0,
-          lastDate: '1900-01-01'
-        };
-      }
-
-      workload[actualPerson].points += creditWeight;
-      workload[actualPerson].taskCount += completionRatio || 1;
-
-      if (log.date > workload[actualPerson].lastDate) {
-        workload[actualPerson].lastDate = log.date;
-      }
-    }
-
-    const someoneElseCoveredOverdue =
-      task?.type !== 'on_demand' &&
-      assignedPerson &&
-      actualPerson &&
-      assignedPerson !== actualPerson &&
-      (
-        log.completionType === 'completed_by_other_late' ||
-        log.completionType === 'auto_included_overdue_for_other'
-      );
-
-    if (someoneElseCoveredOverdue) {
-      if (!workload[assignedPerson]) {
-        workload[assignedPerson] = {
-          points: 0,
-          taskCount: 0,
-          lastDate: '1900-01-01'
-        };
-      }
-
-      const penalty = getPenaltyForCoveredOverdueLog(log, task);
-      workload[assignedPerson].points -= penalty;
-    }
-  }
-
-  return workload;
 }
 
 function personFairnessScore({
@@ -1244,43 +1004,27 @@ function personFairnessScore({
   people,
   logs,
   task,
-  tasks = [],
   activePeriodId,
   plannedLoad = {}
 }) {
+  const { scores } = calculateScores(people, logs, task, activePeriodId);
+
   const normalizedPerson = normalizeName(person);
   const baseWeight = getBaseWeight(task);
   const heavy = isHeavyTask(task);
 
-  const { scores: taskSpecificScores } = calculateScores(
-    people,
-    logs,
-    task,
-    activePeriodId
-  );
-
-  const globalWorkload = calculateGlobalWorkload(
-    people,
-    logs,
-    tasks,
-    activePeriodId
-  );
-
   let score =
-    Number(taskSpecificScores[normalizedPerson] || 0) * FAIRNESS_TASK_SPECIFIC_WEIGHT +
-    Number(globalWorkload[normalizedPerson]?.points || 0) * FAIRNESS_GLOBAL_POINTS_WEIGHT +
-    Number(globalWorkload[normalizedPerson]?.taskCount || 0) * FAIRNESS_TASK_COUNT_WEIGHT;
+    Number(scores[normalizedPerson] || 0) +
+    Number(plannedLoad[normalizedPerson] || 0);
 
-  score += Number(plannedLoad[normalizedPerson] || 0);
-
-  const exactLast = lastSubstantialLog(logs || [], task.id);
+  const exactLast = lastLog(logs || [], task.id);
   const exactLastPerson = normalizeName(exactLast?.actualPerson || exactLast?.person);
 
   if (exactLastPerson && exactLastPerson === normalizedPerson) {
     score += heavy ? baseWeight * 4 : baseWeight * 0.75;
   }
 
-  const groupLast = lastSubstantialGroupLog(logs || [], task);
+  const groupLast = lastGroupLog(logs || [], task);
   const groupLastPerson = normalizeName(groupLast?.actualPerson || groupLast?.person);
 
   if (
@@ -1294,14 +1038,7 @@ function personFairnessScore({
   return score;
 }
 
-function fairPerson(
-  people,
-  logs,
-  task,
-  activePeriodId = null,
-  plannedLoad = {},
-  tasks = []
-) {
+function fairPerson(people, logs, task, activePeriodId = null, plannedLoad = {}) {
   const { lastDates, normalizedPeople } = calculateScores(
     people,
     logs,
@@ -1315,7 +1052,6 @@ function fairPerson(
       people: normalizedPeople,
       logs,
       task,
-      tasks,
       activePeriodId,
       plannedLoad
     });
@@ -1325,7 +1061,6 @@ function fairPerson(
       people: normalizedPeople,
       logs,
       task,
-      tasks,
       activePeriodId,
       plannedLoad
     });
@@ -1352,16 +1087,14 @@ function fairPersonForDate(
   activePeriodId,
   plannedLoad,
   absences,
-  date,
-  tasks = []
+  date
 ) {
   return fairPerson(
     availablePeopleForDate(people, absences, date),
     logs,
     task,
     activePeriodId,
-    plannedLoad,
-    tasks
+    plannedLoad
   );
 }
 
@@ -1373,8 +1106,7 @@ function fairPersonAvoiding(
   activePeriodId = null,
   plannedLoad = {},
   absences = [],
-  date = null,
-  tasks = []
+  date = null
 ) {
   const avoid = normalizeName(avoidPerson);
 
@@ -1384,7 +1116,7 @@ function fairPersonAvoiding(
 
   if (!candidates.length) return avoid;
 
-  return fairPerson(candidates, logs, task, activePeriodId, plannedLoad, tasks);
+  return fairPerson(candidates, logs, task, activePeriodId, plannedLoad);
 }
 
 function status(row, fullBins, t) {
@@ -1642,6 +1374,7 @@ function App() {
   const [assignmentLogs, setAssignmentLogs] = useState([]);
   const [assignmentCursor, setAssignmentCursor] = useState(null);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [openAssignmentLogs, setOpenAssignmentLogs] = useState({});
 
   useEffect(() => {
     setError('');
@@ -2143,11 +1876,6 @@ function App() {
       person: normalizeName(absence.person)
     }));
 
-    json.graceExtensions = (json.graceExtensions || []).map(extension => ({
-      ...extension,
-      person: normalizeName(extension.person)
-    }));
-
     return json;
   }
 
@@ -2196,26 +1924,11 @@ function App() {
     return state;
   }
 
-
-  async function extendWeekendGrace(row) {
-    try {
-      setError('');
-      setSuccess('');
-      setBusyAction(`grace:${row.task.id}`);
-
-      await apiPost('/api/grace-extension', {
-        taskId: row.task.id,
-        scheduledDueDate: row.dueDate,
-        person: currentUser
-      });
-
-      setSuccess(t.graceExtendedDone);
-      clearSuccessSoon();
-    } catch (e) {
-      setError(e.message || t.saveError);
-    } finally {
-      setBusyAction('');
-    }
+  function toggleAssignmentLog(logId) {
+    setOpenAssignmentLogs(current => ({
+      ...current,
+      [logId]: !current[logId]
+    }));
   }
 
   async function loadAssignmentLogs(reset = false) {
@@ -2232,7 +1945,10 @@ function App() {
 
       if (!res.ok) throw new Error(json.error || t.loadError);
 
-      setAssignmentLogs(current => reset ? json.logs || [] : [...current, ...(json.logs || [])]);
+      setAssignmentLogs(current => reset
+        ? json.logs || []
+        : [...current, ...(json.logs || [])]
+      );
       setAssignmentCursor(json.nextCursor || null);
     } catch (e) {
       setError(e.message || t.loadError);
@@ -2513,8 +2229,7 @@ function App() {
           activePeriodId,
           plannedLoad,
           data.absences,
-          vacuum.dueDate,
-          data.allTasks || data.tasks || []
+          vacuum.dueDate
         );
 
       const combinedTask = {
@@ -2531,8 +2246,7 @@ function App() {
         activePeriodId,
         plannedLoad,
         data.absences,
-        deep.dueDate,
-        data.allTasks || data.tasks || []
+        deep.dueDate
       );
 
       const vacuumWasBeforeMopping =
@@ -2599,8 +2313,7 @@ function App() {
         activePeriodId,
         plannedLoad,
         data.absences,
-        assignmentDate,
-        data.allTasks || data.tasks || []
+        assignmentDate
       );
 
       plannedLoad[row.person] =
@@ -2622,8 +2335,7 @@ function App() {
         activePeriodId,
         plannedLoad,
         data.absences,
-        vacuum.dueDate,
-        data.allTasks || data.tasks || []
+        vacuum.dueDate
       );
     }
 
@@ -3265,35 +2977,6 @@ function App() {
               </span>
             </div>
           )}
-
-          {canExtendWeekendGrace(row, data, currentUser) && (() => {
-            const extendedUntil = getNextWeekendGraceUntil(getDefaultGraceUntil(row.dueDate));
-
-            return (
-              <div className="weekend-grace-box" onClick={event => event.stopPropagation()}>
-                <p>{t.weekendGraceHelp(fmt(extendedUntil, '', lang))}</p>
-
-                <button
-                  type="button"
-                  className="mini-action weekend-grace-button"
-                  disabled={busyAction === `grace:${row.task.id}`}
-                  onClick={() => extendWeekendGrace(row)}
-                >
-                  {busyAction === `grace:${row.task.id}` ? (
-                    <>
-                      <Loader2 size={16} className="spin" />
-                      {t.processing}
-                    </>
-                  ) : (
-                    <>
-                      <CalendarDays size={16} />
-                      {t.extendGraceToWeekend}
-                    </>
-                  )}
-                </button>
-              </div>
-            );
-          })()}
 
           {row.bundledVacuumRow && (
             <div className="bundle-pill">
@@ -4579,10 +4262,42 @@ function App() {
     );
   }
 
-
   function renderAssignmentLogPage() {
+    function asNumber(value, fallback = 0) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    }
+
+    function candidateName(candidate) {
+      return normalizeName(candidate?.person || candidate?.name || '');
+    }
+
+    function candidateScore(candidate) {
+      return asNumber(candidate?.finalScore ?? candidate?.score ?? candidate?.totalScore, 0);
+    }
+
+    function scoreLabel(candidate, ...keys) {
+      for (const key of keys) {
+        if (candidate?.[key] !== undefined && candidate?.[key] !== null) {
+          return formatPoints(candidate[key]);
+        }
+      }
+
+      return formatPoints(0);
+    }
+
+    function renderCandidateMetric(label, value, detail = '') {
+      return (
+        <span>
+          <small>{label}</small>
+          <b>{value}</b>
+          {detail && <em>{detail}</em>}
+        </span>
+      );
+    }
+
     return (
-      <div className="card assignment-log-page">
+      <section className="card assignment-log-page">
         <div className="card-title-block">
           <h2>{t.assignmentTransparencyTitle}</h2>
           <p>{t.assignmentTransparencyHelp}</p>
@@ -4590,137 +4305,210 @@ function App() {
 
         <div className="assignment-log-list">
           {assignmentLogs.map(item => {
-            const policy = item.details?.policy || {};
-            const selectedCandidate = item.details?.selectedCandidate || null;
-            const runnerUpCandidate = item.details?.runnerUpCandidate || null;
-            const comparison = item.details?.comparison || null;
-            const candidates = item.details?.candidates || [];
-            const decisionSteps = item.details?.decisionSteps || [];
-            const unavailablePeople = item.details?.unavailablePeople || [];
-            const availablePeople = item.details?.availablePeople || [];
-            const historicalCredits = item.details?.firstCycleHistoricalCredits || [];
+            const isOpen = !!openAssignmentLogs[item.id];
+            const details = item.details || {};
+            const selection = details.selection || {};
+            const candidates = Array.isArray(details.candidates) ? details.candidates : [];
+            const unavailablePeople = Array.isArray(details.unavailablePeople)
+              ? details.unavailablePeople
+              : [];
+            const steps = Array.isArray(details.steps) ? details.steps : [];
+            const historicalCredits = Array.isArray(details.firstCycleHistoricalCredits)
+              ? details.firstCycleHistoricalCredits
+              : [];
+            const generatedDate = item.createdAt?.slice?.(0, 10) || details.generatedOn || '';
+
+            const selectedCandidate = candidates.find(candidate =>
+              candidate.selected || normalizeName(candidateName(candidate)) === normalizeName(item.assignedPerson)
+            );
+            const sortedCandidates = [...candidates].sort(
+              (a, b) => candidateScore(a) - candidateScore(b)
+            );
+            const winner = selection.winner || candidateName(selectedCandidate) || item.assignedPerson;
+            const runnerUp = selection.runnerUp || sortedCandidates.find(candidate =>
+              normalizeName(candidateName(candidate)) !== normalizeName(winner)
+            );
+            const runnerUpName = typeof runnerUp === 'string' ? runnerUp : candidateName(runnerUp);
+            const winnerScore = selection.winnerScore ?? candidateScore(selectedCandidate);
+            const runnerUpScore = selection.runnerUpScore ?? (runnerUp && typeof runnerUp !== 'string'
+              ? candidateScore(runnerUp)
+              : null);
+            const scoreDifference = selection.scoreDifference ?? (
+              runnerUpScore !== null ? Math.abs(asNumber(runnerUpScore) - asNumber(winnerScore)) : null
+            );
 
             return (
-              <article className="assignment-log-card" key={item.id}>
-                <div className="assignment-log-head">
-                  <div>
-                    <b>{item.taskName}</b>
-                    <span>{fmt(item.scheduledDueDate, '', lang)}</span>
-                  </div>
-
-                  <small>{item.createdAt ? t.generatedOn(fmt(item.createdAt.slice(0, 10), '', lang)) : ''}</small>
-                </div>
-
-                <h3>{t.assignedTo(item.assignedPerson)}</h3>
-
-                {item.previousAssignedPerson && (
-                  <p>{t.changedFromTo(item.previousAssignedPerson, item.assignedPerson)}</p>
-                )}
-
-                <p>{item.details?.reasonSummary || item.reasonSummary}</p>
-
-                {comparison && (
-                  <div className="assignment-comparison-box">
-                    <b>Why {comparison.winner} and not {comparison.runnerUp}?</b>
-                    <span>
-                      {comparison.winner}: {formatPoints(comparison.winnerFinalScore)} final score · {comparison.runnerUp}: {formatPoints(comparison.runnerUpFinalScore)} final score
+              <article
+                className={`assignment-log-card ${isOpen ? 'open' : ''}`}
+                key={item.id}
+              >
+                <button
+                  type="button"
+                  className="assignment-summary-button"
+                  onClick={() => toggleAssignmentLog(item.id)}
+                  aria-expanded={isOpen}
+                >
+                  <span className="assignment-summary-main">
+                    <span className="assignment-task-name">{item.taskName}</span>
+                    <span className="assignment-date">
+                      {fmt(item.scheduledDueDate, '', lang)}
                     </span>
-                    <small>{comparison.winner} was lower by {formatPoints(comparison.scoreGap)}. Lower score wins because it means this person is currently the fairest choice.</small>
-                  </div>
-                )}
+                    <strong>{t.assignedTo(item.assignedPerson)}</strong>
 
-                {item.details?.formula && (
-                  <p className="assignment-formula">{item.details.formula}</p>
-                )}
+                    {item.previousAssignedPerson && (
+                      <small>
+                        {t.changedFromTo(item.previousAssignedPerson, item.assignedPerson)}
+                      </small>
+                    )}
+                  </span>
 
-                <div className="assignment-policy-grid">
-                  <span>{t.policyTaskSpecific}: {policy.taskSpecificPercent || '75%'}</span>
-                  <span>{t.policyGlobalPoints}: {policy.globalPointsPercent || '18%'}</span>
-                  <span>{t.policyTaskCount}: {policy.taskCountPercent || '7%'}</span>
-                </div>
+                  <span className="assignment-summary-side">
+                    {generatedDate && (
+                      <small>{t.generatedOn(fmt(generatedDate, generatedDate, lang))}</small>
+                    )}
+                    <ChevronDown
+                      size={20}
+                      className={`assignment-chevron ${isOpen ? 'open' : ''}`}
+                    />
+                  </span>
+                </button>
 
-                {!!availablePeople.length && (
-                  <div className="assignment-people-box">
-                    <span><b>Available:</b> {availablePeople.join(', ')}</span>
-                    {!!unavailablePeople.length && <span><b>Unavailable:</b> {unavailablePeople.join(', ')}</span>}
-                  </div>
-                )}
+                {isOpen && (
+                  <div className="assignment-detail-panel">
+                    {item.reasonSummary && (
+                      <p className="assignment-reason">{item.reasonSummary}</p>
+                    )}
 
-                {!!historicalCredits.length && (
-                  <div className="assignment-people-box">
-                    <span><b>First-cycle historical credits:</b> {historicalCredits.map(credit => `${credit.person} (${credit.taskId})`).join(', ')}</span>
-                    <span>Used only for this chore's first substantial app cycle. These credits stop applying after a substantial completion.</span>
-                  </div>
-                )}
+                    {winner && runnerUpName && runnerUpScore !== null && (
+                      <div className="assignment-why-box">
+                        <b>Why {winner} and not {runnerUpName}?</b>
+                        <strong>
+                          {winner}: {formatPoints(winnerScore)} final score
+                          {' · '}
+                          {runnerUpName}: {formatPoints(runnerUpScore)} final score
+                        </strong>
+                        <p>
+                          {winner} was lower by {formatPoints(scoreDifference)}. {t.lowerScoreWins}
+                        </p>
+                      </div>
+                    )}
 
-                {!!decisionSteps.length && (
-                  <div className="assignment-steps-box">
-                    <b>Decision process</b>
-                    <ol>
-                      {decisionSteps.map((step, index) => (
-                        <li key={`${item.id}-step-${index}`}>{step}</li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
+                    <div className="assignment-formula-box">
+                      <b>{t.policyFormula}</b>
+                      <span>
+                        {details.policy?.formula ||
+                          'final score = task-specific points × 0.75 + global points × 0.18 + task count × 0.07 + already planned load + repeat-task penalties. The lowest final score is assigned.'}
+                      </span>
+                    </div>
 
-                {selectedCandidate && (
-                  <div className="assignment-winner-box">
-                    <b>Selected: {item.assignedPerson}</b>
-                    <span>Final score: {formatPoints(selectedCandidate.finalScore)}</span>
-                    <small>
-                      {t.policyTaskSpecific}: {formatPoints(selectedCandidate.taskSpecificScore)} × 0.75 = {formatPoints(selectedCandidate.weightedTaskSpecific)} · Historical first-cycle part: {formatPoints(selectedCandidate.historicalTaskCredit || 0)} · {t.policyGlobalPoints}: {formatPoints(selectedCandidate.globalPointsScore)} × 0.18 = {formatPoints(selectedCandidate.weightedGlobalPoints)} · {t.policyTaskCount}: {formatPoints(selectedCandidate.taskCountScore)} × 0.07 = {formatPoints(selectedCandidate.weightedTaskCount)} · Planned load: {formatPoints(selectedCandidate.plannedLoad)} · Repeat penalty: {formatPoints(Number(selectedCandidate.exactRepeatPenalty || 0) + Number(selectedCandidate.groupRepeatPenalty || 0))}
-                    </small>
-                  </div>
-                )}
+                    {!!historicalCredits.length && (
+                      <div className="assignment-info-box">
+                        <b>{t.firstCycleHistoricalCreditsUsed}</b>
+                        <p>{t.firstCycleHistoricalCreditsHelp}</p>
 
-                {runnerUpCandidate && (
-                  <div className="assignment-runner-up-box">
-                    <b>Closest alternative: {runnerUpCandidate.person}</b>
-                    <span>Final score: {formatPoints(runnerUpCandidate.finalScore)}</span>
-                    <small>
-                      {runnerUpCandidate.person} was not selected because their final score was higher after the same formula and checks.
-                    </small>
-                  </div>
-                )}
-
-                {!!candidates.length && (
-                  <div className="assignment-candidate-list">
-                    <b>All candidate score breakdowns</b>
-                    {candidates.map(candidate => (
-                      <div
-                        className={`assignment-candidate-row ${normalizeName(candidate.person) === normalizeName(item.assignedPerson) ? 'selected' : ''}`}
-                        key={`${item.id}-${candidate.person}`}
-                      >
-                        <div className="assignment-candidate-top">
-                          <b>{candidate.person}</b>
-                          <span>{formatPoints(candidate.finalScore)}</span>
-                        </div>
-                        <div className="assignment-candidate-breakdown">
-                          <span>Task raw: {formatPoints(candidate.taskSpecificScore)}</span>
-                          <span>Current app task raw: {formatPoints(candidate.currentTaskSpecificScore || 0)}</span>
-                          <span>First-cycle history raw: {formatPoints(candidate.historicalTaskCredit || 0)}</span>
-                          <span>Task weighted: {formatPoints(candidate.weightedTaskSpecific)}</span>
-                          <span>Global raw: {formatPoints(candidate.globalPointsScore)}</span>
-                          <span>Global weighted: {formatPoints(candidate.weightedGlobalPoints)}</span>
-                          <span>Task count: {formatPoints(candidate.taskCountScore)}</span>
-                          <span>Count weighted: {formatPoints(candidate.weightedTaskCount)}</span>
-                          <span>Planned load: {formatPoints(candidate.plannedLoad)}</span>
-                          <span>Exact repeat penalty: {formatPoints(candidate.exactRepeatPenalty)}</span>
-                          <span>Group repeat penalty: {formatPoints(candidate.groupRepeatPenalty)}</span>
-                          <span>Last same-task date: {candidate.lastTaskDate && candidate.lastTaskDate !== '1900-01-01' ? fmt(candidate.lastTaskDate, '', lang) : t.noRecord}</span>
-                          <span>Tie rank: {candidate.tieRank}</span>
+                        <div className="assignment-chip-row">
+                          {historicalCredits.map((credit, index) => (
+                            <span key={`${credit.person || credit.taskId}-${index}`}>
+                              {normalizeName(credit.person)}: {formatPoints(credit.creditWeight || 1)}
+                            </span>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )}
 
-                {item.details?.bundledVacuum && (
-                  <div className="assignment-people-box">
-                    <span><b>Bundled vacuum:</b> yes</span>
-                    {item.details?.bundledVacuumOriginalPerson && (
-                      <span><b>Original vacuum assignee:</b> {item.details.bundledVacuumOriginalPerson}</span>
+                    {details.partialCycle && (
+                      <div className="assignment-info-box">
+                        <b>{t.partialCycleCheck}</b>
+                        <p>
+                          Completed so far: {formatNumber((details.partialCycle.completionRatio || 0) * 100, lang, 0)}%.
+                          {' '}Substantial-completion threshold: {formatNumber((details.partialCycle.threshold || 0.7) * 100, lang, 0)}%.
+                        </p>
+                        <p>
+                          Because this is below the threshold, the system keeps the same open cycle instead of treating it as a full completion.
+                        </p>
+                      </div>
+                    )}
+
+                    {!!unavailablePeople.length && (
+                      <div className="assignment-info-box">
+                        <b>{t.unavailableFlatmates}</b>
+                        <div className="assignment-chip-row">
+                          {unavailablePeople.map(person => (
+                            <span key={person}>{normalizeName(person)}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {!!candidates.length && (
+                      <div className="assignment-candidate-section">
+                        <h3>{t.allCandidates}</h3>
+
+                        <div className="assignment-candidate-list">
+                          {sortedCandidates.map(candidate => {
+                            const name = candidateName(candidate);
+                            const selected = candidate.selected || normalizeName(name) === normalizeName(item.assignedPerson);
+                            const sameTaskPenalty = asNumber(candidate.sameTaskRepeatPenalty, 0);
+                            const groupPenalty = asNumber(candidate.groupRepeatPenalty, 0);
+
+                            return (
+                              <div
+                                className={`assignment-candidate-card ${selected ? 'selected' : ''}`}
+                                key={name}
+                              >
+                                <div className="candidate-head">
+                                  <b>
+                                    {name}
+                                    {selected ? ` — ${t.selected}` : ''}
+                                  </b>
+                                  <strong>{formatPoints(candidateScore(candidate))}</strong>
+                                </div>
+
+                                <div className="candidate-score-grid">
+                                  {renderCandidateMetric(
+                                    'Task-specific',
+                                    scoreLabel(candidate, 'taskSpecificRaw', 'taskSpecificScore'),
+                                    `× 0.75 = ${scoreLabel(candidate, 'taskSpecificWeighted')}`
+                                  )}
+                                  {renderCandidateMetric(
+                                    'Global points',
+                                    scoreLabel(candidate, 'globalPointsRaw', 'globalPointsScore'),
+                                    `× 0.18 = ${scoreLabel(candidate, 'globalPointsWeighted')}`
+                                  )}
+                                  {renderCandidateMetric(
+                                    'Task count',
+                                    scoreLabel(candidate, 'taskCountRaw', 'taskCountScore'),
+                                    `× 0.07 = ${scoreLabel(candidate, 'taskCountWeighted')}`
+                                  )}
+                                  {renderCandidateMetric(
+                                    'Planned load',
+                                    scoreLabel(candidate, 'plannedLoad')
+                                  )}
+                                  {renderCandidateMetric(
+                                    'Repeat penalty',
+                                    formatPoints(sameTaskPenalty + groupPenalty)
+                                  )}
+                                  {renderCandidateMetric(
+                                    'Tie rank',
+                                    candidate.tieBreakRank ?? '-'
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {!!steps.length && (
+                      <div className="assignment-steps-box">
+                        <b>{t.decisionProcess}</b>
+                        <ol>
+                          {steps.map((step, index) => (
+                            <li key={`${item.id}-step-${index}`}>{step}</li>
+                          ))}
+                        </ol>
+                      </div>
                     )}
                   </div>
                 )}
@@ -4743,7 +4531,7 @@ function App() {
             </button>
           )}
         </div>
-      </div>
+      </section>
     );
   }
 

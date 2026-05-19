@@ -18,6 +18,14 @@ const HISTORICAL_ASSIGNMENT_CREDIT_TYPES = new Set([
   'baseline_history'
 ]);
 
+// Legacy/current DB rows with this type are only due-date seeds. They must
+// keep working for schedule calculation, but they are not real completions
+// and must not affect fairness, task counts, repeat penalties, or first-cycle
+// history detection.
+const SCHEDULE_SEED_COMPLETION_TYPES = new Set([
+  'schedule_seed'
+]);
+
 export const FLOOR_MIN_GAP_DAYS = 10;
 export const FLOOR_BUNDLE_WINDOW_DAYS = 5;
 
@@ -266,9 +274,17 @@ function isHistoricalAssignmentCreditLog(log) {
   return HISTORICAL_ASSIGNMENT_CREDIT_TYPES.has(String(log?.completionType || ''));
 }
 
+function isScheduleSeedLog(log) {
+  return SCHEDULE_SEED_COMPLETION_TYPES.has(String(log?.completionType || ''));
+}
+
+function isFairnessIgnoredLog(log) {
+  return isHistoricalAssignmentCreditLog(log) || isScheduleSeedLog(log);
+}
+
 function isSubstantialCompletionLog(log) {
   if (!log || log.isDummy) return false;
-  if (isHistoricalAssignmentCreditLog(log)) return false;
+  if (isFairnessIgnoredLog(log)) return false;
 
   return Number(log.completionRatio || 1) >= SUBSTANTIAL_COMPLETION_THRESHOLD;
 }
@@ -586,7 +602,7 @@ export function calculateScores(people, logs, task, activePeriodId = null) {
   const historicalCreditLogs = [];
 
   for (const log of logs || []) {
-    if (isHistoricalAssignmentCreditLog(log)) continue;
+    if (isFairnessIgnoredLog(log)) continue;
     if (log.isDummy) continue;
     if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
     if (taskIds.length && !taskIds.includes(log.taskId)) continue;
@@ -669,7 +685,7 @@ export function calculateGlobalWorkload(
   );
 
   for (const log of logs || []) {
-    if (isHistoricalAssignmentCreditLog(log)) continue;
+    if (isFairnessIgnoredLog(log)) continue;
     if (log.isDummy) continue;
     if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
 
@@ -1215,18 +1231,14 @@ export async function syncAssignmentLogs(env, state, rows = null, today = todayI
 
       const lastAssignedPerson = normalizeName(lastAssignment?.assignedPerson);
       const currentAssignedPerson = normalizeName(row.person);
-      const existingDetails = (() => {
-        try {
-          return lastAssignment?.detailsJson ? JSON.parse(lastAssignment.detailsJson) : {};
-        } catch (_error) {
-          return {};
-        }
-      })();
-
-      const existingVersion = Number(existingDetails.assignmentLogVersion || 0);
       const currentSource = row.assignmentExplanation?.assignmentSource || 'fairness_policy';
 
-      if (lastAssignedPerson === currentAssignedPerson && existingVersion >= 2) {
+      // Do not write a new transparency row when the backend assignee did not
+      // actually change. Older rows may not have assignmentLogVersion = 2, but
+      // inserting a new row would create confusing entries like
+      // "Changed from Naveen to Naveen". A real transparency log should only
+      // be created when there is no saved assignment yet or the assignee changes.
+      if (lastAssignment && lastAssignedPerson === currentAssignedPerson) {
         continue;
       }
 
@@ -1421,7 +1433,7 @@ export function buildScoreSummary(state, periodId = null) {
   }
 
   for (const log of logs) {
-    if (isHistoricalAssignmentCreditLog(log)) continue;
+    if (isFairnessIgnoredLog(log)) continue;
     if (log.isDummy) continue;
     if (activePeriodId && log.scoringPeriodId !== activePeriodId) continue;
 
@@ -1652,7 +1664,7 @@ export async function readState(env) {
   state.currentLogs = state.logs.filter(log =>
     log.scoringPeriodId === state.activeScoringPeriod?.id &&
     !log.isDummy &&
-    !isHistoricalAssignmentCreditLog(log)
+    !isFairnessIgnoredLog(log)
   );
   state.scores = buildScoreSummary({ ...state, tasks: allTaskRows });
   state.periodHistory = buildPeriodHistory({ ...state, tasks: allTaskRows });

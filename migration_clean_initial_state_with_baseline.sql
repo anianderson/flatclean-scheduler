@@ -218,13 +218,13 @@ SELECT
   NULL,
   NULL,
   'first_cycle_assignment_credit',
-  COALESCE(base_weight, 1),
+  COALESCE(base_weight, 1) * 2,
   0,
   1,
   'driveway_backyard:first_cycle_history:naveen',
   NULL,
   1,
-  'Hidden historical assignment credit only. Naveen did driveway/backyard before the app. Used only for the first substantial app cycle.'
+  'Hidden double historical assignment credit only. Naveen did driveway/backyard before the app. Used only for the first substantial app cycle so heavy pre-app work is not immediately repeated.'
 FROM tasks
 WHERE id = 'driveway_backyard';
 
@@ -256,13 +256,13 @@ SELECT
   NULL,
   NULL,
   'first_cycle_assignment_credit',
-  COALESCE(base_weight, 1),
+  COALESCE(base_weight, 1) * 2,
   0,
   1,
   'driveway_backyard:first_cycle_history:melanie',
   NULL,
   1,
-  'Hidden historical assignment credit only. Melanie did driveway/backyard before the app. Used only for the first substantial app cycle.'
+  'Hidden double historical assignment credit only. Melanie did driveway/backyard before the app. Used only for the first substantial app cycle so heavy pre-app work is not immediately repeated.'
 FROM tasks
 WHERE id = 'driveway_backyard';
 
@@ -294,13 +294,13 @@ SELECT
   NULL,
   NULL,
   'first_cycle_assignment_credit',
-  COALESCE(base_weight, 1),
+  COALESCE(base_weight, 1) * 2,
   0,
   1,
   'bath_toilet_basin:first_cycle_history:animesh',
   NULL,
   1,
-  'Hidden historical assignment credit only. Animesh did bathtub/toilet/wash basin before the app. Used only for the first substantial app cycle.'
+  'Hidden double historical assignment credit only. Animesh did bathtub/toilet/wash basin before the app. Used only for the first substantial app cycle so heavy pre-app work is not immediately repeated.'
 FROM tasks
 WHERE id = 'bath_toilet_basin';
 

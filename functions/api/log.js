@@ -26,6 +26,7 @@ import { bilingualEmail, sendAndLog } from './email.js';
 
 const ADVANCE_THRESHOLD = SUBSTANTIAL_COMPLETION_THRESHOLD;
 const DEEP_WITHOUT_VACUUM_FACTOR = 0.7;
+const MAX_NEXT_DUE_DRIFT_DAYS = 3;
 const MILESTONES = [5, 10, 25, 50, 75, 100, 125, 150, 175, 200];
 
 function getCompletionType({
@@ -103,15 +104,34 @@ function calculateNextDueDate({
 
   if (!shouldAdvance) return scheduledDueDate || actualDoneDate;
 
-  if (forceActualDateAnchor) {
-    return addDays(actualDoneDate, intervalDays);
+  const numericInterval = Number(intervalDays || 0);
+
+  const anchorDate = forceActualDateAnchor
+    ? actualDoneDate
+    : scheduledDueDate && actualDoneDate <= scheduledDueDate
+      ? scheduledDueDate
+      : actualDoneDate;
+
+  const calculatedNextDueDate = addDays(anchorDate, numericInterval);
+
+  // Safety cap for accidental repeated same-day / close-together completions:
+  // even when a chore is marked before its scheduled date, the next scheduled
+  // date must never move more than 3 days beyond done date + frequency.
+  // This prevents duplicate taps/entries from pushing a chore months ahead.
+  const maximumAllowedNextDueDate = addDays(
+    actualDoneDate,
+    numericInterval + MAX_NEXT_DUE_DRIFT_DAYS
+  );
+
+  if (
+    calculatedNextDueDate &&
+    maximumAllowedNextDueDate &&
+    calculatedNextDueDate > maximumAllowedNextDueDate
+  ) {
+    return maximumAllowedNextDueDate;
   }
 
-  const anchorDate = scheduledDueDate && actualDoneDate <= scheduledDueDate
-    ? scheduledDueDate
-    : actualDoneDate;
-
-  return addDays(anchorDate, intervalDays);
+  return calculatedNextDueDate;
 }
 
 function isStandaloneVacuumLog(log) {

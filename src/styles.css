@@ -3490,3 +3490,116 @@ input[type="date"] {
   outline-offset: 4px;
   border-radius: 18px;
 }
+
+/* Activity undo + admin flow */
+.activity-log-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.activity-log-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.activity-delete-button {
+  min-height: 40px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.admin-card > h3 {
+  margin: 6px 0 -8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(226, 232, 240, .9);
+}
+
+.admin-activity-section {
+  margin-top: 4px;
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, .12), transparent 34%),
+    rgba(248, 250, 252, .9);
+}
+
+.admin-recent-log-list {
+  max-height: 420px;
+}
+
+.admin-section-summary {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 2px;
+  list-style: none;
+}
+
+.admin-section-summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-section-summary span {
+  font-size: 1.08rem;
+  font-weight: 950;
+  color: #0f172a;
+}
+
+.admin-section-summary small {
+  color: #64748b;
+  font-weight: 750;
+  text-align: right;
+  line-height: 1.35;
+}
+
+.admin-section-summary::after {
+  content: '⌄';
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(238, 242, 255, .95);
+  color: #4338ca;
+  font-weight: 950;
+  transition: transform .18s ease;
+}
+
+.task-admin-section[open] .admin-section-summary {
+  margin-bottom: 14px;
+}
+
+.task-admin-section[open] .admin-section-summary::after {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 720px) {
+  .activity-log-row {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-delete-button {
+    width: 100%;
+  }
+
+  .admin-section-summary {
+    align-items: flex-start;
+  }
+
+  .admin-section-summary small {
+    text-align: left;
+  }
+}

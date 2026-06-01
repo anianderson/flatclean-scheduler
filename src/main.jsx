@@ -176,6 +176,16 @@ const translations = {
     vacationDeletedDone: 'Vacation dates deleted.',
     binUpdatedDone: 'Bin status updated.',
     choreSavedDone: 'Chore saved.',
+    activityDeletedDone: 'Activity removed. Dates and points were recalculated.',
+    undoRecentActivity: 'Undo recent activity',
+    undoRecentActivityHelp: 'Remove a mistaken completion. The schedule and points are recalculated from the remaining activity.',
+    adminActivityFixTitle: 'Fix mistaken activity',
+    adminActivityFixHelp: 'Admins can remove a wrongly marked completion from recent activity. Use this for duplicate taps or mistaken entries.',
+    deleteActivity: 'Remove activity',
+    deleteOwnActivity: 'Remove my mistaken entry',
+    noRecentActivity: 'No recent activity.',
+    ownActivityOnly: 'You can remove only your own recent entries here. Admins can remove any recent entry from the Admin page.',
+    adminFlowHelp: 'Recommended flow: fix mistaken activity first, then manage flatmates and vacation dates, and open chore settings only when you need to change the rota.',
     badge: 'Shared flat chore planner',
     title: 'Cleaning schedule',
     subtitle: 'A fair cleaning rota for the flat, with reminders, points, history, and away dates.',
@@ -457,6 +467,16 @@ const translations = {
     vacationDeletedDone: 'Urlaub gelöscht.',
     binUpdatedDone: 'Tonnenstatus aktualisiert.',
     choreSavedDone: 'Aufgabe gespeichert.',
+    activityDeletedDone: 'Aktivität entfernt. Termine und Punkte wurden neu berechnet.',
+    undoRecentActivity: 'Letzte Aktivität zurücknehmen',
+    undoRecentActivityHelp: 'Entferne einen versehentlich gespeicherten Eintrag. Termine und Punkte werden aus den verbleibenden Aktivitäten neu berechnet.',
+    adminActivityFixTitle: 'Falsche Aktivität korrigieren',
+    adminActivityFixHelp: 'Admins können einen falsch markierten Eintrag aus den letzten Aktivitäten entfernen. Nutze das bei doppelten Klicks oder falschen Einträgen.',
+    deleteActivity: 'Aktivität entfernen',
+    deleteOwnActivity: 'Meinen falschen Eintrag entfernen',
+    noRecentActivity: 'Keine aktuellen Aktivitäten.',
+    ownActivityOnly: 'Hier kannst du nur deine eigenen aktuellen Einträge entfernen. Admins können Einträge auf der Admin-Seite entfernen.',
+    adminFlowHelp: 'Empfohlener Ablauf: zuerst falsche Aktivitäten korrigieren, dann Mitbewohner und Urlaub verwalten, und Aufgabeneinstellungen nur öffnen, wenn der Plan geändert werden soll.',
     badge: 'WG-Putzplan',
     title: 'Putzplan',
     subtitle: 'Ein fairer Putzplan für die WG, mit Erinnerungen, Punkten, Historie und Abwesenheiten.',
@@ -2150,6 +2170,8 @@ function App() {
         } else {
           setSuccess(t.savedDone);
         }
+      } else if (adminModal.endpoint === '/api/activity') {
+        setSuccess(t.activityDeletedDone);
       } else if (adminModal.action === 'delete') {
         setSuccess(t.deletedDone);
       } else if (adminModal.action === 'add') {
@@ -2245,6 +2267,101 @@ function App() {
         id
       },
       '/api/availability'
+    );
+  }
+
+  function isOwnRecentActivity(log) {
+    return (
+      !!log?.id &&
+      normalizeName(log.actualPerson || log.person) === normalizeName(currentUser)
+    );
+  }
+
+  async function removeOwnActivity(log) {
+    if (!isOwnRecentActivity(log)) return;
+
+    try {
+      setError('');
+      setSuccess('');
+      setBusyAction(`activity:${log.id}`);
+
+      await apiPost('/api/activity', {
+        action: 'delete_log',
+        logId: log.id,
+        person: currentUser
+      });
+
+      setSuccess(t.activityDeletedDone);
+      clearSuccessSoon();
+    } catch (e) {
+      setError(e.message || t.saveError);
+    } finally {
+      setBusyAction('');
+    }
+  }
+
+  function removeActivityAsAdmin(log) {
+    if (!log?.id) return;
+
+    openAdminModal(
+      'delete_activity',
+      {
+        action: 'delete_log',
+        admin: true,
+        logId: log.id
+      },
+      '/api/activity'
+    );
+  }
+
+  function renderActivityLogRow(log, { admin = false } = {}) {
+    const task = taskById[log.taskId] || { id: log.taskId };
+    const actor = normalizeName(log.actualPerson || log.person);
+    const canRemove = admin || isOwnRecentActivity(log);
+    const actionKey = `activity:${log.id}`;
+    const isBusy = busyAction === actionKey || adminSaving;
+
+    return (
+      <div className="log activity-log-row" key={log.id}>
+        <div className="activity-log-main">
+          <b>{taskLabel(task)}</b>
+          <span>
+            <CalendarDays size={14} />
+            {fmt(log.date, '', lang)} {t.by} {actor}
+          </span>
+
+          {log.isPartial && log.completedSubtasks?.length > 0 ? (
+            <small>
+              {t.partiallyCompleted}: {log.completedSubtasks
+                .map(subtask => {
+                  const fullSubtask = task?.subtasks?.find(item => item.id === subtask.id);
+                  return fullSubtask ? getSubtaskName(fullSubtask) : subtask.id;
+                })
+                .join(', ')}
+            </small>
+          ) : (
+            log.note && <small>{log.note}</small>
+          )}
+        </div>
+
+        {canRemove && (
+          <button
+            type="button"
+            className="danger-action activity-delete-button"
+            disabled={isBusy}
+            onClick={() => admin ? removeActivityAsAdmin(log) : removeOwnActivity(log)}
+          >
+            {isBusy ? (
+              <>
+                <Loader2 size={15} className="spin" />
+                {t.processing}
+              </>
+            ) : (
+              admin ? t.deleteActivity : t.deleteOwnActivity
+            )}
+          </button>
+        )}
+      </div>
     );
   }
 
@@ -3339,37 +3456,22 @@ function App() {
   }
 
   function renderActivityPage() {
+    const visibleLogs = (data.currentLogs || []).slice(0, 80);
+
     return (
       <section className="card">
         <div className="card-title-block">
           <h2>{t.recentLog}</h2>
           <p>{t.recentLogHelp}</p>
+          <p className="admin-section-help">{t.ownActivityOnly}</p>
         </div>
 
         <div className="log-list full-log-list">
-          {(data.currentLogs || []).slice(0, 80).map(log => (
-            <div className="log" key={log.id}>
-              <b>{taskLabel(taskById[log.taskId] || { id: log.taskId })}</b>
-              <span>
-                <CalendarDays size={14} />
-                {fmt(log.date, '', lang)} {t.by}{' '}
-                {normalizeName(log.actualPerson || log.person)}
-              </span>
-              {log.isPartial && log.completedSubtasks?.length > 0 ? (
-              <small>
-                {t.partiallyCompleted}: {log.completedSubtasks
-                  .map(subtask => {
-                    const task = taskById[log.taskId];
-                    const fullSubtask = task?.subtasks?.find(item => item.id === subtask.id);
-                    return fullSubtask ? getSubtaskName(fullSubtask) : subtask.id;
-                  })
-                  .join(', ')}
-              </small>
-            ) : (
-              log.note && <small>{log.note}</small>
-            )}
-            </div>
-          ))}
+          {visibleLogs.length ? (
+            visibleLogs.map(log => renderActivityLogRow(log))
+          ) : (
+            <div className="empty-state">{t.noRecentActivity}</div>
+          )}
         </div>
       </section>
     );
@@ -3518,12 +3620,34 @@ function App() {
           <div>
             <h2>{t.adminPanel}</h2>
             <p>{t.adminHelp}</p>
+            <p className="admin-section-help">{t.adminFlowHelp}</p>
           </div>
         </div>
 
-        <div className="admin-section-block task-admin-section simple-task-admin-section">
-          <h3>{t.adminTasks}</h3>
-          <p className="admin-section-help">{t.adminTasksHelp}</p>
+        <div className="admin-section-block admin-activity-section">
+          <div className="simple-admin-card-head">
+            <div>
+              <h3>{t.adminActivityFixTitle}</h3>
+              <p>{t.adminActivityFixHelp}</p>
+            </div>
+          </div>
+
+          <div className="log-list admin-recent-log-list">
+            {(data.currentLogs || []).slice(0, 12).length ? (
+              (data.currentLogs || []).slice(0, 12).map(log =>
+                renderActivityLogRow(log, { admin: true })
+              )
+            ) : (
+              <div className="empty-state">{t.noRecentActivity}</div>
+            )}
+          </div>
+        </div>
+
+        <details className="admin-section-block task-admin-section simple-task-admin-section">
+          <summary className="admin-section-summary">
+            <span>{t.adminTasks}</span>
+            <small>{t.adminTasksHelp}</small>
+          </summary>
 
           <div className="simple-admin-card">
             <div className="simple-admin-card-head">
@@ -3939,7 +4063,7 @@ function App() {
               </button>
             </div>
           </div>
-        </div>
+        </details>
 
         <h3>{t.activeUsers}</h3>
 
@@ -5020,7 +5144,9 @@ function App() {
                 <p>
                   {adminModal.endpoint === '/api/availability'
                     ? t.adminPinForVacationHelp
-                    : t.adminPinHelp}
+                    : adminModal.endpoint === '/api/activity'
+                      ? t.adminActivityFixHelp
+                      : t.adminPinHelp}
                 </p>
               </div>
 
